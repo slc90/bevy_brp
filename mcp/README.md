@@ -94,21 +94,28 @@ fn main() {
 }
 ```
 
-For enhanced features such as asking the coding agent to take a screenshot or to send keyboard input to your running app, also add [bevy_brp_extras](../extras/):
+For the complete Agent path, including wake-aware transport and enhanced features such as screenshots
+and keyboard input, add `bevy_brp_runtime` from the same Git tag:
+
+```toml
+[dependencies]
+bevy_brp_runtime = { git = "https://github.com/slc90/bevy_brp", tag = "v0.1.0" }
+```
 
 ```rust
 use bevy::prelude::*;
-use bevy_brp_extras::BrpExtrasPlugin;
+use bevy_brp_runtime::BrpRuntimePlugin;
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_plugins(BrpExtrasPlugin) // Enhanced BRP features
+        .add_plugins(BrpRuntimePlugin::default())
         .run();
 }
 ```
 
-In either case you'll need to make sure to enable bevy's "bevy_remote" feature.
+`BrpRuntimePlugin` installs [bevy_brp_extras](../extras/) without its stock HTTP transport and adds
+the wake-aware runtime transport used by the Agent path.
 
 ### Application-defined BRP methods and agent tools
 

@@ -53,7 +53,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-bevy_brp_extras = "0.22.7"
+bevy_brp_extras = { git = "https://github.com/slc90/bevy_brp", tag = "v0.1.0" }
 ```
 
 Add the plugin to your Bevy app
