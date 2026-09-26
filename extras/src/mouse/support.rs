@@ -18,6 +18,7 @@ use serde_json::Value;
 
 use super::button::TimedButtonRelease;
 use super::cursor::SimulatedCursorPosition;
+use crate::activity;
 use crate::constants::MISSING_REQUEST_PARAMETERS_MESSAGE;
 use crate::window_event;
 
@@ -116,6 +117,7 @@ pub(super) fn send_timed_button_press(
     window: Entity,
     duration_ms: u32,
 ) {
+    let activity = activity::begin(world);
     // Send button press event to both individual and `WindowEvent` channels
     window_event::write_input_event(
         world,
@@ -128,6 +130,7 @@ pub(super) fn send_timed_button_press(
 
     // Spawn timed release component
     world.spawn(TimedButtonRelease {
+        _activity: activity,
         button,
         window: Some(window),
         timer: Timer::new(

@@ -18,6 +18,8 @@ use serde_json::json;
 
 use super::events;
 use super::key_code::KeyCodeWrapper;
+use crate::activity;
+use crate::activity::BrpExtrasActivityGuard;
 use crate::constants::MISSING_REQUEST_PARAMETERS_MESSAGE;
 
 /// Phase of the text typing state machine
@@ -33,6 +35,8 @@ pub(super) enum TypingPhase {
 /// Used by `type_text` RPC to simulate realistic typing.
 #[derive(Component)]
 pub(super) struct TextTypingQueue {
+    /// 保持 Extras 活跃直到最后一个字符的 release 已产生。
+    _activity:   BrpExtrasActivityGuard,
     /// Characters remaining to type
     chars:        VecDeque<char>,
     /// Currently pressed keys (waiting for release next frame)
@@ -169,7 +173,9 @@ pub(crate) fn type_text_handler(In(params): In<Option<Value>>, world: &mut World
 
     // Spawn the typing queue component
     if !chars.is_empty() {
+        let activity = activity::begin(world);
         world.spawn(TextTypingQueue {
+            _activity: activity,
             chars,
             current_keys: vec![],
             current_char: None,
@@ -210,7 +216,11 @@ pub(super) fn process_text_typing(
                     queue.current_keys.clear();
                     queue.current_char = None;
                 }
-                queue.typing_phase = TypingPhase::PressNext;
+                if queue.chars.is_empty() {
+                    commands.entity(entity).despawn();
+                } else {
+                    queue.typing_phase = TypingPhase::PressNext;
+                }
             },
             TypingPhase::PressNext => {
                 // Press the next character's keys

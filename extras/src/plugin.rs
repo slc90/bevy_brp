@@ -64,6 +64,8 @@ use super::window_title;
 /// On native targets, this also adds `RemoteHttpPlugin` for HTTP transport.
 /// On WASM, only the methods are registered - you need to add your own
 /// transport (e.g. a WebSocket relay).
+/// 调用 [`BrpExtrasPlugin::without_http_transport`] 时，所有 target 都只注册
+/// methods 和相关工作 system，由宿主自行安装 transport。
 ///
 /// # HTTP transport configuration
 ///
@@ -146,6 +148,19 @@ impl BrpExtrasPlugin<Unconfigured> {
     ) -> BrpExtrasPlugin<HttpPluginConfigured> {
         BrpExtrasPlugin {
             http_config:  HttpPluginConfigured(Mutex::new(Some(plugin))),
+            port_display: None,
+        }
+    }
+
+    /// 创建只注册 Extras methods、由宿主提供 transport 的 plugin。
+    ///
+    /// 该入口仍会安装或复用 [`RemotePlugin`]，但不会添加 [`RemoteHttpPlugin`]、读取端口配置
+    /// 或修改 Winit update mode。
+    #[must_use]
+    pub const fn without_http_transport() -> BrpExtrasPlugin<ExternalTransport> {
+        BrpExtrasPlugin {
+            http_config: ExternalTransport,
+            #[cfg(not(target_arch = "wasm32"))]
             port_display: None,
         }
     }
@@ -236,6 +251,10 @@ impl Plugin for BrpExtrasPlugin<Unconfigured> {
     }
 }
 
+impl Plugin for BrpExtrasPlugin<ExternalTransport> {
+    fn build(&self, app: &mut App) { build_shared(app); }
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 impl Plugin for BrpExtrasPlugin<PortConfigured> {
     fn build(&self, app: &mut App) {
@@ -298,6 +317,9 @@ pub enum PortDisplay {
 /// No HTTP configuration specified — uses `BRP_EXTRAS_PORT` env var or default port.
 pub struct Unconfigured;
 
+/// HTTP transport 由宿主安装，Extras 只负责 methods 与工作 system。
+pub struct ExternalTransport;
+
 /// HTTP transport configured with an explicit port.
 #[cfg(not(target_arch = "wasm32"))]
 pub struct PortConfigured(u16);
@@ -345,6 +367,7 @@ impl HasEffectivePort for PortConfigured {
 /// Common plugin setup shared across all HTTP configuration states.
 fn build_shared(app: &mut App) {
     app.init_resource::<RegisteredAgentTools>();
+    app.init_resource::<crate::activity::BrpExtrasActivity>();
 
     // Add `RemotePlugin` if not already present
     if !app.is_plugin_added::<RemotePlugin>() {
@@ -533,6 +556,38 @@ mod tests {
 
     const UNEXPECTED_ENTITY_CAPTURE_METHOD: &str = "brp_extras/screenshot_entity";
 
+    fn assert_all_extras_methods_registered(app: &App) {
+        let methods = app.world().resource::<RemoteMethods>();
+        let method_names = [
+            METHOD_AGENT_TOOLS,
+            METHOD_CLICK_MOUSE,
+            METHOD_DOUBLE_CLICK_MOUSE,
+            METHOD_DOUBLE_TAP_GESTURE,
+            METHOD_DRAG_MOUSE,
+            METHOD_MOVE_MOUSE,
+            METHOD_PINCH_GESTURE,
+            METHOD_ROTATION_GESTURE,
+            METHOD_SCREENSHOT,
+            METHOD_SCROLL_MOUSE,
+            METHOD_SEND_KEYS,
+            METHOD_SEND_MOUSE_BUTTON,
+            METHOD_SET_WINDOW_TITLE,
+            METHOD_SHUTDOWN,
+            METHOD_TYPE_TEXT,
+        ];
+
+        for method_name in method_names {
+            let method = format!("{EXTRAS_COMMAND_PREFIX}{method_name}");
+            assert!(methods.get(&method).is_some(), "missing method: {method}");
+        }
+
+        #[cfg(feature = "diagnostics")]
+        {
+            let diagnostics_method = format!("{EXTRAS_COMMAND_PREFIX}{METHOD_GET_DIAGNOSTICS}");
+            assert!(methods.get(&diagnostics_method).is_some());
+        }
+    }
+
     #[test]
     fn entity_capture_uses_only_the_existing_screenshot_method() {
         let mut app = App::new();
@@ -543,5 +598,45 @@ mod tests {
 
         assert!(methods.get(&screenshot_method).is_some());
         assert!(methods.get(UNEXPECTED_ENTITY_CAPTURE_METHOD).is_none());
+    }
+
+    /// 验证 methods-only 入口保留完整 Extras 能力与 RemotePlugin，同时不安装 HTTP transport。
+    #[test]
+    fn external_transport_registers_methods_without_http_plugin() {
+        let mut app = App::new();
+        app.add_plugins(BrpExtrasPlugin::without_http_transport());
+
+        assert!(app.is_plugin_added::<RemotePlugin>());
+        assert!(!app.is_plugin_added::<RemoteHttpPlugin>());
+        assert_all_extras_methods_registered(&app);
+    }
+
+    /// 验证默认入口继续安装上游管理的 HTTP transport。
+    #[test]
+    fn default_configuration_keeps_http_plugin() {
+        let mut app = App::new();
+        app.add_plugins(BrpExtrasPlugin);
+
+        assert!(app.is_plugin_added::<RemoteHttpPlugin>());
+        assert_all_extras_methods_registered(&app);
+    }
+
+    /// 验证复用宿主已有 `RemotePlugin` 时不会移除或覆盖其他 namespace 的 method。
+    #[test]
+    fn external_transport_preserves_unrelated_methods() {
+        const UNRELATED_METHOD: &str = "example/unrelated";
+
+        let mut app = App::new();
+        app.add_plugins(RemotePlugin::default());
+        let handler = app.world_mut().register_system(shutdown::handler);
+        app.world_mut()
+            .resource_mut::<RemoteMethods>()
+            .insert(UNRELATED_METHOD.to_string(), RemoteMethodSystemId::Instant(handler));
+
+        app.add_plugins(BrpExtrasPlugin::without_http_transport());
+
+        let methods = app.world().resource::<RemoteMethods>();
+        assert!(methods.get(UNRELATED_METHOD).is_some());
+        assert_all_extras_methods_registered(&app);
     }
 }

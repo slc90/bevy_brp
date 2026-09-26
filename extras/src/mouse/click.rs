@@ -18,6 +18,8 @@ use super::constants::DEFAULT_DOUBLE_CLICK_DELAY_MS;
 use super::constants::DEFAULT_MOUSE_DURATION_MS;
 use super::support;
 use super::support::EmptyParamsPolicy;
+use crate::activity;
+use crate::activity::BrpExtrasActivityGuard;
 use crate::constants::METHOD_CLICK_MOUSE;
 use crate::constants::METHOD_DOUBLE_CLICK_MOUSE;
 use crate::window_event;
@@ -75,6 +77,8 @@ struct DoubleClickMouseResponse {
 /// temporal separation between the two clicks.
 #[derive(Component)]
 pub(super) struct ScheduledClick {
+    /// 在第二次 click 的 timed release 接手前保持活动责任。
+    pub activity:       Option<BrpExtrasActivityGuard>,
     /// Which button to click
     pub button:         MouseButton,
     /// Which window to target (None = primary)
@@ -135,7 +139,9 @@ pub(crate) fn double_click_mouse_handler(
     );
 
     // Schedule second click to happen after delay
+    let activity = activity::begin(world);
     world.spawn(ScheduledClick {
+        activity:       Some(activity),
         button:         request.button,
         window:         Some(window),
         delay_timer:    Timer::new(Duration::from_millis(delay_ms.into()), TimerMode::Once),
@@ -171,6 +177,11 @@ pub(super) fn process_scheduled_clicks(
     for (entity, mut scheduled) in &mut query {
         scheduled.delay_timer.tick(time.delta());
         if scheduled.delay_timer.is_finished() {
+            let Some(activity) = scheduled.activity.take() else {
+                error!(entity = %entity, "ScheduledClick 缺少 activity guard");
+                commands.entity(entity).despawn();
+                continue;
+            };
             // Send press event
             let event = MouseButtonInput {
                 button: scheduled.button,
@@ -182,6 +193,7 @@ pub(super) fn process_scheduled_clicks(
 
             // Spawn timed release
             commands.spawn(TimedButtonRelease {
+                _activity: activity,
                 button: scheduled.button,
                 window: scheduled.window,
                 timer:  Timer::new(

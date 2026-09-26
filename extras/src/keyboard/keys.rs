@@ -20,12 +20,16 @@ use super::constants::DEFAULT_KEY_DURATION_MS;
 use super::constants::MAX_KEY_DURATION_MS;
 use super::events;
 use super::key_code::KeyCodeWrapper;
+use crate::activity;
+use crate::activity::BrpExtrasActivityGuard;
 use crate::constants::MISSING_REQUEST_PARAMETERS_MESSAGE;
 use crate::window_event;
 
 /// Component that tracks keys that need to be released after a duration
 #[derive(Component)]
 pub(super) struct TimedKeyRelease {
+    /// 保持 Extras 活跃直到 release event 已产生。
+    _activity: BrpExtrasActivityGuard,
     /// The key code wrappers to release (stores wrapper for text field generation)
     pub(super) keys:  Vec<KeyCodeWrapper>,
     /// Timer tracking the remaining duration
@@ -129,7 +133,9 @@ pub(crate) fn send_keys_handler(In(params): In<Option<Value>>, world: &mut World
 
     // Always spawn an entity to handle the timed release
     if !wrappers.is_empty() {
+        let activity = activity::begin(world);
         world.spawn(TimedKeyRelease {
+            _activity: activity,
             keys:  wrappers,
             timer: Timer::new(
                 Duration::from_millis(u64::from(request.duration_ms)),

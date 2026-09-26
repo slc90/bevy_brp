@@ -19,6 +19,7 @@ use tempfile::TempPath;
 
 use super::target_rgb_image::EncodedCapture;
 use super::target_rgb_image::TargetRgbImage;
+use crate::activity::BrpExtrasActivityGuard;
 use crate::screenshot::CaptureResponseMetadata;
 
 pub(super) type ImageConverter = fn(Image) -> BrpResult<TargetRgbImage>;
@@ -41,6 +42,7 @@ pub(super) struct OwnedTempCapture {
 
 pub(super) struct WorkerCompletion {
     pub(super) result: BrpResult<OwnedTempCapture>,
+    _activity: BrpExtrasActivityGuard,
 }
 
 pub(super) struct CaptureCompletionChannel {
@@ -70,7 +72,9 @@ pub(super) fn start_capture_worker(
     screenshot_job: ScreenshotJob,
     sender: Sender<WorkerCompletion>,
     converter: ImageConverter,
+    activity: BrpExtrasActivityGuard,
 ) {
+    let notifier = activity.notifier();
     AsyncComputeTaskPool::get()
         .spawn(async move {
             let prepared_job = prepare_capture_job(image, screenshot_job, converter);
@@ -79,13 +83,25 @@ pub(super) fn start_capture_worker(
                     IoTaskPool::get()
                         .spawn(async move {
                             let completion =
-                                write_temporary_capture(prepared_job.job, encoded_capture);
-                            let _ = sender.send(completion);
+                                write_temporary_capture(prepared_job.job, encoded_capture, activity);
+                            if sender.send(completion).is_err() {
+                                warn!("Screenshot completion receiver 已关闭");
+                            }
+                            notifier.notify_progress();
                         })
                         .detach();
                 },
                 Err(error) => {
-                    let _ = sender.send(WorkerCompletion { result: Err(error) });
+                    if sender
+                        .send(WorkerCompletion {
+                            result: Err(error),
+                            _activity: activity,
+                        })
+                        .is_err()
+                    {
+                        warn!("Screenshot completion receiver 已关闭");
+                    }
+                    notifier.notify_progress();
                 },
             }
         })
@@ -112,6 +128,7 @@ fn prepare_capture_job(
 fn write_temporary_capture(
     job: ScreenshotJob,
     encoded_capture: EncodedCapture,
+    activity: BrpExtrasActivityGuard,
 ) -> WorkerCompletion {
     let result = create_temporary_file(&job.path, &encoded_capture.bytes).map(|temp_path| {
         OwnedTempCapture {
@@ -123,7 +140,10 @@ fn write_temporary_capture(
         }
     });
 
-    WorkerCompletion { result }
+    WorkerCompletion {
+        result,
+        _activity: activity,
+    }
 }
 
 pub(super) fn create_temporary_file(destination: &Path, bytes: &[u8]) -> BrpResult<TempPath> {

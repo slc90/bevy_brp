@@ -10,10 +10,14 @@ use super::constants::DEFERRED_SHUTDOWN_FRAMES;
 use super::constants::RESPONSE_MESSAGE_FIELD;
 use super::constants::RESPONSE_PID_FIELD;
 use super::constants::RESPONSE_SUCCESS_FIELD;
+use crate::activity;
+use crate::activity::BrpExtrasActivityGuard;
 
 /// Resource to track pending shutdown
 #[derive(Resource)]
 pub(crate) struct PendingShutdown {
+    /// 保持 Extras 活跃直到应用退出 event 已产生或 Resource 被移除。
+    _activity: BrpExtrasActivityGuard,
     frames_remaining: u32,
 }
 
@@ -29,7 +33,9 @@ pub(crate) fn handler(In(_): In<Option<Value>>, world: &mut World) -> BrpResult 
     info!("Call stack: {:?}", std::backtrace::Backtrace::capture());
 
     // Schedule shutdown for a few frames from now to allow the response to be sent
+    let activity = activity::begin(world);
     world.insert_resource(PendingShutdown {
+        _activity: activity,
         frames_remaining: DEFERRED_SHUTDOWN_FRAMES,
     });
 
@@ -46,6 +52,7 @@ pub(crate) fn handler(In(_): In<Option<Value>>, world: &mut World) -> BrpResult 
 pub(super) fn deferred_shutdown_system(
     pending: Option<ResMut<PendingShutdown>>,
     mut exit: MessageWriter<AppExit>,
+    mut commands: Commands,
 ) {
     if let Some(mut shutdown) = pending {
         shutdown.frames_remaining = shutdown.frames_remaining.saturating_sub(1);
@@ -53,6 +60,7 @@ pub(super) fn deferred_shutdown_system(
         if shutdown.frames_remaining == 0 {
             info!("Deferred shutdown triggered - sending AppExit::Success event");
             exit.write(AppExit::Success);
+            commands.remove_resource::<PendingShutdown>();
         }
     }
 }

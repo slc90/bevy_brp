@@ -20,6 +20,8 @@ use super::constants::MIN_DRAG_FRAMES;
 use super::cursor::SimulatedCursorPosition;
 use super::support;
 use super::support::EmptyParamsPolicy;
+use crate::activity;
+use crate::activity::BrpExtrasActivityGuard;
 use crate::constants::METHOD_DRAG_MOUSE;
 
 // ============================================================================
@@ -76,6 +78,8 @@ struct DragMouseResponse {
 /// start and end positions. Runs a state machine: Pressed -> Dragging -> Released.
 #[derive(Component)]
 pub(super) struct DragOperation {
+    /// 保持 Extras 活跃直到终点位置和 release event 已产生。
+    pub _activity:     BrpExtrasActivityGuard,
     /// Which button is pressed during drag
     pub button:        MouseButton,
     /// Which window to target (None = primary)
@@ -112,7 +116,9 @@ pub(crate) fn drag_mouse_handler(In(params): In<Option<Value>>, world: &mut Worl
     let window = support::resolve_window(world, request.window)?;
 
     // Spawn drag operation component
+    let activity = activity::begin(world);
     world.spawn(DragOperation {
+        _activity:     activity,
         button:        request.button,
         window:        Some(window),
         start:         request.start,

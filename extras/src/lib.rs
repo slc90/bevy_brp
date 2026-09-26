@@ -206,6 +206,7 @@
 //! rules and the BRP error data returned for a rejected entry.
 
 mod agent_tools;
+mod activity;
 mod constants;
 #[cfg(feature = "diagnostics")]
 mod diagnostics;
@@ -219,8 +220,11 @@ mod window_title;
 
 pub use agent_tools::AgentTool;
 pub use agent_tools::AppAgentToolExt;
+pub use activity::BrpExtrasActivity;
+pub use activity::BrpExtrasActivityState;
 pub use constants::DEFAULT_REMOTE_PORT;
 pub use plugin::BrpExtrasPlugin;
+pub use plugin::ExternalTransport;
 #[cfg(not(target_arch = "wasm32"))]
 pub use plugin::HasEffectivePort;
 #[cfg(not(target_arch = "wasm32"))]

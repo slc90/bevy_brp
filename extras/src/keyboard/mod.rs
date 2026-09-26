@@ -50,6 +50,7 @@ mod tests {
     use super::send_keys_handler;
     use super::type_text_handler;
     use super::typing;
+    use crate::activity::BrpExtrasActivity;
     use crate::constants::MISSING_REQUEST_PARAMETERS_MESSAGE;
 
     const CUSTOM_KEY_DURATION_MS: u32 = 500;
@@ -426,5 +427,27 @@ mod tests {
             count, 0,
             "Expected no TimedKeyRelease components when keys array is empty"
         );
+    }
+
+    /// 零时长按键请求仍由 timed release component 持有 activity，并在 release event 产生后恢复 idle。
+    #[test]
+    fn activity_guard_follows_timed_key_release() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .add_message::<KeyboardInput>()
+            .add_message::<WindowEvent>()
+            .add_systems(Update, super::keys::process_timed_key_releases);
+        app.world_mut().spawn((Window::default(), PrimaryWindow));
+
+        let result = send_keys_handler(
+            In(Some(json!({ "keys": ["KeyA"], "duration_ms": 0 }))),
+            app.world_mut(),
+        );
+        assert!(result.is_ok());
+        assert!(app.world().resource::<BrpExtrasActivity>().state().is_active());
+
+        app.update();
+
+        assert!(!app.world().resource::<BrpExtrasActivity>().state().is_active());
     }
 }

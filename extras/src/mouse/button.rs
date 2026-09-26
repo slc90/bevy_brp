@@ -17,6 +17,7 @@ use super::constants::DEFAULT_MOUSE_DURATION_MS;
 use super::constants::MAX_MOUSE_DURATION_MS;
 use super::support;
 use super::support::EmptyParamsPolicy;
+use crate::activity::BrpExtrasActivityGuard;
 use crate::constants::METHOD_SEND_MOUSE_BUTTON;
 
 // ============================================================================
@@ -55,6 +56,8 @@ struct SendMouseButtonResponse {
 /// the button release event is sent and the entity is despawned.
 #[derive(Component)]
 pub(super) struct TimedButtonRelease {
+    /// 保持 Extras 活跃直到 release event 已产生。
+    pub(super) _activity: BrpExtrasActivityGuard,
     /// Which button to release
     pub button: MouseButton,
     /// Which window the button was pressed in (None = primary)

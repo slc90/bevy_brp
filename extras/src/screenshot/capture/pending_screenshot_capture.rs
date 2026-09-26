@@ -19,6 +19,9 @@ use super::screenshot_job::ImageConverter;
 use super::screenshot_job::OwnedTempCapture;
 use super::screenshot_job::ScreenshotJob;
 use super::screenshot_job::WorkerCompletion;
+use crate::activity;
+use crate::activity::BrpExtrasActivityCancellation;
+use crate::activity::BrpExtrasActivityGuard;
 use crate::constants::SCREENSHOT_CAPTURE_DEADLINE;
 use crate::constants::SCREENSHOT_ENTITY_NAME;
 use crate::screenshot;
@@ -43,12 +46,18 @@ impl CaptureStatus {
 }
 
 struct ActiveCapture {
+    activity:          Option<BrpExtrasActivityGuard>,
+    cancellation:      BrpExtrasActivityCancellation,
     deadline:          Instant,
     delivered_frame:   Option<FrameStamp>,
     request:           ScreenshotRequest,
     screenshot_entity: Entity,
     seen_frame:        FrameStamp,
     status:            CaptureStatus,
+}
+
+impl Drop for ActiveCapture {
+    fn drop(&mut self) { self.cancellation.cancel(); }
 }
 
 impl ActiveCapture {
@@ -94,6 +103,7 @@ impl PendingScreenshotCapture {
         capture_input: CaptureInput,
         screenshot_entity: Entity,
         now: Instant,
+        activity: BrpExtrasActivityGuard,
     ) -> BrpResult<()> {
         if self.active.is_some() {
             return Err(capture_in_progress_error());
@@ -104,7 +114,10 @@ impl PendingScreenshotCapture {
             path:              request.path().to_path_buf(),
             response_metadata: capture_input.response_metadata,
         };
+        let cancellation = activity.cancellation();
         self.active = Some(ActiveCapture {
+            activity: Some(activity),
+            cancellation,
             deadline: now + SCREENSHOT_CAPTURE_DEADLINE,
             delivered_frame: None,
             request,
@@ -130,7 +143,12 @@ impl PendingScreenshotCapture {
     fn begin_encoding(
         &mut self,
         screenshot_entity: Entity,
-    ) -> Option<(ScreenshotJob, Sender<WorkerCompletion>, ImageConverter)> {
+    ) -> Option<(
+        ScreenshotJob,
+        Sender<WorkerCompletion>,
+        ImageConverter,
+        BrpExtrasActivityGuard,
+    )> {
         let active = self.active.as_mut()?;
         if active.screenshot_entity != screenshot_entity {
             return None;
@@ -145,8 +163,14 @@ impl PendingScreenshotCapture {
                 return None;
             },
         };
+        let activity = active.activity.take()?;
         let channel = self.completion_channel.get_or_insert_default();
-        Some((screenshot_job, channel.sender.clone(), channel.converter))
+        Some((
+            screenshot_job,
+            channel.sender.clone(),
+            channel.converter,
+            activity,
+        ))
     }
 
     fn complete(&mut self, completion: WorkerCompletion, now: Instant) {
@@ -204,11 +228,13 @@ pub(super) fn start(
         .spawn((Screenshot(render_target), Name::new(SCREENSHOT_ENTITY_NAME)))
         .observe(on_screenshot_captured)
         .id();
+    let activity = activity::begin(world);
     let result = world.resource_mut::<PendingScreenshotCapture>().start(
         request,
         capture_input,
         screenshot_entity,
         Instant::now(),
+        activity,
     );
     if result.is_err() {
         world.entity_mut(screenshot_entity).despawn();
@@ -220,7 +246,7 @@ fn on_screenshot_captured(
     screenshot_captured: On<ScreenshotCaptured>,
     mut pending: ResMut<PendingScreenshotCapture>,
 ) {
-    let Some((screenshot_job, sender, converter)) =
+    let Some((screenshot_job, sender, converter, activity)) =
         pending.begin_encoding(screenshot_captured.event().entity)
     else {
         return;
@@ -230,6 +256,7 @@ fn on_screenshot_captured(
         screenshot_job,
         sender,
         converter,
+        activity,
     );
 }
 
