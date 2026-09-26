@@ -17,7 +17,7 @@ use schemars::Schema;
 /// [`struct@crate::BrpExtrasPlugin`] installs the catalog endpoint. At request time it validates
 /// all published entries against the live [`RemoteMethods`](bevy_remote::RemoteMethods) resource
 /// and returns no partial catalog if any backing method is missing or watching. See the complete
-/// [registration example](https://github.com/natepiano/bevy_brp/blob/main/extras/examples/agent_tool_registration.rs).
+/// [registration example](https://github.com/slc90/bevy_brp/blob/main/extras/examples/agent_tool_registration.rs).
 #[must_use]
 pub struct AgentTool {
     pub(super) name:          String,
@@ -131,7 +131,7 @@ pub(crate) struct RegisteredAgentTools(pub(super) Vec<AgentTool>);
 /// [`RemoteMethods`](bevy_remote::RemoteMethods).
 ///
 /// See the complete
-/// [agent tool registration example](https://github.com/natepiano/bevy_brp/blob/main/extras/examples/agent_tool_registration.rs).
+/// [agent tool registration example](https://github.com/slc90/bevy_brp/blob/main/extras/examples/agent_tool_registration.rs).
 pub trait AppAgentToolExt {
     /// Publishes agent-facing metadata immediately during application construction.
     ///

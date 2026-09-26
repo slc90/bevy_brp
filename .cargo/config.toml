@@ -1,9 +1,4 @@
-# Local development configuration
-# This enables the mcp-debug feature by default when building within this workspace
+[target.x86_64-pc-windows-msvc]
+linker = "rust-lld.exe"
 
-[target.'cfg(all())']
-rustflags = ["--cfg", "feature=\"mcp-debug\""]
-
-# Use johanhelsing's wasm-server-runner fork with BRP relay support for WASM testing
-[target.wasm32-unknown-unknown]
-runner = "wasm-server-runner"
+rustdocflags = ["-Clinker=rust-lld.exe"]

@@ -1,10 +1,6 @@
 # About
 
-[![Crates.io](https://img.shields.io/crates/v/bevy_brp_extras.svg)](https://crates.io/crates/bevy_brp_extras)
-[![Documentation](https://docs.rs/bevy_brp_extras/badge.svg)](https://docs.rs/bevy_brp_extras/)
-[![MIT/Apache 2.0](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](https://github.com/natepiano/bevy_brp/extras#license)
-[![Crates.io](https://img.shields.io/crates/d/bevy_brp_extras.svg)](https://crates.io/crates/bevy_brp_extras)
-[![CI](https://github.com/natepiano/bevy_brp/workflows/CI/badge.svg)](https://github.com/natepiano/bevy_brp/actions)
+[![MIT/Apache 2.0](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](https://github.com/slc90/bevy_brp/tree/main/extras#license)
 
 bevy_brp_extras does two things
 1. Configures your app for bevy remote protocol (BRP)
@@ -14,10 +10,7 @@ bevy_brp_extras does two things
 
 | bevy        | bevy_brp_extras |
 |-------------|-----------------|
-| 0.19        | 0.22.7          |
-| 0.18        | 0.19.0          |
-| 0.17        | 0.17.2          |
-| 0.16        | 0.2             |
+| 0.19        | 0.1.0           |
 
 
 ## BRP Methods
@@ -28,7 +21,7 @@ bevy_brp_extras does two things
 - **Trackpad Gestures** (macOS): `double_tap_gesture`, `pinch_gesture`, `rotation_gesture`
 - **Agent Tools**: `agent_tools`
 
-All methods are prefixed with `brp_extras/` (e.g., `brp_extras/screenshot`). See [docs.rs](https://docs.rs/bevy_brp_extras/) for parameter details.
+All methods are prefixed with `brp_extras/` (e.g., `brp_extras/screenshot`).
 
 ### Screenshots
 
@@ -117,7 +110,7 @@ If `RemoteHttpPlugin` is already present, any port configuration (`with_port()` 
 
 ## BRP methods and agent tools
 
-This crate is designed to work with [bevy_brp_mcp](https://github.com/natepiano/bevy_brp/mcp), which provides a Model Context Protocol (MCP) server for controlling Bevy apps.
+This crate is designed to work with [bevy_brp_mcp](https://github.com/slc90/bevy_brp/tree/main/mcp), which provides a Model Context Protocol (MCP) server for controlling Bevy apps.
 
 Registering a remote method in `RemoteMethods` makes it callable and visible through exhaustive
 `rpc.discover` transport discovery. Calling `register_agent_tool` is separate: it publishes a

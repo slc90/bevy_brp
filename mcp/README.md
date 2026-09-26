@@ -1,9 +1,6 @@
 # About
 
-[![Crates.io](https://img.shields.io/crates/v/bevy_brp_mcp.svg)](https://crates.io/crates/bevy_brp_mcp)
-[![MIT/Apache 2.0](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](https://github.com/natepiano/bevy_brp/mcp#license)
-[![Crates.io](https://img.shields.io/crates/d/bevy_brp_mcp.svg)](https://crates.io/crates/bevy_brp_mcp)
-[![CI](https://github.com/natepiano/bevy_brp/workflows/CI/badge.svg)](https://github.com/natepiano/bevy_brp/actions)
+[![MIT/Apache 2.0](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](https://github.com/slc90/bevy_brp/tree/main/mcp#license)
 
 A Model Context Protocol (MCP) server that enables AI coding assistants to launch, inspect, and mutate Bevy applications via the Bevy Remote Protocol (BRP). This tool bridges the gap between coding agents and Bevy by providing comprehensive BRP integration as an MCP server.
 
@@ -11,10 +8,7 @@ A Model Context Protocol (MCP) server that enables AI coding assistants to launc
 
 | bevy        | bevy_brp_mcp    |
 |-------------|-----------------|
-| 0.19        | 0.22.7          |
-| 0.18        | 0.19.0          |
-| 0.17        | 0.17.2          |
-| 0.16        | 0.1             |
+| 0.19        | 0.1.0           |
 
 ## Features
 
@@ -39,7 +33,7 @@ A Model Context Protocol (MCP) server that enables AI coding assistants to launc
 - **Process Status**: Check if apps are running with BRP enabled
 
 ### Enhanced BRP Capabilities
-requires [bevy_brp_extras](https://crates.io/crates/bevy_brp_extras)
+requires [bevy_brp_extras](../extras/)
 - `brp_extras/screenshot` - Capture the full primary window or an entity crop by ID or unique exact name
 - `brp_extras/shutdown` - Gracefully shutdown the application
 - `brp_extras/send_keys` - Send keyboard input to the application
@@ -57,8 +51,8 @@ requires [bevy_brp_extras](https://crates.io/crates/bevy_brp_extras)
 - `brp_extras/get_diagnostics` - Query FPS and frame time diagnostics
 
 ## Getting Started
-First, install via cargo:
-`cargo install bevy_brp_mcp`
+First, install the tagged repository version via Cargo:
+`cargo install --git https://github.com/slc90/bevy_brp --tag v0.1.0 bevy_brp_mcp`
 
 Configure your MCP server. For Claude Code, add this to your `~/.claude.json` file:
 
@@ -100,7 +94,7 @@ fn main() {
 }
 ```
 
-For enhanced features such as asking the coding agent to take a screenshot or to send keyboard input to your running app, also add [bevy_brp_extras](https://crates.io/crates/bevy_brp_extras):
+For enhanced features such as asking the coding agent to take a screenshot or to send keyboard input to your running app, also add [bevy_brp_extras](../extras/):
 
 ```rust
 use bevy::prelude::*;

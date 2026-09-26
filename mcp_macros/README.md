@@ -1,6 +1,6 @@
 # bevy_brp_mcp_macros
 
-Procedural macros for [bevy_brp_mcp](https://crates.io/crates/bevy_brp_mcp).
+Procedural macros for [bevy_brp_mcp](../mcp/).
 
 ## Version Alignment
 

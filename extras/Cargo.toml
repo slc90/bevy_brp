@@ -12,7 +12,8 @@ license = "MIT OR Apache-2.0"
 name = "bevy_brp_extras"
 readme = "README.md"
 repository.workspace = true
-version = "0.23.0-dev"
+version.workspace    = true
+publish              = false
 
 [dependencies]
 # Minimal Bevy features for extras library:

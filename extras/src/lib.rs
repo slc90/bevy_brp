@@ -27,7 +27,7 @@
 //!
 //! Every published [`AgentTool`] names a BRP method, while most BRP methods need not be published
 //! as agent tools. See the complete
-//! [agent tool registration example](https://github.com/natepiano/bevy_brp/blob/main/extras/examples/agent_tool_registration.rs)
+//! [agent tool registration example](https://github.com/slc90/bevy_brp/blob/main/extras/examples/agent_tool_registration.rs)
 //! for the required plugin ordering, method insertion, and mutable-resource borrow scope.
 //!
 //! After running the example, agents list the curated entries and pass a selected entry's exact
