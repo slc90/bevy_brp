@@ -3,6 +3,7 @@ members = [
   "extras",
   "mcp",
   "mcp_macros",
+  "runtime",
   "test-app",
   "test-duplicate-a",
   "test-duplicate-b",
@@ -24,6 +25,7 @@ bevy_winit      = { version = "0.19.1" }
 # Core dependencies (shared between extras and mcp)
 anyhow = "1.0"
 async-channel = "2.5.0"
+async-io = "2.6.0"
 async-trait = "0.1.92"
 bevy_brp_mcp_macros = { version = "0.1.0", path = "mcp_macros" }
 cargo_metadata = "0.23"
@@ -31,8 +33,11 @@ chrono = "0.4"
 either = "1.18.0"
 error-stack = { version = "0.8.0", features = ["spantrace"] }
 futures = "0.3"
+futures-util = "0.3.34"
 heck = "0.5.0"
 image = { version = "=0.25.9", default-features = false, features = ["png"] }
+http-body-util = "0.1.5"
+hyper = { version = "1.11.1", features = ["http1", "server"] }
 itertools = "0.15.0"
 json-pretty-compact = "0.1.2"
 netstat2 = "0.11"
@@ -47,6 +52,7 @@ rmcp = { version = "3.3.0", features = ["server", "transport-io"] }
 schemars = "1.2.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0.151", features = ["preserve_order"] }
+smol-hyper = "0.1.1"
 strum = "0.28.0"
 strum_macros = "0.28.0"
 syn = { version = "3.0.5", features = ["extra-traits", "full"] }

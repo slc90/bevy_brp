@@ -664,6 +664,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_brp_runtime"
+version = "0.1.0"
+dependencies = [
+ "async-channel",
+ "async-io",
+ "bevy",
+ "bevy_brp_extras",
+ "bevy_remote",
+ "futures-util",
+ "http-body-util",
+ "hyper",
+ "serde_json",
+ "smol-hyper",
+]
+
+[[package]]
 name = "bevy_brp_test_apps"
 version = "0.0.0"
 dependencies = [
