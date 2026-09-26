@@ -1,12 +1,11 @@
-//! Test app with `BrpExtrasPlugin` for testing app launch and extras functionality
+//! Test app with `BrpRuntimePlugin` for testing app launch and BRP functionality
 
 use bevy::log::debug;
 use bevy::prelude::*;
 use bevy::window::MonitorSelection;
 use bevy::window::PrimaryWindow;
 use bevy::window::WindowPosition;
-use bevy_brp_extras::BrpExtrasPlugin;
-use bevy_brp_extras::PortDisplay;
+use bevy_brp_runtime::BrpRuntimePlugin;
 
 const BRP_EXTRAS_PORT_DEFAULT: &str = "15702";
 const BRP_EXTRAS_PORT_ENV_VAR: &str = "BRP_EXTRAS_PORT";
@@ -36,7 +35,7 @@ fn main() {
             }),
             ..default()
         }))
-        .add_plugins(BrpExtrasPlugin::new().port_in_title(PortDisplay::Always))
+        .add_plugins(BrpRuntimePlugin::default())
         .add_systems(Startup, (setup, minimize_window_on_start, log_startup))
         .add_systems(Update, rotate_sprite)
         .run();

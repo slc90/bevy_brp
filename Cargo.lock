@@ -685,6 +685,7 @@ version = "0.0.0"
 dependencies = [
  "bevy",
  "bevy_brp_extras",
+ "bevy_brp_runtime",
  "bevy_remote",
  "schemars",
  "serde",

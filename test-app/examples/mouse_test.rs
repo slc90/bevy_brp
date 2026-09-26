@@ -28,8 +28,7 @@ use bevy::window::PrimaryWindow;
 use bevy::window::WindowMode;
 use bevy::window::WindowRef;
 use bevy::window::WindowResolution;
-use bevy_brp_extras::BrpExtrasPlugin;
-use bevy_brp_extras::PortDisplay;
+use bevy_brp_runtime::BrpRuntimePlugin;
 
 // Mouse test constants
 const AUDIT_DISPLAY_FONT_SIZE: f32 = 11.0;
@@ -366,7 +365,7 @@ fn main() {
                 ..default()
             }),
             MeshPickingPlugin,
-            BrpExtrasPlugin::new().port_in_title(PortDisplay::Always),
+            BrpRuntimePlugin::default(),
         ))
         .init_resource::<MouseStateTracker>()
         .add_systems(Startup, (setup_windows, setup_scene).chain())

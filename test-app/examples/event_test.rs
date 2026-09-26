@@ -5,8 +5,7 @@
 use bevy::ecs::observer::On;
 use bevy::prelude::*;
 use bevy::window::WindowPlugin;
-use bevy_brp_extras::BrpExtrasPlugin;
-use bevy_brp_extras::PortDisplay;
+use bevy_brp_runtime::BrpRuntimePlugin;
 
 const EVENT_TEST_TITLE: &str = "Event Test";
 const EVENT_TEST_WINDOW_HEIGHT: u32 = 300;
@@ -45,7 +44,7 @@ fn main() {
             }),
             ..default()
         }))
-        .add_plugins(BrpExtrasPlugin::new().port_in_title(PortDisplay::Always))
+        .add_plugins(BrpRuntimePlugin::default())
         .init_resource::<EventTriggerTracker>()
         .add_observer(on_unit_event)
         .add_observer(on_payload_event)
