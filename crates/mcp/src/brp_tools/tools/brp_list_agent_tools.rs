@@ -531,7 +531,7 @@ mod tests {
             .find(|definition| definition.tool_name == ToolName::BrpListAgentTools);
         assert!(definition.is_some());
         if let Some(definition) = definition.as_mut() {
-            definition.handler = Arc::new(StaticListAgentTools);
+            definition.replace_handler(Arc::new(StaticListAgentTools));
             let response = definition
                 .call_tool(
                     CallToolRequestParams::new("brp_list_agent_tools").with_arguments(Map::new()),

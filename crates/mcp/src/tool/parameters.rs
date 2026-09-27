@@ -29,7 +29,7 @@ use crate::support::SchemaField;
 /// The trait is automatically implemented by the `ParamStruct` derive macro
 /// for parameter structs.
 pub trait ParamStruct:
-    Send + Sync + serde::Serialize + serde::de::DeserializeOwned + JsonSchema
+    Clone + Send + Sync + serde::Serialize + serde::de::DeserializeOwned + JsonSchema
 {
 }
 

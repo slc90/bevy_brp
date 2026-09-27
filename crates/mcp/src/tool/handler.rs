@@ -80,7 +80,7 @@ pub trait ToolFn: Send + Sync {
         context: HandlerContext,
     ) -> HandlerResult<'_, ToolResult<Self::Output, Self::Params>> {
         Box::pin(async move {
-            let params: Self::Params = super::extract_parameter_values(&context)?;
+            let params: Self::Params = context.extract_parameter_values()?;
             let result = self.handle_impl(params).await;
             Ok(ToolResult {
                 result,
@@ -156,18 +156,18 @@ pub trait ResultStruct: Send + Sync {
 ///
 /// This keeps request decoding inside the `tool` subsystem while still supporting
 /// custom `call()` implementations in sibling modules.
-pub(super) fn call_with_typed_params<O, P, F, Fut>(
+pub(crate) fn call_with_typed_params<O, P, F, Fut>(
     context: HandlerContext,
     f: F,
 ) -> HandlerResult<'static, ToolResult<O, P>>
 where
     O: ResultStruct + Send + Sync + 'static,
-    P: ParamStruct + Clone + for<'de> serde::Deserialize<'de> + Send + 'static,
+    P: ParamStruct + 'static,
     F: FnOnce(HandlerContext, P) -> Fut + Send + 'static,
     Fut: Future<Output = Result<O>> + Send + 'static,
 {
     Box::pin(async move {
-        let params: P = super::extract_parameter_values(&context)?;
+        let params: P = context.extract_parameter_values()?;
         let result = f(context, params.clone()).await;
         Ok(ToolResult {
             result,

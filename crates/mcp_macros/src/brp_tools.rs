@@ -133,7 +133,7 @@ fn generate_tool_fn_impl(
                 Box::pin(async move {
                     let params = context.extract_parameter_values::<#params_ident>()?;
                     let port = params.port;
-                    let params_json = serde_json::to_value(&params).ok();
+                    let response_params = params.clone();
 
                     // Filter out transport-only metadata before sending BRP params.
                     let mut params_value = serde_json::to_value(&params)
@@ -159,21 +159,16 @@ fn generate_tool_fn_impl(
                     let result = match client.execute::<#result_type>().await {
                         Ok(r) => r,
                         Err(e) => {
-                            let params = params_json
-                                .and_then(|json| serde_json::from_value::<#params_ident>(json).ok());
                             return Ok(crate::tool::ToolResult {
                                 result: Err(e),
-                                params,
+                                params: Some(response_params),
                             });
                         },
                     };
 
-                    let params = params_json
-                        .and_then(|json| serde_json::from_value::<#params_ident>(json).ok());
-
                     Ok(crate::tool::ToolResult {
                         result: Ok(result),
-                        params,
+                        params: Some(response_params),
                     })
                 })
             }

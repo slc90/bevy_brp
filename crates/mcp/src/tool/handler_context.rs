@@ -45,7 +45,7 @@ impl HandlerContext {
     }
 
     /// Common parameter extraction methods (used by both BRP and local handlers)
-    pub(super) fn extract_parameter_values<T>(&self) -> Result<T>
+    pub(crate) fn extract_parameter_values<T>(&self) -> Result<T>
     where
         T: serde::de::DeserializeOwned + JsonSchema,
     {

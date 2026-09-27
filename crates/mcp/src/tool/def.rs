@@ -20,13 +20,13 @@ use super::parameters::ParameterBuilder;
 #[derive(Clone)]
 pub struct ToolDef {
     /// Tool name and description
-    pub tool_name: ToolName,
+    pub(crate) tool_name: ToolName,
     /// Tool annotations
-    pub annotations: Annotation,
+    pub(super) annotations: Annotation,
     /// Handler function
-    pub handler: Arc<dyn ErasedToolFn>,
+    pub(super) handler: Arc<dyn ErasedToolFn>,
     /// Function to build parameters for MCP registration
-    pub parameters: Option<fn() -> ParameterBuilder>,
+    pub(super) parameters: Option<fn() -> ParameterBuilder>,
 }
 
 impl ToolDef {
@@ -43,6 +43,11 @@ impl ToolDef {
 
         // Tools now always return `CallToolResult` - errors are already formatted as responses
         Ok(self.handler.call_erased(handler_context).await)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn replace_handler(&mut self, handler: Arc<dyn ErasedToolFn>) {
+        self.handler = handler;
     }
 
     /// Generate unified output schema from the actual [`ToolCallJsonResponse`] struct
@@ -71,7 +76,7 @@ impl ToolDef {
             .parameters
             .map_or_else(ParameterBuilder::new, |builder_fn| builder_fn());
 
-        // Enhance title with category prefix and optional method name
+        // Enhance title with category prefix and retain the unprefixed short title.
         let enhanced_annotations = {
             let mut enhanced = self.annotations.clone();
 
@@ -85,13 +90,14 @@ impl ToolDef {
             enhanced.title = full_title;
             enhanced
         };
+        let short_title = self.annotations.title.clone();
 
         rmcp::model::Tool::new(
             <&'static str>::from(self.tool_name),
             self.tool_name.description(),
             builder.build(),
         )
-        .with_title(self.tool_name.short_title())
+        .with_title(short_title)
         .with_raw_output_schema(Self::generate_output_schema())
         .with_annotations(enhanced_annotations.into())
     }

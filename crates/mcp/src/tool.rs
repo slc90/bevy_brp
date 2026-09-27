@@ -1,7 +1,6 @@
 mod annotations;
 mod constants;
 mod def;
-mod facade;
 mod field_placement;
 mod handler;
 mod handler_context;
@@ -13,9 +12,6 @@ mod registry;
 mod response_builder;
 
 pub use def::ToolDef;
-pub use facade::call_with_typed_params;
-pub use facade::extract_parameter_values;
-pub use facade::get_all_tool_definitions;
 pub use field_placement::FieldPlacement;
 pub use field_placement::FieldPlacementInfo;
 pub use field_placement::HasFieldPlacement;
@@ -24,10 +20,14 @@ pub use handler::HandlerResult;
 pub use handler::ResultStruct;
 pub use handler::ToolFn;
 pub use handler::ToolResult;
+pub(crate) use handler::call_with_typed_params;
 pub use handler_context::HandlerContext;
 pub use name::BrpMethod;
 pub use name::ToolName;
 pub use parameters::NoParams;
 pub use parameters::ParamStruct;
 pub use parameters::ParameterName;
+pub(crate) use registry::ToolRegistry;
+#[cfg(test)]
+pub(crate) use registry::get_all_tool_definitions;
 pub use response_builder::ResponseBuilder;

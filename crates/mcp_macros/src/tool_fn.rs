@@ -86,7 +86,7 @@ pub(crate) fn derive_tool_fn(input: TokenStream) -> Result<TokenStream> {
 
             fn call(&self, context: HandlerContext) -> HandlerResult<ToolResult<Self::Output, Self::Params>> {
                 Box::pin(async move {
-                    let params: Self::Params = crate::tool::extract_parameter_values(&context)?;
+                    let params: Self::Params = context.extract_parameter_values()?;
                     let result = #handle_impl_call;
                     Ok(ToolResult {
                         result,

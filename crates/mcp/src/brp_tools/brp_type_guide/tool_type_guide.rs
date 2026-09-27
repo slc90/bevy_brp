@@ -82,7 +82,7 @@ impl TypeGuideEngine {
         // Fetch full registry from BRP
         let brp_client = BrpClient::new(BrpMethod::RegistrySchema, port, Some(json!({})));
 
-        match brp_client.execute_without_type_guide().await {
+        match brp_client.execute_raw().await {
             Ok(ResponseStatus::Success(Some(registry_data))) => {
                 // Convert to `HashMap` with `BrpTypeName` keys
                 let mut registry_map = HashMap::new();

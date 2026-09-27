@@ -101,7 +101,7 @@ async fn parse_sse_line(
     logger: &BufferedWatchLogger,
 ) -> Result<()> {
     // Log EVERY line received for debugging
-    let _ = logger
+    logger
         .write_debug_update(
             DEBUG_LINE_RECEIVED_EVENT,
             serde_json::json!({
@@ -125,7 +125,7 @@ async fn parse_sse_line(
         debug!("[{watch_type}] Failed to parse SSE data as JSON: {json_str}");
 
         // Log parse failure
-        let _ = logger
+        logger
             .write_debug_update(
                 DEBUG_JSON_PARSE_FAILED_EVENT,
                 serde_json::json!({
@@ -143,7 +143,7 @@ async fn parse_sse_line(
     debug!("[{watch_type}] Received watch update for entity {entity_id}: {data:?}");
 
     // Log successful JSON parsing
-    let _ = logger.write_debug_update(
+    logger.write_debug_update(
         DEBUG_JSON_PARSED_EVENT,
         serde_json::json!({
             WATCH_TYPE_FIELD: watch_type,
@@ -163,7 +163,7 @@ async fn parse_sse_line(
         debug!("[{watch_type}] No result in JSON-RPC response: {data:?}");
 
         // Log missing result field
-        let _ = logger
+        logger
             .write_debug_update(
                 DEBUG_NO_RESULT_EVENT,
                 serde_json::json!({
@@ -200,7 +200,7 @@ async fn process_chunk(
     logger: &BufferedWatchLogger,
 ) -> Result<()> {
     // Log chunk size
-    let _ = logger
+    logger
         .write_debug_update(
             DEBUG_CHUNK_RECEIVED_EVENT,
             serde_json::json!({
@@ -265,7 +265,7 @@ async fn process_chunk(
 
     // Log number of lines processed
     if lines_processed > 0 || empty_lines > 0 {
-        let _ = logger
+        logger
             .write_debug_update(
                 DEBUG_LINES_PROCESSED_EVENT,
                 serde_json::json!({
@@ -282,7 +282,7 @@ async fn process_chunk(
 
     // Log incomplete lines in buffer
     if !line_buffer.is_empty() {
-        let _ = logger
+        logger
             .write_debug_update(
                 DEBUG_INCOMPLETE_LINE_IN_BUFFER_EVENT,
                 serde_json::json!({
@@ -315,7 +315,7 @@ async fn handle_stream_error(
     error!("Error reading stream chunk: {error}");
 
     // Log stream error
-    let _ = logger
+    logger
         .write_debug_update(
             DEBUG_STREAM_ERROR_EVENT,
             serde_json::json!({
@@ -347,7 +347,7 @@ async fn log_first_chunk(
         )
     };
 
-    let _ = logger
+    logger
         .write_debug_update(
             DEBUG_FIRST_CHUNK_EVENT,
             serde_json::json!({
@@ -387,7 +387,7 @@ async fn process_watch_stream(
     }
 
     // Log stream start
-    let _ = logger
+    logger
         .write_debug_update(
             DEBUG_STREAM_STARTED_EVENT,
             serde_json::json!({
@@ -457,7 +457,7 @@ async fn consume_stream_chunks(
     }
 
     // Log stream end with details
-    let _ = logger
+    logger
         .write_debug_update(
             DEBUG_STREAM_ENDED_EVENT,
             serde_json::json!({
@@ -488,7 +488,7 @@ async fn handle_connection_error(
 
     error!("Failed to connect to BRP server: {error}");
 
-    let _ = logger
+    if let Err(error) = logger
         .write_update(
             CONNECTION_ERROR_EVENT,
             serde_json::json!({
@@ -499,7 +499,10 @@ async fn handle_connection_error(
                 TIMESTAMP_FIELD: chrono::Local::now().to_rfc3339()
             }),
         )
-        .await;
+        .await
+    {
+        warn!(watch_id = conn_params.watch_id, %error, "Failed to record watch connection error");
+    }
 }
 
 /// Run the watch connection in a spawned task
@@ -522,7 +525,7 @@ async fn run_watch_connection(conn_params: WatchConnectionParams, logger: Buffer
     match brp_client.execute_streaming().await {
         Ok(response) => {
             // Log initial HTTP response
-            let _ = logger
+            logger
                 .write_debug_update(
                     DEBUG_HTTP_RESPONSE_EVENT,
                     serde_json::json!({
@@ -558,7 +561,7 @@ async fn run_watch_connection(conn_params: WatchConnectionParams, logger: Buffer
     }
 
     // Write final log entry
-    let _ = logger
+    if let Err(error) = logger
         .write_update(
             WATCH_ENDED_EVENT,
             serde_json::json!({
@@ -566,7 +569,10 @@ async fn run_watch_connection(conn_params: WatchConnectionParams, logger: Buffer
                 TIMESTAMP_FIELD: chrono::Local::now().to_rfc3339()
             }),
         )
-        .await;
+        .await
+    {
+        warn!(watch_id = conn_params.watch_id, %error, "Failed to record watch end");
+    }
 
     // Remove this watch from the active watches with defensive checks
     {

@@ -2,6 +2,8 @@
 
 use std::fmt::Write;
 use std::path::PathBuf;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 use std::time::UNIX_EPOCH;
 
 use chrono::DateTime;
@@ -15,6 +17,7 @@ use tokio::sync::oneshot;
 use tokio::time::Instant;
 use tracing::debug;
 use tracing::error;
+use tracing::warn;
 
 use super::constants::BUFFER_FLUSH_SIZE;
 use super::constants::WATCH_LOG_BUFFER_CAPACITY;
@@ -34,6 +37,7 @@ pub(super) struct LogEntry {
 pub(super) struct BufferedWatchLogger {
     tx: mpsc::Sender<LogEntry>,
     shutdown_tx: Option<oneshot::Sender<()>>,
+    debug_write_failed: AtomicBool,
 }
 
 impl BufferedWatchLogger {
@@ -52,6 +56,7 @@ impl BufferedWatchLogger {
         Self {
             tx,
             shutdown_tx: Some(shutdown_tx),
+            debug_write_failed: AtomicBool::new(false),
         }
     }
 
@@ -70,18 +75,14 @@ impl BufferedWatchLogger {
     }
 
     /// Queue a debug log entry for writing only if debug mode is enabled
-    pub(super) async fn write_debug_update(
-        &self,
-        update_type: &str,
-        data: Value,
-    ) -> Result<(), String> {
+    pub(super) async fn write_debug_update(&self, update_type: &str, data: Value) {
         if matches!(
             TracingLevel::get_current_tracing_level(),
             TracingLevel::Debug | TracingLevel::Trace
-        ) {
-            self.write_update(update_type, data).await
-        } else {
-            Ok(())
+        ) && let Err(error) = self.write_update(update_type, data).await
+            && !self.debug_write_failed.swap(true, Ordering::Relaxed)
+        {
+            warn!(%error, "Watch debug logger stopped accepting updates");
         }
     }
 

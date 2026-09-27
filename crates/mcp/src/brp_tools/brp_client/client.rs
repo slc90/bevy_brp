@@ -1,10 +1,8 @@
-//! BRP (Bevy Remote Protocol) client with unified execution interface
+//! BRP (Bevy Remote Protocol) client execution paths.
 //!
-//! This module provides a streamlined interface for communicating with BRP servers.
-//! The `BrpClient` offers exactly 3 execution methods:
-//! - `execute<R>()`: Primary API with automatic format discovery for result types that support it
-//! - `execute_raw()`: Low-level API for debugging and format discovery engine
-//! - `execute_streaming()`: Specialized API for watch operations with streaming responses
+//! `execute` converts a response to a typed result and can attach a type guide to
+//! format errors. `execute_raw` returns the BRP response status, and
+//! `execute_streaming` returns a streaming HTTP response for watch operations.
 
 use reqwest::Response;
 use serde_json::Value;
@@ -81,17 +79,10 @@ impl BrpClient {
         }
     }
 
-    /// Primary execution method with automatic format discovery support
+    /// Execute a BRP request and convert its response to a typed result.
     ///
-    /// This method implements the "execute-fail-discover" pattern:
-    /// 1. Always executes the BRP request directly first
-    /// 2. On success, returns the typed result immediately
-    /// 3. On format errors, attempts format discovery if the result type supports it
-    /// 4. Retries with corrected format if discovery succeeds
-    ///
-    /// Appending the type guide to an error is only attempted for result types with
-    /// `BrpToolConfig::ADD_TYPE_GUIDE_TO_ERROR = true`. Result types with `ADD_TYPE_GUIDE_TO_ERROR
-    /// = false` will return errors immediately without added `TypeGuide` .
+    /// For supported result types, format errors include a type guide when one can
+    /// be fetched. The original request is never retried.
     pub async fn execute<R>(&self) -> Result<R>
     where
         R: ResultStructBrpExt<
@@ -120,14 +111,7 @@ impl BrpClient {
                 // Check if this result type supports adding the `TypeGuide`
                 if R::ADD_TYPE_GUIDE_TO_ERROR && err.has_format_error_code() {
                     // embed type_guide information
-                    self.try_add_type_guide_to_error(&err)
-                        .await
-                        .map_or_else(Err, |_| {
-                            Err(Error::InvalidState(
-                                "try_add_type_guide_to_error unexpectedly returned Ok".to_string(),
-                            )
-                            .into())
-                        })
+                    Err(self.format_type_error(&err).await)
                 } else {
                     // Regular error - enhance with context if possible
                     let enhanced_message =
@@ -150,28 +134,6 @@ impl BrpClient {
     /// - Testing and diagnostic scenarios
     pub async fn execute_raw(&self) -> Result<ResponseStatus> {
         self.execute_direct_internal().await
-    }
-
-    /// Execute a BRP request and return the raw `ResponseStatus`.
-    ///
-    /// Type-guide tools use this entry point so an error response does not trigger the
-    /// `TypeGuide` fetch in `execute`, which would recurse back into the registry. The
-    /// response still passes through `to_response_status`, which appends guidance for
-    /// missing `bevy_brp_extras` methods.
-    pub async fn execute_without_type_guide(&self) -> Result<ResponseStatus> {
-        // Pass `brp_method`, `port`, and cloned `params` to `BrpHttpClient::new`.
-        let brp_http_client =
-            BrpHttpClient::new(self.brp_method.as_str(), self.port, self.params.clone());
-
-        // Send HTTP request (includes status check)
-        let response = brp_http_client.send_request().await?;
-
-        // Parse JSON-RPC response
-        let brp_response = self.parse_json_response(response).await?;
-
-        // `to_response_status` returns `ResponseStatus`, adding plugin guidance for
-        // missing `bevy_brp_extras` methods without fetching type information.
-        Ok(self.to_response_status(brp_response))
     }
 
     /// Execute the BRP request and return a streaming response
@@ -268,7 +230,7 @@ impl BrpClient {
     }
 
     /// Enhanced format error creation with type guide embedding
-    async fn try_add_type_guide_to_error(&self, error: &BrpClientError) -> Result<ResponseStatus> {
+    async fn format_type_error(&self, error: &BrpClientError) -> error_stack::Report<Error> {
         // Step 1: Try parameter-based extraction using Operation enum
         let mut extracted_types = self
             .brp_method
@@ -293,8 +255,8 @@ impl BrpClient {
     }
 
     /// Create minimal error when no types can be extracted
-    fn create_minimal_type_error(error: &BrpClientError) -> Result<ResponseStatus> {
-        Err(Error::tool_call_failed_with_details(
+    fn create_minimal_type_error(error: &BrpClientError) -> error_stack::Report<Error> {
+        Error::tool_call_failed_with_details(
             "Format error occurred but could not extract type information",
             serde_json::json!({
                 FORMAT_ERROR_ORIGINAL_ERROR_FIELD: error.get_message(),
@@ -304,7 +266,7 @@ impl BrpClient {
                 }
             }),
         )
-        .into())
+        .into()
     }
 
     /// Create full error with type guide embedded for extracted types
@@ -312,18 +274,18 @@ impl BrpClient {
         &self,
         error: &BrpClientError,
         extracted_types: Vec<String>,
-    ) -> Result<ResponseStatus> {
-        let type_guide_response =
-            brp_type_guide::generate_type_guide_response(self.port, &extracted_types).await?;
-
-        Err(Error::tool_call_failed_with_details(
-            "Format error - see 'type_guide' field for correct format",
-            serde_json::json!({
-                FORMAT_ERROR_ORIGINAL_ERROR_FIELD: error.get_message(),
-                FORMAT_ERROR_TYPE_GUIDE_FIELD: type_guide_response
-            }),
-        )
-        .into())
+    ) -> error_stack::Report<Error> {
+        match brp_type_guide::generate_type_guide_response(self.port, &extracted_types).await {
+            Ok(type_guide_response) => Error::tool_call_failed_with_details(
+                "Format error - see 'type_guide' field for correct format",
+                serde_json::json!({
+                    FORMAT_ERROR_ORIGINAL_ERROR_FIELD: error.get_message(),
+                    FORMAT_ERROR_TYPE_GUIDE_FIELD: type_guide_response
+                }),
+            )
+            .into(),
+            Err(error) => error,
+        }
     }
 
     /// Convert the response JSON to a `ResponseStatus`
