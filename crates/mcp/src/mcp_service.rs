@@ -101,3 +101,49 @@ impl ServerHandler for McpService {
         tool_def.call_tool(request).await.map(Into::into)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashSet;
+
+    use serde_json::Value;
+
+    use super::McpService;
+
+    #[test]
+    fn listed_tools_are_routable_and_publish_cache_contract() {
+        let service = McpService::new();
+        let listing = serde_json::to_value(service.list_mcp_tools()).expect("serialize tool list");
+        let tools = listing["tools"].as_array().expect("tool array");
+        let names: HashSet<&str> = tools
+            .iter()
+            .map(|tool| tool["name"].as_str().expect("tool name"))
+            .collect();
+
+        assert_eq!(listing["ttlMs"], Value::from(0));
+        assert_eq!(listing["cacheScope"], Value::from("private"));
+        assert_eq!(names.len(), tools.len());
+        assert_eq!(names.len(), service.tool_defs.len());
+        assert!(
+            names
+                .iter()
+                .all(|name| service.get_tool_def(name).is_some())
+        );
+        for expected in [
+            "brp_launch",
+            "brp_status",
+            "rpc_discover",
+            "world_get_components",
+            "world_mutate_components",
+            "world_get_components_watch",
+            "brp_stop_watch",
+            "brp_extras_type_text",
+            "brp_extras_screenshot",
+            "brp_read_log",
+            "brp_shutdown",
+        ] {
+            assert!(names.contains(expected), "missing {expected}");
+        }
+        assert!(service.get_tool_def("unknown_tool").is_none());
+    }
+}

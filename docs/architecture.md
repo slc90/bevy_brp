@@ -30,7 +30,7 @@
 | `tests/test-duplicate-b/` | `test-app-b`；example `extras_plugin_duplicate` | 同名 example 的第二个宿主。 |
 | `crates/extras/tests/` | `bevy_brp_extras` 的 integration test target | 从 crate 外部验证 agent tool 注册 API。 |
 
-`tests/` 只是多个 workspace member 的容器，不是根 package 的 Cargo test harness。各宿主的 bin/example 需要通过对应 package 的 `cargo run -p …` 或 MCP 启动；`cargo test --workspace` 本身不会运行完整的 MCP→BRP 交互。
+`tests/` 容纳多个 workspace member 及 Windows 协议回归脚本 `regression.ps1`，不是根 package 的 Cargo test harness。各宿主的 bin/example 需要通过对应 package 的 `cargo run -p …` 或 MCP 启动；`cargo test --workspace` 本身不会运行完整的 MCP→BRP 交互。普通与图形回归入口见[测试说明](testing.md)。
 
 `bevy_brp_test_apps` 直接依赖 `bevy_brp_runtime` 和 `bevy_brp_extras`；`test-app-a`、`test-app-b` 直接依赖 `bevy_brp_extras`。三个宿主的 Bevy feature 用于真实场景 fixture，未传播给生产 crate。`crates/extras/tests/` 则由 `bevy_brp_extras` package 的 Cargo test harness 运行。
 

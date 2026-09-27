@@ -23,6 +23,7 @@ $requestBytes = 0
 $responseBytes = 0
 $nextId = 1
 $launchedApp = $null
+$processStarted = $false
 
 if ($IsWindows) {
     Add-Type -TypeDefinition @"
@@ -157,6 +158,7 @@ $process.StartInfo = $startInfo
 
 try {
     [void]$process.Start()
+    $processStarted = $true
 
     $initialize = Send-Request "initialize" "initialize" ([ordered]@{
         protocolVersion = "2025-11-25"
@@ -330,7 +332,7 @@ finally {
             Get-Process "test_app" -ErrorAction SilentlyContinue | Stop-Process
         }
     }
-    if ($null -ne $process -and -not $process.HasExited) {
+    if ($processStarted -and $null -ne $process -and -not $process.HasExited) {
         $process.StandardInput.Close()
         if (-not $process.WaitForExit(5000)) {
             $process.Kill()
