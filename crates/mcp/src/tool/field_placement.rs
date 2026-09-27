@@ -33,7 +33,7 @@ impl From<bool> for SkipIfNone {
 ///
 /// Note: The `ParamStruct` and `ResultStruct` derive macros generate implementations that use
 /// `crate::tool::FieldPlacementInfo` and `crate::tool::HasFieldPlacement`
-/// but no code within `mcp/src` calls this so we use the allow
+/// but no code within `crates/mcp/src` calls this so we use the allow
 #[derive(Debug, Clone)]
 #[allow(dead_code, reason = "used by ParamStruct/ResultStruct derive macros")]
 pub struct FieldPlacementInfo {

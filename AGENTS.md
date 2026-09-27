@@ -1,6 +1,6 @@
 # Bevy BRP Agent Guide
 
-本文件是 Agent 进入仓库时的统一入口。详细工程约束位于 `rules/`，当前事实以源码、Cargo metadata、rustdoc、MCP help text 和 `runtime/UPSTREAM.md` 为准。
+本文件是 Agent 进入仓库时的统一入口。详细工程约束位于 `rules/`，当前事实以源码、Cargo metadata、rustdoc、MCP help text 和 `crates/runtime/UPSTREAM.md` 为准。
 
 ## 默认读取
 
@@ -20,7 +20,7 @@
 
 一个任务可以同时命中多个规则文件，必须读取全部命中规则。
 
-当前没有 architecture 专属规则或 MCP 公共协议专属规则。遇到相关任务时，以现有源码、rustdoc、MCP help text、`runtime/UPSTREAM.md` 及实际 Cargo metadata 为事实依据，不得预先假设未来 crate、module 或 tool surface。
+当前没有 architecture 专属规则或 MCP 公共协议专属规则。遇到相关任务时，以现有源码、rustdoc、MCP help text、`crates/runtime/UPSTREAM.md` 及实际 Cargo metadata 为事实依据，不得预先假设未来 crate、module 或 tool surface。
 
 ## 上下文边界
 
@@ -33,7 +33,7 @@
 事实与规则分开维护：
 
 - `rules/` 规定开发约束；
-- rustdoc、MCP help text 和 `runtime/UPSTREAM.md` 描述已实施事实；
+- rustdoc、MCP help text 和 `crates/runtime/UPSTREAM.md` 描述已实施事实；
 - `plans/` 保存方案和历史设计输入。
 
 修改 workspace 成员、crate 角色、生产依赖关系、公共消费方式、BRP/MCP 公共行为或上游派生事实时，必须在同一任务中更新实际承载该事实的现有文档。没有已实施事实时，不创建空文档或把目标状态写成当前状态。

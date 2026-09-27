@@ -1,7 +1,7 @@
 //! Minimal BRP example named `test_app` for `search_order` integration testing.
 //!
 //! This example intentionally shares its name with the `test_app` binary in the
-//! `bevy_brp_test_apps` package (`test-app/src/bin/test_app.rs`). The cross-package
+//! `bevy_brp_test_apps` package (`tests/test-app/src/bin/test_app.rs`). The cross-package
 //! name collision lets integration tests verify that `brp_launch`'s `search_order`
 //! parameter correctly prioritizes apps vs examples:
 //!

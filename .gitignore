@@ -1,5 +1,5 @@
 **/target/
-/test-app/tests/all_types.json
+/tests/test-app/tests/all_types.json
 /.ropeproject/
 /.claude/transient/
 /.claude/settings.local.json

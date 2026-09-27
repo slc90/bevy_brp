@@ -8,7 +8,7 @@
 //! partial records.
 //!
 //! See the complete
-//! [agent tool registration example](https://github.com/slc90/bevy_brp/blob/main/extras/examples/agent_tool_registration.rs).
+//! [agent tool registration example](https://github.com/slc90/bevy_brp/blob/main/crates/extras/examples/agent_tool_registration.rs).
 
 mod catalog;
 mod registration;

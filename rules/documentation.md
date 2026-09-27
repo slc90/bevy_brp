@@ -2,7 +2,7 @@
 
 ## 事实、规则与方案分离
 
-- rustdoc、MCP help text 和 `runtime/UPSTREAM.md` 描述已实施事实与使用 contract。
+- rustdoc、MCP help text 和 `crates/runtime/UPSTREAM.md` 描述已实施事实与使用 contract。
 - `rules/` 只规定开发约束。
 - `plans/` 保存方案和历史设计输入，默认不作为当前事实来源。
 
@@ -35,7 +35,7 @@ Doctest 可以用于简短、稳定且能真实编译的公共 API 示例。不�
 
 ## MCP help text 与 schema
 
-`mcp/help_text/` 是 tool 使用 contract 的组成部分。修改 tool 名称、参数、默认值、互斥条件、结果、错误或推荐调用顺序时，必须同步：
+`crates/mcp/help_text/` 是 tool 使用 contract 的组成部分。修改 tool 名称、参数、默认值、互斥条件、结果、错误或推荐调用顺序时，必须同步：
 
 - 参数/结果 type 与 schema；
 - help text；
@@ -52,6 +52,6 @@ help text 应给出可直接使用的 JSON 形状，并明确 port、entity ID�
 
 ## 上游来源与变更记录
 
-修改派生自上游的 transport 或协议实现时，保持 `runtime/UPSTREAM.md` 的来源、版本、license 和本地语义差异准确。
+修改派生自上游的 transport 或协议实现时，保持 `crates/runtime/UPSTREAM.md` 的来源、版本、license 和本地语义差异准确。
 
 crate 发生面向用户的行为或 contract 变化时，应同步现有 rustdoc 和 MCP help text，不为形式完整新建发布文档。纯内部重构、测试或规则修改不机械添加 release note。
