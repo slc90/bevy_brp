@@ -20,9 +20,13 @@ impl VariantName {
 }
 
 impl From<String> for VariantName {
-    fn from(name: String) -> Self { Self(name) }
+    fn from(name: String) -> Self {
+        Self(name)
+    }
 }
 
 impl Display for VariantName {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result { write!(f, "{}", self.0) }
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
 }

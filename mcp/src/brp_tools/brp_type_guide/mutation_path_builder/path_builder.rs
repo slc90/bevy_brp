@@ -57,11 +57,11 @@ use crate::error::Result;
 /// Result of processing all children during mutation path building
 struct ChildProcessingResult {
     /// All child paths (used for mutation status determination)
-    all_paths:       Vec<MutationPathInternal>,
+    all_paths: Vec<MutationPathInternal>,
     /// Only paths that should be exposed (filtered by `PathAction`)
     paths_to_expose: Vec<MutationPathInternal>,
     /// Examples for each child path
-    child_examples:  HashMap<MutationPathDescriptor, Example>,
+    child_examples: HashMap<MutationPathDescriptor, Example>,
 }
 
 pub(super) struct MutationPathBuilder<B: TypeKindBuilder> {
@@ -69,7 +69,9 @@ pub(super) struct MutationPathBuilder<B: TypeKindBuilder> {
 }
 
 impl<B: TypeKindBuilder<Item = PathKind>> MutationPathBuilder<B> {
-    pub(super) const fn new(inner: B) -> Self { Self { inner } }
+    pub(super) const fn new(inner: B) -> Self {
+        Self { inner }
+    }
 
     /// Process all children and collect their paths and examples
     fn process_all_children(
@@ -180,9 +182,9 @@ impl<B: TypeKindBuilder<Item = PathKind>> MutationPathBuilder<B> {
             None
         } else {
             Some(EnumPathInfo {
-                variant_chain:       context.variant_chain.clone(),
+                variant_chain: context.variant_chain.clone(),
                 applicable_variants: Vec::new(),
-                root_example:        None,
+                root_example: None,
             })
         };
 
@@ -307,13 +309,13 @@ impl<B: TypeKindBuilder<Item = PathKind>> MutationPathBuilder<B> {
                 // Normal mode: Add root path and return only paths marked for exposure
                 paths_to_expose.insert(0, mutation_path_internal);
                 paths_to_expose
-            },
+            }
             PathAction::Skip => {
                 // Skip mode: Return ONLY a root path with the example
                 // This ensures the example is available for parent assembly
                 // but child paths aren't exposed in the final result
                 vec![mutation_path_internal]
-            },
+            }
         }
     }
 
@@ -383,7 +385,7 @@ impl<B: TypeKindBuilder<Item = PathKind>> TypeKindBuilder for MutationPathBuilde
                     None,
                     None,
                 )]);
-            },
+            }
             KnowledgeAction::UseExampleAndRecurse(example) => Some(Example::Json(example)),
             KnowledgeAction::Missing => None,
         };
@@ -445,7 +447,7 @@ impl<B: TypeKindBuilder<Item = PathKind>> TypeKindBuilder for MutationPathBuilde
                     .unwrap_or_else(|_| json!(null));
 
                 Example::Json(assembled)
-            },
+            }
             Mutability::Mutable => final_example,
         };
 
@@ -458,7 +460,7 @@ impl<B: TypeKindBuilder<Item = PathKind>> TypeKindBuilder for MutationPathBuilde
                     )))
                 })?;
                 Err(BuilderError::NotMutable(reason))
-            },
+            }
             Mutability::Mutable | Mutability::PartiallyMutable => Ok(Self::build_final_result(
                 context,
                 paths_to_expose,
@@ -494,7 +496,7 @@ pub(super) fn recurse_mutation_paths(
         TypeKind::Struct => MutationPathBuilder::new(StructMutationBuilder).build_paths(context),
         TypeKind::Tuple | TypeKind::TupleStruct => {
             MutationPathBuilder::new(TupleMutationBuilder).build_paths(context)
-        },
+        }
         TypeKind::Array => MutationPathBuilder::new(ArrayMutationBuilder).build_paths(context),
         TypeKind::List => MutationPathBuilder::new(ListMutationBuilder).build_paths(context),
         TypeKind::Map => MutationPathBuilder::new(MapMutationBuilder).build_paths(context),
@@ -597,7 +599,7 @@ pub(super) fn determine_parent_mutability(
                 mutability_issues,
                 message,
             ))
-        },
+        }
         Mutability::NotMutable => Some(context.create_no_mutable_children_error()),
         Mutability::Mutable => None,
     };

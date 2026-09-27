@@ -444,10 +444,20 @@ mod tests {
             app.world_mut(),
         );
         assert!(result.is_ok());
-        assert!(app.world().resource::<BrpExtrasActivity>().state().is_active());
+        assert!(
+            app.world()
+                .resource::<BrpExtrasActivity>()
+                .state()
+                .is_active()
+        );
 
         app.update();
 
-        assert!(!app.world().resource::<BrpExtrasActivity>().state().is_active());
+        assert!(
+            !app.world()
+                .resource::<BrpExtrasActivity>()
+                .state()
+                .is_active()
+        );
     }
 }

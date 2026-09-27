@@ -13,25 +13,37 @@ pub(super) struct StructFieldName(String);
 
 impl StructFieldName {
     /// Get the field name as a string slice
-    pub(super) fn as_str(&self) -> &str { &self.0 }
+    pub(super) fn as_str(&self) -> &str {
+        &self.0
+    }
 }
 
 impl Display for StructFieldName {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result { write!(f, "{}", self.0) }
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
 }
 
 impl Borrow<str> for StructFieldName {
-    fn borrow(&self) -> &str { &self.0 }
+    fn borrow(&self) -> &str {
+        &self.0
+    }
 }
 
 impl From<String> for StructFieldName {
-    fn from(s: String) -> Self { Self(s) }
+    fn from(s: String) -> Self {
+        Self(s)
+    }
 }
 
 impl From<&str> for StructFieldName {
-    fn from(s: &str) -> Self { Self(s.to_string()) }
+    fn from(s: &str) -> Self {
+        Self(s.to_string())
+    }
 }
 
 impl From<SchemaField> for StructFieldName {
-    fn from(schema_field: SchemaField) -> Self { Self(schema_field.to_string()) }
+    fn from(schema_field: SchemaField) -> Self {
+        Self(schema_field.to_string())
+    }
 }

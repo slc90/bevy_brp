@@ -279,7 +279,7 @@ impl TransportLifecycle {
     /// 等待 App 退出或任一 endpoint 失败。
     async fn wait_for_shutdown(&self) {
         match self.inner.shutdown_receiver.recv().await {
-            Ok(()) | Err(_) => {},
+            Ok(()) | Err(_) => {}
         }
     }
 
@@ -315,7 +315,7 @@ impl TransportLifecycle {
             Ok(mut slot) => *slot = Some(failure),
             Err(error) => {
                 error!(error = %error, "BRP runtime transport failure state 已损坏");
-            },
+            }
         }
         self.inner.shutdown_sender.close();
     }
@@ -327,7 +327,7 @@ impl TransportLifecycle {
             Err(error) => {
                 error!(error = %error, "BRP runtime transport failure state 无法读取");
                 None
-            },
+            }
         }
     }
 
@@ -412,7 +412,7 @@ impl Body for BrpStream {
                     )))))),
                     Err(error) => Poll::Ready(Some(Err(io::Error::other(error)))),
                 }
-            },
+            }
             Poll::Ready(None) => Poll::Ready(None),
             Poll::Pending => Poll::Pending,
         }
@@ -458,7 +458,7 @@ fn resolve_main_port() -> u16 {
                 "BRP_EXTRAS_PORT 无效，使用默认端口"
             );
             bevy_brp_extras::DEFAULT_REMOTE_PORT
-        },
+        }
     }
 }
 
@@ -477,7 +477,7 @@ fn start_http_server(
         Err(error) => {
             fail_transport(&config, format!("failed to bind listener: {error}"));
             return;
-        },
+        }
     };
     let task_config = config.clone();
     let task = IoTaskPool::get().spawn(server_main(listener, request_sender.clone(), task_config));
@@ -523,11 +523,11 @@ async fn server_main(
                         result: handle_client(client, connection_sender, connection_config).await,
                     }
                 }));
-            },
+            }
             ServerEvent::Accepted(Err(error)) => {
                 fail_transport(&config, format!("listener accept failed: {error}"));
                 break;
-            },
+            }
             ServerEvent::ConnectionFinished(Some(outcome)) => {
                 if let Err(error) = outcome.result {
                     warn!(
@@ -537,8 +537,8 @@ async fn server_main(
                         "BRP 客户端连接异常结束"
                     );
                 }
-            },
-            ServerEvent::ConnectionFinished(None) => {},
+            }
+            ServerEvent::ConnectionFinished(None) => {}
             ServerEvent::Shutdown => break,
         }
     }
@@ -574,10 +574,10 @@ async fn process_request_batch(
             match process_single_request(request, request_sender, config).await {
                 BrpHttpResponse::Complete(response) => {
                     BrpHttpResponse::Complete(serde_json::to_string(&response)?)
-                },
+                }
                 BrpHttpResponse::Stream(stream) => BrpHttpResponse::Stream(stream),
             }
-        },
+        }
         Ok(BrpBatch::Batch(requests)) => {
             let mut responses = Vec::new();
             for request in requests {
@@ -592,11 +592,11 @@ async fn process_request_batch(
                                 data: None,
                             }),
                         ));
-                    },
+                    }
                 }
             }
             BrpHttpResponse::Complete(serde_json::to_string(&responses)?)
-        },
+        }
         Err(error) => BrpHttpResponse::Complete(serde_json::to_string(&BrpResponse::new(
             None,
             Err(BrpError {
@@ -615,14 +615,14 @@ async fn process_request_batch(
                 .headers_mut()
                 .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
             response
-        },
+        }
         BrpHttpResponse::Stream(stream) => {
             let mut response = Response::new(BrpHttpBody::Stream(Box::new(stream)));
             response
                 .headers_mut()
                 .insert(CONTENT_TYPE, HeaderValue::from_static("text/event-stream"));
             response
-        },
+        }
     };
     for (name, value) in &config.headers {
         response.headers_mut().insert(name, value.clone());
@@ -651,7 +651,7 @@ async fn process_single_request(
                     data: None,
                 }),
             ));
-        },
+        }
     };
 
     let method = request.method.clone();
@@ -708,7 +708,7 @@ async fn process_single_request(
                     data: None,
                 }),
             ))
-        },
+        }
         Err(ResponseWaitError::ResultChannelClosed) => {
             warn!(
                 endpoint = config.endpoint,
@@ -718,7 +718,7 @@ async fn process_single_request(
                 request.id,
                 SubmitError::MailboxClosed,
             ))
-        },
+        }
     }
 }
 
@@ -737,7 +737,7 @@ async fn submit_message(
                 .await
                 .map_err(|_| SubmitError::MailboxClosed)?;
             wake()
-        },
+        }
         Err(TrySendError::Closed(_)) => Err(SubmitError::MailboxClosed),
     }
 }

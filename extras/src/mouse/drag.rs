@@ -45,9 +45,9 @@ struct DragMouseRequest {
     /// Button to hold during drag
     button: MouseButton,
     /// Starting position
-    start:  Vec2,
+    start: Vec2,
     /// Ending position
-    end:    Vec2,
+    end: Vec2,
     /// Number of frames to interpolate over
     frames: u32,
     /// Target window entity (None = primary window)
@@ -61,9 +61,9 @@ struct DragMouseResponse {
     /// Button that was used for dragging
     button: MouseButton,
     /// Starting position
-    start:  Vec2,
+    start: Vec2,
     /// Ending position
-    end:    Vec2,
+    end: Vec2,
     /// Number of frames for interpolation
     frames: u32,
 }
@@ -79,21 +79,21 @@ struct DragMouseResponse {
 #[derive(Component)]
 pub(super) struct DragOperation {
     /// 保持 Extras 活跃直到终点位置和 release event 已产生。
-    pub _activity:     BrpExtrasActivityGuard,
+    pub _activity: BrpExtrasActivityGuard,
     /// Which button is pressed during drag
-    pub button:        MouseButton,
+    pub button: MouseButton,
     /// Which window to target (None = primary)
-    pub window:        Option<Entity>,
+    pub window: Option<Entity>,
     /// Starting position
-    pub start:         Vec2,
+    pub start: Vec2,
     /// Ending position
-    pub end:           Vec2,
+    pub end: Vec2,
     /// Total number of frames for the drag
-    pub total_frames:  u32,
+    pub total_frames: u32,
     /// Current frame index
     pub current_frame: u32,
     /// Current state of the drag operation
-    pub drag_state:    DragState,
+    pub drag_state: DragState,
 }
 
 // ============================================================================
@@ -107,9 +107,9 @@ pub(crate) fn drag_mouse_handler(In(params): In<Option<Value>>, world: &mut Worl
     // Validate frames
     if request.frames < MIN_DRAG_FRAMES {
         return Err(BrpError {
-            code:    INVALID_PARAMS,
+            code: INVALID_PARAMS,
             message: "Frames must be greater than 0".to_string(),
-            data:    None,
+            data: None,
         });
     }
 
@@ -118,21 +118,21 @@ pub(crate) fn drag_mouse_handler(In(params): In<Option<Value>>, world: &mut Worl
     // Spawn drag operation component
     let activity = activity::begin(world);
     world.spawn(DragOperation {
-        _activity:     activity,
-        button:        request.button,
-        window:        Some(window),
-        start:         request.start,
-        end:           request.end,
-        total_frames:  request.frames,
+        _activity: activity,
+        button: request.button,
+        window: Some(window),
+        start: request.start,
+        end: request.end,
+        total_frames: request.frames,
         current_frame: 0,
-        drag_state:    DragState::Pressed,
+        drag_state: DragState::Pressed,
     });
 
     support::serialize_response(
         DragMouseResponse {
             button: request.button,
-            start:  request.start,
-            end:    request.end,
+            start: request.start,
+            end: request.end,
             frames: request.frames,
         },
         METHOD_DRAG_MOUSE,
@@ -195,7 +195,7 @@ pub(super) fn process_drag_operations(
 
                 // Transition to dragging
                 drag.drag_state = DragState::Dragging;
-            },
+            }
             DragState::Dragging => {
                 // Calculate interpolation factor
                 #[allow(
@@ -233,7 +233,7 @@ pub(super) fn process_drag_operations(
                 if drag.current_frame > drag.total_frames {
                     drag.drag_state = DragState::Released;
                 }
-            },
+            }
             DragState::Released => {
                 // Send button release
                 let btn_event = MouseButtonInput {
@@ -246,7 +246,7 @@ pub(super) fn process_drag_operations(
 
                 // Despawn entity
                 commands.entity(entity).despawn();
-            },
+            }
         }
     }
 }

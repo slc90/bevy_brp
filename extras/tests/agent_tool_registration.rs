@@ -20,7 +20,7 @@ const NAME: &str = "example_multiply";
 
 #[derive(Deserialize, JsonSchema)]
 struct MultiplyParams {
-    value:  i64,
+    value: i64,
     factor: i64,
 }
 

@@ -126,10 +126,10 @@ impl Plugin for ScreenshotFixturesPlugin {
 
 #[derive(Resource)]
 struct ScreenshotFixtureState {
-    image:                 Handle<Image>,
+    image: Handle<Image>,
     primary_window_camera: Option<Entity>,
-    three_d_camera:        Entity,
-    two_d_camera:          Entity,
+    three_d_camera: Entity,
+    two_d_camera: Entity,
 }
 
 fn setup_screenshot_fixtures(
@@ -193,7 +193,7 @@ fn spawn_three_d_camera(commands: &mut Commands, render_target: RenderTarget) ->
             render_target,
             Projection::Orthographic(OrthographicProjection {
                 scaling_mode: ScalingMode::Fixed {
-                    width:  VIEWPORT_SIZE.as_vec2().x,
+                    width: VIEWPORT_SIZE.as_vec2().x,
                     height: VIEWPORT_SIZE.as_vec2().y,
                 },
                 ..OrthographicProjection::default_3d()

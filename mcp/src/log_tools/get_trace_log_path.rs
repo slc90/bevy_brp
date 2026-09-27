@@ -19,11 +19,15 @@ enum TraceLogFile {
 }
 
 impl From<bool> for TraceLogFile {
-    fn from(value: bool) -> Self { if value { Self::Present } else { Self::Missing } }
+    fn from(value: bool) -> Self {
+        if value { Self::Present } else { Self::Missing }
+    }
 }
 
 impl From<TraceLogFile> for bool {
-    fn from(value: TraceLogFile) -> Self { matches!(value, TraceLogFile::Present) }
+    fn from(value: TraceLogFile) -> Self {
+        matches!(value, TraceLogFile::Present)
+    }
 }
 
 /// Result from getting the trace log path
@@ -32,13 +36,13 @@ impl From<TraceLogFile> for bool {
 pub struct GetTraceLogPathResult {
     /// Full path to the trace log file
     #[to_metadata]
-    log_path:         String,
+    log_path: String,
     /// Whether the log file currently exists
     #[to_metadata]
-    exists:           TraceLogFile,
+    exists: TraceLogFile,
     /// Size of the log file in bytes (if it exists)
     #[to_metadata(skip_if_none)]
-    file_size_bytes:  Option<u64>,
+    file_size_bytes: Option<u64>,
     /// Message template for formatting responses
     #[to_message(message_template = "Trace log path: {log_path}")]
     message_template: String,

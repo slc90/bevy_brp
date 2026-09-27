@@ -37,7 +37,9 @@ impl From<bool> for KeywordFilterMode {
 }
 
 impl From<KeywordFilterMode> for bool {
-    fn from(value: KeywordFilterMode) -> Self { matches!(value, KeywordFilterMode::Filtered) }
+    fn from(value: KeywordFilterMode) -> Self {
+        matches!(value, KeywordFilterMode::Filtered)
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -48,20 +50,24 @@ enum LogReadMode {
 }
 
 impl From<bool> for LogReadMode {
-    fn from(value: bool) -> Self { if value { Self::Tail } else { Self::FullFile } }
+    fn from(value: bool) -> Self {
+        if value { Self::Tail } else { Self::FullFile }
+    }
 }
 
 impl From<LogReadMode> for bool {
-    fn from(value: LogReadMode) -> Self { matches!(value, LogReadMode::Tail) }
+    fn from(value: LogReadMode) -> Self {
+        matches!(value, LogReadMode::Tail)
+    }
 }
 
 #[derive(Clone, Deserialize, Serialize, JsonSchema, ParamStruct)]
 pub struct ReadLogParams {
     /// The log filename (e.g., `bevy_brp_mcp_myapp_1234567890.log`)
-    pub filename:   String,
+    pub filename: String,
     /// Optional keyword to filter lines (case-insensitive)
     #[to_metadata(skip_if_none)]
-    pub keyword:    Option<String>,
+    pub keyword: Option<String>,
     /// Optional number of lines to read from the end of file
     #[to_metadata(skip_if_none)]
     pub tail_lines: Option<u32>,
@@ -76,33 +82,33 @@ pub struct ReadLogParams {
 pub struct ReadLogResult {
     /// The filename that was read
     #[to_metadata]
-    filename:            String,
+    filename: String,
     /// Full path to the file
     #[to_metadata]
-    file_path:           String,
+    file_path: String,
     /// Size of the file in bytes
     #[serde(rename = "size_bytes")]
     #[to_metadata]
-    bytes:               u64,
+    bytes: u64,
     /// Human-readable file size
     #[serde(rename = "size_human")]
     #[to_metadata]
-    human:               String,
+    human: String,
     /// Number of lines read
     #[to_metadata]
-    lines_read:          usize,
+    lines_read: usize,
     /// The actual log content
     #[to_result]
-    content:             String,
+    content: String,
     /// Whether content was filtered by keyword
     #[to_metadata]
     filtered_by_keyword: KeywordFilterMode,
     /// Whether tail mode was used
     #[to_metadata]
-    tail_mode:           LogReadMode,
+    tail_mode: LogReadMode,
     /// Message template for formatting responses
     #[to_message(message_template = "Read {lines_read} lines from {filename}")]
-    message_template:    String,
+    message_template: String,
 }
 
 #[derive(ToolFn)]
@@ -120,7 +126,7 @@ async fn handle_impl(params: ReadLogParams) -> Result<ReadLogResult> {
             Ok(n) => Some(n),
             Err(_) => {
                 return Err(Error::invalid("tail_lines", "tail_lines value too large").into());
-            },
+            }
         },
         None => None,
     };

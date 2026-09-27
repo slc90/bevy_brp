@@ -19,7 +19,9 @@ pub(super) enum OptionClassification {
 }
 
 impl OptionClassification {
-    pub(super) const fn is_option(&self) -> bool { matches!(self, Self::Wrapped { .. }) }
+    pub(super) const fn is_option(&self) -> bool {
+        matches!(self, Self::Wrapped { .. })
+    }
 
     fn extract_option_inner(type_name: &BrpTypeName) -> Option<BrpTypeName> {
         let type_str = type_name.as_str();
@@ -66,7 +68,7 @@ pub(super) fn apply_option_transformation(
                 return Example::Json(value.clone());
             }
             example
-        },
+        }
         _ => example,
     }
 }

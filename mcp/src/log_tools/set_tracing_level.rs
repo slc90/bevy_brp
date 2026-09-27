@@ -24,11 +24,11 @@ pub struct SetTracingLevelResult {
     /// The new tracing level that was set
     #[serde(rename = "tracing_level")]
     #[to_metadata]
-    level:            String,
+    level: String,
     /// The log file where trace output is written
     #[serde(rename = "tracing_log_file")]
     #[to_metadata]
-    log_file:         String,
+    log_file: String,
     /// Message template for formatting responses
     #[to_message(message_template = "Set tracing level to {tracing_level}")]
     message_template: String,
@@ -54,7 +54,7 @@ impl ToolFn for SetTracingLevel {
                     ),
                 )
                 .into());
-            },
+            }
         };
 
         // Update the tracing level

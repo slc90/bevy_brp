@@ -22,7 +22,7 @@ Workspace 内部依赖使用 workspace/path dependency 指向当前成员。不�
 
 生产 crate 保持定向 feature；不要把 `test-app` 为类型和渲染 fixture 使用的 Bevy 全 feature 传播到 `extras`、`runtime` 或 `mcp`。
 
-修改 Bevy feature 时应检查 feature unification 对 workspace build、独立 package build、WASM/native target 和启动 freshness 判断的影响。不得仅凭 workspace 已能编译就假设单 crate 消费方式也成立。
+修改 Bevy feature 时应检查 feature unification 对 workspace build、独立 package build、Windows target 和启动 freshness 判断的影响。不得仅凭 workspace 已能编译就假设单 crate 消费方式也成立。
 
 ## Crate 与 package
 

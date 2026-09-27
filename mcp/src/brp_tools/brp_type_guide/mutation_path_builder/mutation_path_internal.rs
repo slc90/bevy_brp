@@ -49,27 +49,27 @@ enum RootDefault {
 
 /// Parameters for constructing a `PathInfo`.
 struct PathInfoParams {
-    path_kind:           PathKind,
-    type_name:           BrpTypeName,
-    type_kind:           TypeKind,
-    mutability:          Mutability,
-    mutability_reason:   Option<Value>,
+    path_kind: PathKind,
+    type_name: BrpTypeName,
+    type_kind: TypeKind,
+    mutability: Mutability,
+    mutability_reason: Option<Value>,
     applicable_variants: Option<Vec<VariantName>>,
-    enum_instructions:   Option<String>,
-    root_example:        Option<RootExample>,
+    enum_instructions: Option<String>,
+    root_example: Option<RootExample>,
 }
 
 impl From<PathInfoParams> for PathInfo {
     fn from(params: PathInfoParams) -> Self {
         Self {
-            path_kind:           params.path_kind,
-            type_name:           params.type_name,
-            type_kind:           params.type_kind,
-            mutability:          params.mutability,
-            mutability_reason:   params.mutability_reason,
+            path_kind: params.path_kind,
+            type_name: params.type_name,
+            type_kind: params.type_kind,
+            mutability: params.mutability,
+            mutability_reason: params.mutability_reason,
             applicable_variants: params.applicable_variants,
-            enum_instructions:   params.enum_instructions,
-            root_example:        params.root_example,
+            enum_instructions: params.enum_instructions,
+            root_example: params.root_example,
         }
     }
 }
@@ -78,22 +78,22 @@ impl From<PathInfoParams> for PathInfo {
 #[derive(Debug, Clone)]
 pub(super) struct MutationPathInternal {
     /// Example value for this path - now type-safe!
-    pub(super) example:               PathExample,
+    pub(super) example: PathExample,
     /// Path for mutation, e.g., ".translation.x"
-    pub(super) mutation_path:         MutationPath,
+    pub(super) mutation_path: MutationPath,
     /// Type information for this path
-    pub(super) type_name:             BrpTypeName,
+    pub(super) type_name: BrpTypeName,
     /// Context describing what kind of mutation this is
-    pub(super) path_kind:             PathKind,
+    pub(super) path_kind: PathKind,
     /// Whether this path can be mutated
-    pub(super) mutability:            Mutability,
+    pub(super) mutability: Mutability,
     /// Reason if mutation is not possible
-    pub(super) mutability_reason:     Option<NotMutableReason>,
+    pub(super) mutability_reason: Option<NotMutableReason>,
     /// Consolidated enum-specific data
-    pub(super) enum_path_info:        Option<EnumPathInfo>,
+    pub(super) enum_path_info: Option<EnumPathInfo>,
     /// Depth level of this path in the recursion tree (0 = root, 1 = .field, etc.)
     /// Used to identify direct children vs grandchildren during assembly
-    pub(super) depth:                 usize,
+    pub(super) depth: usize,
     /// Maps variant chains to complete root examples for reaching nested enum paths.
     /// Populated during enum processing for paths where `matches!(example, PathExample::EnumRoot {
     /// .. })`. Built by `build_partial_root_examples()` in `enum_path_builder.rs` during
@@ -110,7 +110,7 @@ impl MutationPathInternal {
     /// Create a `MutabilityIssue` from this mutation path (for non-enum types)
     pub(super) fn to_mutability_issue(&self) -> MutabilityIssue {
         MutabilityIssue {
-            target:     MutabilityIssueTarget::Path(self.mutation_path.clone()),
+            target: MutabilityIssueTarget::Path(self.mutation_path.clone()),
             mutability: self.mutability,
         }
     }
@@ -203,10 +203,10 @@ impl MutationPathInternal {
                     RootDefault::Present => {
                         let guidance = Self::get_default_spawn_guidance(field_schema);
                         format!("{base_message}.{guidance}")
-                    },
+                    }
                     RootDefault::Absent => format!("{base_message}. No example is provided."),
                 }
-            },
+            }
             Mutability::NotMutable => {
                 let is_root = matches!(self.path_kind, PathKind::RootValue { .. });
                 let base_message =
@@ -218,7 +218,7 @@ impl MutationPathInternal {
                 } else {
                     format!("{base_message}. No example is provided.")
                 }
-            },
+            }
             Mutability::Mutable => self
                 .path_kind
                 .description(type_kind, self.enum_path_info.as_ref()),

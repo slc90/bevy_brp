@@ -21,9 +21,13 @@ pub(super) enum BuilderError {
 }
 
 impl From<Report<Error>> for BuilderError {
-    fn from(e: Report<Error>) -> Self { Self::System(e) }
+    fn from(e: Report<Error>) -> Self {
+        Self::System(e)
+    }
 }
 
 impl From<NotMutableReason> for BuilderError {
-    fn from(reason: NotMutableReason) -> Self { Self::NotMutable(reason) }
+    fn from(reason: NotMutableReason) -> Self {
+        Self::NotMutable(reason)
+    }
 }

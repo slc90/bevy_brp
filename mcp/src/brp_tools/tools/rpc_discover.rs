@@ -56,7 +56,7 @@ pub(super) async fn discover_method_names(port: Port) -> Result<Vec<String>> {
                 }),
             )
             .into());
-        },
+        }
     };
 
     let value = match response {
@@ -66,7 +66,7 @@ pub(super) async fn discover_method_names(port: Port) -> Result<Vec<String>> {
                 port,
                 "rpc.discover returned no result",
             ));
-        },
+        }
         ResponseStatus::Error(error) => {
             return Err(Error::tool_call_failed_with_details(
                 format!("rpc.discover failed on port {port}: {}", error.message),
@@ -78,7 +78,7 @@ pub(super) async fn discover_method_names(port: Port) -> Result<Vec<String>> {
                 }),
             )
             .into());
-        },
+        }
     };
 
     decode_method_names(value, port)

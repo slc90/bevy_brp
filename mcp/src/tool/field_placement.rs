@@ -24,7 +24,9 @@ pub enum SkipIfNone {
 }
 
 impl From<bool> for SkipIfNone {
-    fn from(value: bool) -> Self { if value { Self::Omit } else { Self::Keep } }
+    fn from(value: bool) -> Self {
+        if value { Self::Omit } else { Self::Keep }
+    }
 }
 
 /// Information about where a field should be placed in the response
@@ -36,11 +38,11 @@ impl From<bool> for SkipIfNone {
 #[allow(dead_code, reason = "used by ParamStruct/ResultStruct derive macros")]
 pub struct FieldPlacementInfo {
     /// The name of the field
-    pub field_name:   &'static str,
+    pub field_name: &'static str,
     /// Where to place this field (metadata or result)
-    pub placement:    FieldPlacement,
+    pub placement: FieldPlacement,
     /// Optional source path for response fields (e.g., "result.entities")
-    pub source_path:  Option<&'static str>,
+    pub source_path: Option<&'static str>,
     /// Whether to skip this field if it's None
     pub skip_if_none: SkipIfNone,
 }

@@ -172,11 +172,11 @@ fn launch_found_target(
         TargetType::App => {
             let config = config::LaunchConfig::<config::App>::from(params);
             launch_target_with_cached(&config, roots, cached_targets)
-        },
+        }
         TargetType::Example => {
             let config = config::LaunchConfig::<config::Example>::from(params);
             launch_target_with_cached(&config, roots, cached_targets)
-        },
+        }
     }
 }
 
@@ -218,7 +218,7 @@ fn launch_target_with_cached<T: config::LaunchConfigTrait>(
         BuildState::Rebuilt => debug!("Target was rebuilt before launch"),
         BuildState::NotFound => {
             warn!("Target not found in build output but build succeeded");
-        },
+        }
     }
 
     let instance_count = *config.instance_count();

@@ -137,7 +137,7 @@ pub(super) enum CallInfo {
     /// BRP tool execution (calls Bevy Remote Protocol)
     Brp {
         /// The MCP tool name (e.g., `world_spawn_entity`)
-        mcp_tool:   String,
+        mcp_tool: String,
         /// The BRP method name (e.g., `world.spawn_entity`)
         brp_method: String,
     },
@@ -442,7 +442,7 @@ impl ToolName {
         let tool_name = self.to_string();
         match self.to_brp_method() {
             Some(brp_method) => CallInfo::Brp {
-                mcp_tool:   tool_name,
+                mcp_tool: tool_name,
                 brp_method: brp_method.as_str().to_string(),
             },
             None => CallInfo::Local {
@@ -724,94 +724,94 @@ impl ToolName {
         match self {
             Self::WorldDespawnEntity => {
                 Some(parameters::build_parameters_from::<DespawnEntityParams>)
-            },
+            }
             Self::WorldGetComponents => {
                 Some(parameters::build_parameters_from::<GetComponentsParams>)
-            },
+            }
             Self::WorldGetResources => {
                 Some(parameters::build_parameters_from::<GetResourcesParams>)
-            },
+            }
             Self::WorldInsertComponents => {
                 Some(parameters::build_parameters_from::<InsertComponentsParams>)
-            },
+            }
             Self::WorldInsertResources => {
                 Some(parameters::build_parameters_from::<InsertResourcesParams>)
-            },
+            }
             Self::WorldListComponents => {
                 Some(parameters::build_parameters_from::<ListComponentsParams>)
-            },
+            }
             Self::WorldListResources => {
                 Some(parameters::build_parameters_from::<ListResourcesParams>)
-            },
+            }
             Self::WorldMutateComponents => {
                 Some(parameters::build_parameters_from::<MutateComponentsParams>)
-            },
+            }
             Self::WorldMutateResources => {
                 Some(parameters::build_parameters_from::<MutateResourcesParams>)
-            },
+            }
             Self::WorldQuery => Some(parameters::build_parameters_from::<QueryParams>),
             Self::WorldFindEntitiesByName => {
                 Some(parameters::build_parameters_from::<FindEntitiesByNameParams>)
-            },
+            }
             Self::RegistrySchema => Some(parameters::build_parameters_from::<RegistrySchemaParams>),
             Self::WorldRemoveComponents => {
                 Some(parameters::build_parameters_from::<RemoveComponentsParams>)
-            },
+            }
             Self::WorldRemoveResources => {
                 Some(parameters::build_parameters_from::<RemoveResourcesParams>)
-            },
+            }
             Self::WorldReparentEntities => {
                 Some(parameters::build_parameters_from::<ReparentEntitiesParams>)
-            },
+            }
             Self::RpcDiscover => Some(parameters::build_parameters_from::<RpcDiscoverParams>),
             Self::WorldSpawnEntity => Some(parameters::build_parameters_from::<SpawnEntityParams>),
             Self::WorldTriggerEvent => {
                 Some(parameters::build_parameters_from::<TriggerEventParams>)
-            },
+            }
             Self::BrpExecute => Some(parameters::build_parameters_from::<ExecuteParams>),
             Self::BrpListAgentTools => {
                 Some(parameters::build_parameters_from::<ListAgentToolsParams>)
-            },
+            }
             Self::BrpExtrasScreenshot => {
                 Some(parameters::build_parameters_from::<ScreenshotParams>)
-            },
+            }
             Self::BrpExtrasSendKeys => Some(parameters::build_parameters_from::<SendKeysParams>),
             Self::BrpExtrasTypeText => Some(parameters::build_parameters_from::<TypeTextParams>),
             Self::BrpExtrasSetWindowTitle => {
                 Some(parameters::build_parameters_from::<SetWindowTitleParams>)
-            },
+            }
             Self::BrpExtrasMoveMouse => Some(parameters::build_parameters_from::<MoveMouseParams>),
             Self::BrpExtrasSendMouseButton => {
                 Some(parameters::build_parameters_from::<SendMouseButtonParams>)
-            },
+            }
             Self::BrpExtrasClickMouse => {
                 Some(parameters::build_parameters_from::<ClickMouseParams>)
-            },
+            }
             Self::BrpExtrasDoubleClickMouse => {
                 Some(parameters::build_parameters_from::<DoubleClickMouseParams>)
-            },
+            }
             Self::BrpExtrasDragMouse => Some(parameters::build_parameters_from::<DragMouseParams>),
             Self::BrpExtrasScrollMouse => {
                 Some(parameters::build_parameters_from::<ScrollMouseParams>)
-            },
+            }
             Self::BrpExtrasPinchGesture => {
                 Some(parameters::build_parameters_from::<PinchGestureParams>)
-            },
+            }
             Self::BrpExtrasRotationGesture => {
                 Some(parameters::build_parameters_from::<RotationGestureParams>)
-            },
+            }
             Self::BrpExtrasDoubleTapGesture => {
                 Some(parameters::build_parameters_from::<DoubleTapGestureParams>)
-            },
+            }
             Self::BrpExtrasGetDiagnostics => {
                 Some(parameters::build_parameters_from::<GetDiagnosticsParams>)
-            },
+            }
             Self::WorldGetComponentsWatch => {
                 Some(parameters::build_parameters_from::<GetComponentsWatchParams>)
-            },
+            }
             Self::WorldListComponentsWatch => {
                 Some(parameters::build_parameters_from::<ListComponentsWatchParams>)
-            },
+            }
             Self::BrpDeleteLogs => Some(parameters::build_parameters_from::<DeleteLogsParams>),
 
             // Parameterless `ToolName` variants
@@ -828,13 +828,13 @@ impl ToolName {
             #[cfg(feature = "mcp-debug")]
             Self::BrpSetTracingLevel => {
                 Some(parameters::build_parameters_from::<SetTracingLevelParams>)
-            },
+            }
             Self::BrpStatus => Some(parameters::build_parameters_from::<StatusParams>),
             Self::BrpShutdown => Some(parameters::build_parameters_from::<ShutdownParams>),
             Self::BrpTypeGuide => Some(parameters::build_parameters_from::<TypeGuideParams>),
             Self::BrpAllTypeGuides => {
                 Some(parameters::build_parameters_from::<AllTypeGuidesParams>)
-            },
+            }
         }
     }
 
@@ -903,16 +903,18 @@ impl ToolName {
     /// Convert this tool name to a complete `ToolDef`
     pub(super) fn to_tool_def(self) -> ToolDef {
         ToolDef {
-            tool_name:   self,
+            tool_name: self,
             annotations: self.get_annotations(),
-            handler:     self.create_handler(),
-            parameters:  self.get_parameters(),
+            handler: self.create_handler(),
+            parameters: self.get_parameters(),
         }
     }
 
     /// Get a short human-readable title for this tool
     /// Extracted from the annotation data we already have
-    pub(super) fn short_title(self) -> String { self.get_annotations().title }
+    pub(super) fn short_title(self) -> String {
+        self.get_annotations().title
+    }
 }
 
 #[cfg(test)]

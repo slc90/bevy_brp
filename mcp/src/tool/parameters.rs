@@ -123,7 +123,9 @@ pub enum ParameterName {
 }
 
 impl From<ParameterName> for String {
-    fn from(param: ParameterName) -> Self { param.as_ref().to_string() }
+    fn from(param: ParameterName) -> Self {
+        param.as_ref().to_string()
+    }
 }
 
 /// Parameter field types for schema generation.
@@ -153,7 +155,9 @@ enum Required {
 }
 
 impl From<bool> for Required {
-    fn from(value: bool) -> Self { if value { Self::Yes } else { Self::No } }
+    fn from(value: bool) -> Self {
+        if value { Self::Yes } else { Self::No }
+    }
 }
 
 /// Which JSON containers a stringified value is allowed to be parsed into.
@@ -168,11 +172,13 @@ enum AcceptedJson {
 #[derive(Clone, Default)]
 pub struct ParameterBuilder {
     properties: Map<String, Value>,
-    required:   Vec<String>,
+    required: Vec<String>,
 }
 
 impl ParameterBuilder {
-    pub(super) fn new() -> Self { Self::default() }
+    pub(super) fn new() -> Self {
+        Self::default()
+    }
 
     /// Add a string property to the schema
     fn add_string_property(mut self, name: &str, description: &str, required: Required) -> Self {
@@ -303,7 +309,7 @@ impl ParameterBuilder {
     fn mark_required(&mut self, name: &str, required: Required) {
         match required {
             Required::Yes => self.required.push(name.to_string()),
-            Required::No => {},
+            Required::No => {}
         }
     }
 
@@ -332,7 +338,7 @@ fn handle_array_type(object: &Map<String, Value>) -> ParameterType {
             s if s == JsonSchemaType::String.as_ref() => ParameterType::StringArray,
             s if s == JsonSchemaType::Integer.as_ref() || s == JsonSchemaType::Number.as_ref() => {
                 ParameterType::NumberArray
-            },
+            }
             _ => ParameterType::Any,
         })
 }
@@ -343,7 +349,7 @@ fn handle_string_type(type_str: &str, object: &Map<String, Value>) -> ParameterT
         s if s == JsonSchemaType::String.as_ref() => ParameterType::String,
         s if s == JsonSchemaType::Integer.as_ref() || s == JsonSchemaType::Number.as_ref() => {
             ParameterType::Number
-        },
+        }
         s if s == JsonSchemaType::Boolean.as_ref() => ParameterType::Boolean,
         s if s == JsonSchemaType::Object.as_ref() => ParameterType::Object,
         s if s == JsonSchemaType::Array.as_ref() => handle_array_type(object),
@@ -367,7 +373,7 @@ fn handle_type_array(types: &[Value], object: &Map<String, Value>) -> ParameterT
                     || s == JsonSchemaType::Number.as_ref() =>
             {
                 ParameterType::Number
-            },
+            }
             Some(&s) if s == JsonSchemaType::Boolean.as_ref() => ParameterType::Boolean,
             Some(&s) if s == JsonSchemaType::Object.as_ref() => ParameterType::Object,
             Some(&s) if s == JsonSchemaType::Array.as_ref() => handle_array_type(object),
@@ -548,9 +554,9 @@ fn normalize_argument_value(value: &mut Value, schema: &Schema) {
         ParameterType::Object => normalize_stringified_json(value, AcceptedJson::ObjectOnly),
         ParameterType::StringArray | ParameterType::NumberArray => {
             normalize_stringified_json(value, AcceptedJson::ArrayOnly);
-        },
+        }
         ParameterType::Any => normalize_stringified_json(value, AcceptedJson::ObjectOrArray),
-        ParameterType::Number | ParameterType::String | ParameterType::Boolean => {},
+        ParameterType::Number | ParameterType::String | ParameterType::Boolean => {}
     }
 }
 
@@ -640,25 +646,25 @@ pub(super) fn build_parameters_from<T: JsonSchema>() -> ParameterBuilder {
         parameter_builder = match param_type {
             ParameterType::String => {
                 parameter_builder.add_string_property(field_name, description, required)
-            },
+            }
             ParameterType::Number => {
                 parameter_builder.add_number_property(field_name, description, required)
-            },
+            }
             ParameterType::Boolean => {
                 parameter_builder.add_boolean_property(field_name, description, required)
-            },
+            }
             ParameterType::StringArray => {
                 parameter_builder.add_string_array_property(field_name, description, required)
-            },
+            }
             ParameterType::NumberArray => {
                 parameter_builder.add_number_array_property(field_name, description, required)
-            },
+            }
             ParameterType::Object => {
                 parameter_builder.add_object_property(field_name, description, required)
-            },
+            }
             ParameterType::Any => {
                 parameter_builder.add_any_property(field_name, description, required)
-            },
+            }
         };
     }
 

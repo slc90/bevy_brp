@@ -30,11 +30,11 @@ pub struct ListAgentToolsParams {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub(crate) struct ListedAgentTool {
     /// Agent-facing tool name.
-    pub name:          String,
+    pub name: String,
     /// Exact backing BRP method for `brp_execute`.
-    pub method:        String,
+    pub method: String,
     /// Agent-facing description of the operation.
-    pub description:   String,
+    pub description: String,
     /// Raw JSON Schema for the backing method's JSON-RPC parameters.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub params_schema: Option<Value>,
@@ -57,10 +57,10 @@ pub(crate) struct ListAgentToolsPayload {
 pub struct ListAgentToolsResult {
     /// Catalog payload returned to the caller.
     #[to_result]
-    pub catalog:          ListAgentToolsPayload,
+    pub catalog: ListAgentToolsPayload,
     /// Number of catalog records returned.
     #[to_metadata]
-    pub tool_count:       usize,
+    pub tool_count: usize,
     /// Message template for formatting responses.
     #[to_message(message_template = "Listed {tool_count} agent tools")]
     pub message_template: String,
@@ -99,14 +99,14 @@ impl ToolFn for BrpListAgentTools {
 #[derive(Deserialize)]
 struct AgentToolCatalogWire {
     version: u32,
-    tools:   Vec<AgentToolWire>,
+    tools: Vec<AgentToolWire>,
 }
 
 #[derive(Deserialize)]
 struct AgentToolWire {
-    name:          String,
-    method:        String,
-    description:   String,
+    name: String,
+    method: String,
+    description: String,
     params_schema: Option<Value>,
     result_schema: Option<Value>,
 }
@@ -114,9 +114,9 @@ struct AgentToolWire {
 impl From<AgentToolWire> for ListedAgentTool {
     fn from(tool: AgentToolWire) -> Self {
         Self {
-            name:          tool.name,
-            method:        tool.method,
-            description:   tool.description,
+            name: tool.name,
+            method: tool.method,
+            description: tool.description,
             params_schema: tool.params_schema,
             result_schema: tool.result_schema,
         }
@@ -134,7 +134,7 @@ fn interpret_catalog_response(
                 port,
                 "brp_extras/agent_tools returned no result",
             ));
-        },
+        }
         ResponseStatus::Error(error) => {
             return Err(catalog_brp_error(
                 port,
@@ -142,7 +142,7 @@ fn interpret_catalog_response(
                 error.message,
                 error.data,
             ));
-        },
+        }
     };
 
     let catalog = serde_json::from_value::<AgentToolCatalogWire>(value)
@@ -257,7 +257,9 @@ mod tests {
         }
     }
 
-    fn success_response(value: Value) -> ResponseStatus { ResponseStatus::Success(Some(value)) }
+    fn success_response(value: Value) -> ResponseStatus {
+        ResponseStatus::Success(Some(value))
+    }
 
     fn populated_response() -> ResponseStatus {
         success_response(json!({
@@ -367,16 +369,16 @@ mod tests {
             result.catalog.tools,
             vec![
                 ListedAgentTool {
-                    name:          TEST_NAME_BETA.to_string(),
-                    method:        TEST_METHOD_BETA.to_string(),
-                    description:   TEST_DESCRIPTION_BETA.to_string(),
+                    name: TEST_NAME_BETA.to_string(),
+                    method: TEST_METHOD_BETA.to_string(),
+                    description: TEST_DESCRIPTION_BETA.to_string(),
                     params_schema: Some(json!(["array", 7, true])),
                     result_schema: Some(json!("primitive")),
                 },
                 ListedAgentTool {
-                    name:          TEST_NAME_ALPHA.to_string(),
-                    method:        TEST_METHOD_ALPHA.to_string(),
-                    description:   TEST_DESCRIPTION_ALPHA.to_string(),
+                    name: TEST_NAME_ALPHA.to_string(),
+                    method: TEST_METHOD_ALPHA.to_string(),
+                    description: TEST_DESCRIPTION_ALPHA.to_string(),
                     params_schema: Some(json!({"type": "object"})),
                     result_schema: Some(json!(false)),
                 },

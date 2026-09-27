@@ -28,8 +28,8 @@ use crate::tool::ParameterName;
 /// HTTP client for BRP communication
 pub(super) struct BrpHttpClient<'method> {
     brp_method: &'method str,
-    port:       Port,
-    params:     Option<Value>,
+    port: Port,
+    params: Option<Value>,
 }
 
 enum ReqwestErrorKind {

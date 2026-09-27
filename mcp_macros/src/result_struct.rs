@@ -45,7 +45,9 @@ enum ErrorDetailMode {
 }
 
 impl ErrorDetailMode {
-    const fn includes_type_guide(self) -> bool { matches!(self, Self::IncludeTypeGuide) }
+    const fn includes_type_guide(self) -> bool {
+        matches!(self, Self::IncludeTypeGuide)
+    }
 }
 
 /// Attributes for #[`brp_result`(...)]
@@ -580,7 +582,7 @@ fn classify_generated_field<'a>(
     match field_name.to_string().as_str() {
         RESULT_FIELD if type_str.contains(OPTION_VALUE_TYPE) => {
             Some(GeneratedFieldKind::ResultValue)
-        },
+        }
         "format_corrections" => Some(GeneratedFieldKind::FormatCorrections),
         "format_corrected" => Some(GeneratedFieldKind::FormatCorrected),
         WARNING_FIELD if type_str.contains(OPTION_STRING_TYPE) => Some(GeneratedFieldKind::Warning),
@@ -773,7 +775,7 @@ fn generate_extract_computation(
                     .and_then(serde_json::Value::as_str)
                     .map_or_else(String::new, String::from)
             })
-        },
+        }
         "extract_chars_queued" => Some(quote! {
             #source.as_ref()
                 .and_then(serde_json::Value::as_object)
@@ -811,7 +813,7 @@ fn computed_field_default(operation: &str) -> proc_macro2::TokenStream {
         | "count_keys_sent"
         | "extract_chars_queued" => {
             quote! { 0 }
-        },
+        }
         "extract_entity" => quote! { 0 },
         "extract_duration_ms" => quote! { #default_duration_ms },
         "count_errors" => quote! { None },
@@ -819,7 +821,7 @@ fn computed_field_default(operation: &str) -> proc_macro2::TokenStream {
         "extract_debug_enabled" => quote! { false },
         "extract_message" | "extract_status" | "extract_old_title" | "extract_new_title" => {
             quote! { String::new() }
-        },
+        }
         _ => quote! { Default::default() },
     }
 }

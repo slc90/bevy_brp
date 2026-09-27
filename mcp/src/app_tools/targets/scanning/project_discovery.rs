@@ -24,7 +24,7 @@ enum ProjectType {
 #[derive(Debug, Clone)]
 struct DiscoveredProject {
     /// Path to the directory containing `Cargo.toml`.
-    path:         PathBuf,
+    path: PathBuf,
     /// Type of project (workspace member or standalone).
     project_type: ProjectType,
 }
@@ -45,7 +45,7 @@ pub(super) fn safe_canonicalize(path: &Path) -> PathBuf {
         Err(error) => {
             debug!("Failed to canonicalize '{}': {error}", path.display());
             path.to_path_buf()
-        },
+        }
     }
 }
 
@@ -118,12 +118,12 @@ pub fn iter_cargo_project_paths(search_paths: &[PathBuf]) -> Vec<PathBuf> {
         match &project.project_type {
             ProjectType::Workspace { workspace_root } => {
                 final_paths.insert(workspace_root.clone());
-            },
+            }
             ProjectType::Standalone => {
                 if !workspace_members.contains(&project.path) {
                     final_paths.insert(project.path.clone());
                 }
-            },
+            }
         }
     }
 
@@ -158,7 +158,7 @@ fn discover_workspace_members(
                 discovered_projects.insert(
                     member_canonical.clone(),
                     DiscoveredProject {
-                        path:         member_canonical,
+                        path: member_canonical,
                         project_type: ProjectType::Workspace {
                             workspace_root: workspace_root.to_path_buf(),
                         },
@@ -187,7 +187,7 @@ fn handle_workspace_root(
         discovered_projects.insert(
             canonical_dir.clone(),
             DiscoveredProject {
-                path:         canonical_dir,
+                path: canonical_dir,
                 project_type: ProjectType::Standalone,
             },
         );
@@ -203,7 +203,7 @@ fn add_workspace_member(
     discovered_projects.insert(
         canonical_dir.clone(),
         DiscoveredProject {
-            path:         canonical_dir,
+            path: canonical_dir,
             project_type: ProjectType::Workspace { workspace_root },
         },
     );
@@ -217,7 +217,7 @@ fn add_fallback_standalone(
     discovered_projects
         .entry(canonical_dir.clone())
         .or_insert(DiscoveredProject {
-            path:         canonical_dir,
+            path: canonical_dir,
             project_type: ProjectType::Standalone,
         });
 }

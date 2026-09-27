@@ -36,15 +36,21 @@ impl TryFrom<u16> for Port {
 }
 
 impl Default for Port {
-    fn default() -> Self { Self(DEFAULT_BRP_EXTRAS_PORT) }
+    fn default() -> Self {
+        Self(DEFAULT_BRP_EXTRAS_PORT)
+    }
 }
 
 impl Display for Port {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result { self.0.fmt(f) }
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
 }
 
 impl Deref for Port {
     type Target = u16;
 
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }

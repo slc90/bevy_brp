@@ -53,7 +53,7 @@ impl TargetRgbImage {
         }
 
         Ok(EncodedCapture {
-            bytes:      cursor.into_inner(),
+            bytes: cursor.into_inner(),
             dimensions: capture_extent.size(),
         })
     }
@@ -73,15 +73,15 @@ impl TryFrom<Image> for TargetRgbImage {
 }
 
 pub(super) struct EncodedCapture {
-    pub(super) bytes:      Vec<u8>,
+    pub(super) bytes: Vec<u8>,
     pub(super) dimensions: UVec2,
 }
 
 fn capture_error(message: impl Into<String>) -> BrpError {
     BrpError {
-        code:    INTERNAL_ERROR,
+        code: INTERNAL_ERROR,
         message: message.into(),
-        data:    None,
+        data: None,
     }
 }
 
@@ -111,8 +111,8 @@ mod tests {
     fn test_image() -> Image {
         Image::new(
             Extent3d {
-                width:                 2,
-                height:                2,
+                width: 2,
+                height: 2,
                 depth_or_array_layers: 1,
             },
             TextureDimension::D2,

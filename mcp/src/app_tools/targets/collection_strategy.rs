@@ -34,7 +34,7 @@ pub(super) struct AllBevyTargetsStrategy;
 /// For bins, `brp_level` reflects whether the package's `src/` tree uses BRP plugins.
 /// For examples, the individual source file is checked for BRP plugin imports.
 pub(super) struct EnrichedTarget {
-    pub(super) target:    BevyTarget,
+    pub(super) target: BevyTarget,
     pub(super) brp_level: BrpLevel,
 }
 

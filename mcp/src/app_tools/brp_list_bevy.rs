@@ -32,10 +32,10 @@ pub struct ListBevyParams {
 pub struct ListBevyResult {
     /// Count of targets found
     #[to_metadata]
-    count:            usize,
+    count: usize,
     /// List of all Bevy targets found (apps and examples)
     #[to_result]
-    targets:          Vec<Value>,
+    targets: Vec<Value>,
     /// Message template for formatting responses
     #[to_message(message_template = "Found {count} Bevy targets")]
     message_template: String,

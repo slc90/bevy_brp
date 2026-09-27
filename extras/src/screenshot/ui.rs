@@ -18,16 +18,16 @@ use super::validated_camera_target;
 
 pub(super) struct ResolvedUiCapture {
     pub(super) camera: ValidatedCameraTarget,
-    pub(super) rect:   URect,
+    pub(super) rect: URect,
 }
 
 enum UiFamily<'a> {
     Absent,
     Complete {
-        computed_node:                  &'a ComputedNode,
+        computed_node: &'a ComputedNode,
         computed_ui_render_target_info: &'a ComputedUiRenderTargetInfo,
-        computed_ui_target_camera:      &'a ComputedUiTargetCamera,
-        ui_global_transform:            &'a UiGlobalTransform,
+        computed_ui_target_camera: &'a ComputedUiTargetCamera,
+        ui_global_transform: &'a UiGlobalTransform,
     },
     Partial,
 }
@@ -58,7 +58,7 @@ pub(super) fn resolve(
         ),
         UiFamily::Partial => {
             return Err(ui_error(entity, "has partially initialized UI bounds"));
-        },
+        }
     };
 
     let inherited_visibility = world
@@ -191,9 +191,9 @@ fn transformed_rect(
 fn containing_rect(rect: Rect) -> BrpResult<URect> {
     if !rect.min.is_finite() || !rect.max.is_finite() {
         return Err(BrpError {
-            code:    INVALID_PARAMS,
+            code: INVALID_PARAMS,
             message: "UI screenshot bounds contain non-finite coordinates".to_string(),
-            data:    None,
+            data: None,
         });
     }
     Ok(URect::from_corners(
@@ -204,9 +204,9 @@ fn containing_rect(rect: Rect) -> BrpResult<URect> {
 
 fn ui_error(entity: Entity, detail: &str) -> BrpError {
     BrpError {
-        code:    INVALID_PARAMS,
+        code: INVALID_PARAMS,
         message: format!("Screenshot UI entity {} {detail}", entity.to_bits()),
-        data:    None,
+        data: None,
     }
 }
 
@@ -257,7 +257,7 @@ mod tests {
     use crate::screenshot::CaptureResponseMetadata;
 
     struct TestUi {
-        app:    App,
+        app: App,
         camera: Entity,
         window: Entity,
     }
@@ -299,7 +299,7 @@ mod tests {
                     computed: ComputedCameraValues {
                         target_info: Some(RenderTargetInfo {
                             physical_size: target_size,
-                            scale_factor:  1.0,
+                            scale_factor: 1.0,
                         }),
                         ..default()
                     },
@@ -321,8 +321,8 @@ mod tests {
         app.init_resource::<Assets<Image>>();
         let image = Image::new_fill(
             Extent3d {
-                width:                 target_size.x,
-                height:                target_size.y,
+                width: target_size.x,
+                height: target_size.y,
                 depth_or_array_layers: 1,
             },
             TextureDimension::D2,
@@ -338,7 +338,7 @@ mod tests {
                     computed: ComputedCameraValues {
                         target_info: Some(RenderTargetInfo {
                             physical_size: target_size,
-                            scale_factor:  1.0,
+                            scale_factor: 1.0,
                         }),
                         ..default()
                     },

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Support is now limited to Windows MSVC; WASM support and its transport fallback have been removed.
+
 ## [0.22.7] - 2026-09-23
 
 ### Fixed

@@ -23,11 +23,11 @@ use crate::window_event;
 #[derive(Deserialize)]
 struct ScrollMouseRequest {
     /// Horizontal scroll amount
-    x:      f32,
+    x: f32,
     /// Vertical scroll amount
-    y:      f32,
+    y: f32,
     /// Scroll unit
-    unit:   MouseScrollUnit,
+    unit: MouseScrollUnit,
     /// Target window entity (None = primary window)
     #[serde(default)]
     window: Option<u64>,
@@ -37,9 +37,9 @@ struct ScrollMouseRequest {
 #[derive(Serialize)]
 struct ScrollMouseResponse {
     /// Horizontal scroll amount
-    x:    f32,
+    x: f32,
     /// Vertical scroll amount
-    y:    f32,
+    y: f32,
     /// Scroll unit that was used
     unit: MouseScrollUnit,
 }
@@ -66,8 +66,8 @@ pub(crate) fn scroll_mouse_handler(In(params): In<Option<Value>>, world: &mut Wo
 
     support::serialize_response(
         ScrollMouseResponse {
-            x:    request.x,
-            y:    request.y,
+            x: request.x,
+            y: request.y,
             unit: request.unit,
         },
         METHOD_SCROLL_MOUSE,

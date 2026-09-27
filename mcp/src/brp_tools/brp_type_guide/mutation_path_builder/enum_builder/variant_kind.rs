@@ -20,7 +20,7 @@ use crate::support::SchemaField;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(super) struct VariantKind {
     pub(super) variant_name: VariantName,
-    pub(super) signature:    VariantSignature,
+    pub(super) signature: VariantSignature,
 }
 
 impl VariantKind {
@@ -43,7 +43,7 @@ impl VariantKind {
             let qualified_name = format!("{type_name}::{variant_str}");
             return Ok(Self {
                 variant_name: VariantName::from(qualified_name),
-                signature:    VariantSignature::Unit,
+                signature: VariantSignature::Unit,
             });
         }
 

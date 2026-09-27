@@ -18,9 +18,9 @@ use crate::constants::BACKING_METHOD_WATCHING_REASON;
 /// Borrowed wire record that preserves the registered raw schemas unchanged.
 #[derive(Serialize)]
 struct CatalogAgentTool<'a> {
-    name:          &'a str,
-    method:        &'a str,
-    description:   &'a str,
+    name: &'a str,
+    method: &'a str,
+    description: &'a str,
     #[serde(skip_serializing_if = "Option::is_none")]
     params_schema: Option<&'a Schema>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -31,15 +31,15 @@ struct CatalogAgentTool<'a> {
 #[derive(Serialize)]
 struct AgentToolCatalog<'a> {
     version: u32,
-    tools:   Vec<CatalogAgentTool<'a>>,
+    tools: Vec<CatalogAgentTool<'a>>,
 }
 
 impl<'a> From<&'a AgentTool> for CatalogAgentTool<'a> {
     fn from(agent_tool: &'a AgentTool) -> Self {
         Self {
-            name:          &agent_tool.name,
-            method:        &agent_tool.method,
-            description:   &agent_tool.description,
+            name: &agent_tool.name,
+            method: &agent_tool.method,
+            description: &agent_tool.description,
             params_schema: agent_tool.params_schema.as_ref(),
             result_schema: agent_tool.result_schema.as_ref(),
         }
@@ -94,12 +94,12 @@ fn validate_backing_method(
 
 fn backing_method_error(tool: &CatalogAgentTool<'_>, reason: &str, detail: &str) -> BrpError {
     BrpError {
-        code:    INTERNAL_ERROR,
+        code: INTERNAL_ERROR,
         message: format!(
             "agent tool `{}` cannot be listed: backing BRP method `{}` {detail}",
             tool.name, tool.method,
         ),
-        data:    Some(json!({
+        data: Some(json!({
             "name": tool.name,
             "method": tool.method,
             "reason": reason,
@@ -252,12 +252,12 @@ mod tests {
         assert_eq!(
             call_catalog(&mut app),
             Err(BrpError {
-                code:    INTERNAL_ERROR,
+                code: INTERNAL_ERROR,
                 message: String::from(
                     "agent tool `test.missing` cannot be listed: backing BRP method \
                      `test/missing` is not registered",
                 ),
-                data:    Some(json!({
+                data: Some(json!({
                     "name": "test.missing",
                     "method": MISSING_METHOD,
                     "reason": BACKING_METHOD_MISSING_REASON,
@@ -279,12 +279,12 @@ mod tests {
         assert_eq!(
             call_catalog(&mut app),
             Err(BrpError {
-                code:    INTERNAL_ERROR,
+                code: INTERNAL_ERROR,
                 message: String::from(
                     "agent tool `test.watching` cannot be listed: backing BRP method \
                      `test/watching` is registered as a watching method",
                 ),
-                data:    Some(json!({
+                data: Some(json!({
                     "name": "test.watching",
                     "method": WATCHING_METHOD,
                     "reason": BACKING_METHOD_WATCHING_REASON,

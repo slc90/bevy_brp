@@ -15,7 +15,7 @@ use super::constants::OPTION_TYPE_PREFIX;
 pub(crate) struct ComputedField {
     pub field_name: Ident,
     pub from_field: String,
-    pub operation:  String,
+    pub operation: String,
 }
 
 #[derive(Clone, Copy)]
@@ -32,7 +32,9 @@ impl SkipIfNonePolicy {
         }
     }
 
-    const fn skips_none(self) -> bool { matches!(self, Self::Omit) }
+    const fn skips_none(self) -> bool {
+        matches!(self, Self::Omit)
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -104,14 +106,16 @@ enum ComputationSource {
 }
 
 impl ComputationSource {
-    const fn is_computed(self) -> bool { matches!(self, Self::Computed) }
+    const fn is_computed(self) -> bool {
+        matches!(self, Self::Computed)
+    }
 }
 
 pub(crate) struct FieldExtractionResult {
-    pub field_placements:       Vec<TokenStream>,
-    pub response_data_fields:   Vec<TokenStream>,
-    pub computed_fields:        Vec<ComputedField>,
-    pub regular_fields:         Vec<(Ident, Type)>,
+    pub field_placements: Vec<TokenStream>,
+    pub response_data_fields: Vec<TokenStream>,
+    pub computed_fields: Vec<ComputedField>,
+    pub regular_fields: Vec<(Ident, Type)>,
     pub message_template_field: Option<(Ident, Option<String>)>,
 }
 
@@ -130,23 +134,23 @@ fn parse_placement_attr(
                 let lit_str: LitStr = value.parse()?;
                 *source_path = Some(lit_str.value());
                 Ok(())
-            },
+            }
             PlacementAttrKey::FieldType => {
                 let value = meta.value()?;
                 let lit_str: LitStr = value.parse()?;
                 *field_type = Some(lit_str.value());
                 Ok(())
-            },
+            }
             PlacementAttrKey::SkipIfNone => {
                 *skip_if_none = SkipIfNonePolicy::Omit;
                 Ok(())
-            },
+            }
             PlacementAttrKey::ResultOperation => {
                 let value = meta.value()?;
                 let lit_str: LitStr = value.parse()?;
                 *result_operation = Some(lit_str.value());
                 Ok(())
-            },
+            }
         }),
     );
 }
@@ -260,19 +264,19 @@ pub(crate) fn extract_field_data(fields: &[&Field]) -> FieldExtractionResult {
                         &mut skip_if_none,
                         &mut result_operation,
                     );
-                },
+                }
                 FieldAttributeKind::CallInfo => {
                     // Skip fields marked with to_call_info as we no longer need them
-                },
+                }
                 FieldAttributeKind::Computed => {
                     computation_source = ComputationSource::Computed;
                     parse_computed_attr(attr, &mut result_operation);
-                },
+                }
                 FieldAttributeKind::Message => {
                     let template = parse_to_message_attr(attr);
                     message_template_field = Some((field_name.clone(), template));
                     // Skip adding to other collections
-                },
+                }
             }
         }
 

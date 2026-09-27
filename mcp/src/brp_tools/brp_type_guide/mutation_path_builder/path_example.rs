@@ -42,11 +42,15 @@ impl Example {
 }
 
 impl From<Value> for Example {
-    fn from(value: Value) -> Self { Self::Json(value) }
+    fn from(value: Value) -> Self {
+        Self::Json(value)
+    }
 }
 
 impl From<Example> for Value {
-    fn from(example: Example) -> Self { example.to_value() }
+    fn from(example: Example) -> Self {
+        example.to_value()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -66,7 +70,7 @@ pub(super) enum PathExample {
     /// use when assembling their own examples.
     EnumRoot {
         /// All variant groups for this enum (the `examples` array in JSON output)
-        groups:     Vec<ExampleGroup>,
+        groups: Vec<ExampleGroup>,
         /// Simplified example for parent assembly
         for_parent: Example,
     },
@@ -93,7 +97,7 @@ impl PathExample {
             Self::Simple(ex) => ex.clone(),
             Self::EnumRoot { groups, .. } => {
                 enum_builder::select_preferred_example(groups).unwrap_or(Example::NotApplicable)
-            },
+            }
         }
     }
 }
@@ -119,12 +123,12 @@ impl Serialize for PathExample {
                     map.serialize_entry(RESPONSE_EXAMPLE_FIELD, &value)?;
                     map.end()
                 }
-            },
+            }
             Self::EnumRoot { groups, .. } => {
                 let mut map = serializer.serialize_map(Some(1))?;
                 map.serialize_entry(RESPONSE_EXAMPLES_FIELD, groups)?;
                 map.end()
-            },
+            }
         }
     }
 }

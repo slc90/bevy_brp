@@ -45,16 +45,7 @@ Windows 环境统一使用 PowerShell 7（`pwsh`），禁止使用 Windows Power
 
 ## 验证入口
 
-按变更风险和命中规则选择必要验证，不机械执行无关命令。常用入口：
-
-```bash
-cargo fmt --all -- --check
-cargo check --workspace
-cargo clippy --workspace --all-targets
-cargo build --workspace
-cargo test --workspace --no-fail-fast
-cargo test -p <package-name>
-```
+按变更风险和命中规则选择必要验证，不机械执行无关命令。工具链要求、`--locked` 命令和 feature matrix 统一见 [README 的 Development on Windows](README.md#development-on-windows)；定向测试可用 `cargo test -p <package-name> --locked`。
 
 涉及 MCP/BRP、进程 lifecycle、watch、日志、输入或截图等跨进程行为时，还应按 `rules/testing.md` 运行与修改直接相关的真实测试宿主或协议链。已知失败、新增失败和未运行项必须分开报告。
 

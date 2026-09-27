@@ -36,7 +36,9 @@ enum BackslashState {
 }
 
 impl BackslashState {
-    const fn is_escaped(self) -> bool { matches!(self, Self::Escaped) }
+    const fn is_escaped(self) -> bool {
+        matches!(self, Self::Escaped)
+    }
 }
 
 pub(super) fn check_target_freshness(target: &BevyTarget, profile: &str) -> FreshnessCheckResult {
@@ -230,7 +232,7 @@ fn parse_dep_info_dependencies(contents: &str, base_dir: &Path) -> Vec<PathBuf> 
     for ch in dependency_text.chars() {
         if backslash_state.is_escaped() {
             match ch {
-                '\n' | '\r' => {},
+                '\n' | '\r' => {}
                 _ => current.push(ch),
             }
             backslash_state = BackslashState::ReadingToken;
@@ -241,7 +243,7 @@ fn parse_dep_info_dependencies(contents: &str, base_dir: &Path) -> Vec<PathBuf> 
             '\\' => backslash_state = BackslashState::Escaped,
             c if c.is_whitespace() => {
                 push_dependency(&mut dependencies, &mut current, base_dir);
-            },
+            }
             _ => current.push(ch),
         }
     }
@@ -288,13 +290,13 @@ mod tests {
 
     fn test_target(workspace_root: &Path, manifest_path: &Path, name: &str) -> BevyTarget {
         BevyTarget {
-            name:           name.to_string(),
-            target_type:    TargetType::App,
-            package_name:   "pkg".to_string(),
+            name: name.to_string(),
+            target_type: TargetType::App,
+            package_name: "pkg".to_string(),
             workspace_root: workspace_root.to_path_buf(),
-            manifest:       manifest_path.to_path_buf(),
-            relative:       PathBuf::new(),
-            source:         PathBuf::new(),
+            manifest: manifest_path.to_path_buf(),
+            relative: PathBuf::new(),
+            source: PathBuf::new(),
         }
     }
 

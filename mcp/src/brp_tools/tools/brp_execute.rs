@@ -27,7 +27,7 @@ pub struct ExecuteParams {
     pub params: Option<Value>,
     /// The BRP port (default: 15702)
     #[serde(default)]
-    pub port:   Port,
+    pub port: Port,
 }
 
 /// Result type for the dynamic BRP execute tool

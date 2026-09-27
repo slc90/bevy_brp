@@ -31,7 +31,9 @@ use crate::screenshot::request::ScreenshotRequest;
 struct FrameStamp(u64);
 
 impl FrameStamp {
-    const fn next(self) -> Self { Self(self.0.wrapping_add(1)) }
+    const fn next(self) -> Self {
+        Self(self.0.wrapping_add(1))
+    }
 }
 
 enum CaptureStatus {
@@ -42,22 +44,26 @@ enum CaptureStatus {
 }
 
 impl CaptureStatus {
-    const fn is_terminal(&self) -> bool { matches!(self, Self::Completed(_) | Self::Failed(_)) }
+    const fn is_terminal(&self) -> bool {
+        matches!(self, Self::Completed(_) | Self::Failed(_))
+    }
 }
 
 struct ActiveCapture {
-    activity:          Option<BrpExtrasActivityGuard>,
-    cancellation:      BrpExtrasActivityCancellation,
-    deadline:          Instant,
-    delivered_frame:   Option<FrameStamp>,
-    request:           ScreenshotRequest,
+    activity: Option<BrpExtrasActivityGuard>,
+    cancellation: BrpExtrasActivityCancellation,
+    deadline: Instant,
+    delivered_frame: Option<FrameStamp>,
+    request: ScreenshotRequest,
     screenshot_entity: Entity,
-    seen_frame:        FrameStamp,
-    status:            CaptureStatus,
+    seen_frame: FrameStamp,
+    status: CaptureStatus,
 }
 
 impl Drop for ActiveCapture {
-    fn drop(&mut self) { self.cancellation.cancel(); }
+    fn drop(&mut self) {
+        self.cancellation.cancel();
+    }
 }
 
 impl ActiveCapture {
@@ -71,11 +77,11 @@ impl ActiveCapture {
             CaptureStatus::Completed(response) => {
                 self.delivered_frame = Some(current_frame);
                 Ok(Some(response.clone()))
-            },
+            }
             CaptureStatus::Failed(error) => {
                 self.delivered_frame = Some(current_frame);
                 Err(error.clone())
-            },
+            }
             CaptureStatus::Capturing(_) | CaptureStatus::Encoding => Ok(None),
         }
     }
@@ -83,9 +89,9 @@ impl ActiveCapture {
 
 #[derive(Resource, Default)]
 pub(in crate::screenshot) struct PendingScreenshotCapture {
-    active:             Option<ActiveCapture>,
+    active: Option<ActiveCapture>,
     completion_channel: Option<CaptureCompletionChannel>,
-    current_frame:      FrameStamp,
+    current_frame: FrameStamp,
 }
 
 impl PendingScreenshotCapture {
@@ -110,8 +116,8 @@ impl PendingScreenshotCapture {
         }
 
         let screenshot_job = ScreenshotJob {
-            crop:              capture_input.crop,
-            path:              request.path().to_path_buf(),
+            crop: capture_input.crop,
+            path: request.path().to_path_buf(),
             response_metadata: capture_input.response_metadata,
         };
         let cancellation = activity.cancellation();
@@ -161,7 +167,7 @@ impl PendingScreenshotCapture {
             status => {
                 active.status = status;
                 return None;
-            },
+            }
         };
         let activity = active.activity.take()?;
         let channel = self.completion_channel.get_or_insert_default();
@@ -215,7 +221,9 @@ impl PendingScreenshotCapture {
         None
     }
 
-    const fn is_active(&self) -> bool { self.active.is_some() }
+    const fn is_active(&self) -> bool {
+        self.active.is_some()
+    }
 }
 
 pub(super) fn start(
@@ -263,7 +271,7 @@ fn on_screenshot_captured(
 pub(super) fn ingest_capture_completion(mut pending: ResMut<PendingScreenshotCapture>) {
     match pending.begin_frame() {
         Ok(Some(completion)) => pending.complete(completion, Instant::now()),
-        Ok(None) => {},
+        Ok(None) => {}
         Err(error) => pending.fail_completion_channel(error),
     }
 }
@@ -289,7 +297,7 @@ fn publish_capture(path: &Path, capture: OwnedTempCapture) -> CaptureStatus {
     match capture.temp_path.persist(path) {
         Ok(()) => {
             CaptureStatus::Completed(screenshot::completed_response(path, &response_metadata))
-        },
+        }
         Err(error) => {
             let message = format!(
                 "Failed to publish screenshot to {}: {}",
@@ -298,15 +306,15 @@ fn publish_capture(path: &Path, capture: OwnedTempCapture) -> CaptureStatus {
             );
             drop(error.path);
             CaptureStatus::Failed(capture_error(message))
-        },
+        }
     }
 }
 
 fn capture_error(message: impl Into<String>) -> BrpError {
     BrpError {
-        code:    INTERNAL_ERROR,
+        code: INTERNAL_ERROR,
         message: message.into(),
-        data:    None,
+        data: None,
     }
 }
 
@@ -347,7 +355,7 @@ mod tests {
             .map_err(|error| io::Error::other(error.message))?;
         Ok(OwnedTempCapture {
             metadata: CaptureMetadata {
-                dimensions:        UVec2::ONE,
+                dimensions: UVec2::ONE,
                 response_metadata: CaptureResponseMetadata::Full,
             },
             temp_path,

@@ -1,16 +1,17 @@
 [package]
-authors = ["natepiano <slicks.curable.0k@icloud.com>"]
+authors.workspace = true
 categories = [
   "development-tools",
   "development-tools::debugging",
   "game-development",
 ]
 description = "Wake-aware BRP runtime transport and progress controller for Bevy applications"
-edition = "2024"
+edition.workspace = true
 keywords = ["bevy", "brp", "debugging", "gamedev", "remote"]
-license = "MIT OR Apache-2.0"
+license.workspace = true
 name = "bevy_brp_runtime"
 repository.workspace = true
+rust-version.workspace = true
 version.workspace    = true
 publish              = false
 

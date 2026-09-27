@@ -34,7 +34,7 @@ const RUNNER_INTERVAL: Duration = Duration::from_millis(16);
 
 #[derive(Deserialize, JsonSchema)]
 struct MultiplyParams {
-    value:  i64,
+    value: i64,
     factor: i64,
 }
 
@@ -83,8 +83,8 @@ fn multiply(In(params): In<Option<Value>>) -> BrpResult {
 
 fn invalid_params(error: impl ToString) -> BrpError {
     BrpError {
-        code:    INVALID_PARAMS,
+        code: INVALID_PARAMS,
         message: error.to_string(),
-        data:    None,
+        data: None,
     }
 }

@@ -84,14 +84,14 @@ pub(super) fn launch_detached_process(
             std::thread::spawn(move || match child.wait() {
                 Ok(status) => {
                     tracing::debug!("Child process {process_id} exited with status: {status:?}");
-                },
+                }
                 Err(e) => {
                     tracing::warn!("Failed to wait for child process {process_id}: {e}");
-                },
+                }
             });
 
             Ok(process_id)
-        },
+        }
         Err(e) => {
             tracing::error!("Failed to spawn process {process_name}: {e}");
             Err(Report::new(e)
@@ -100,7 +100,7 @@ pub(super) fn launch_detached_process(
                 ))
                 .attach(format!("Process: {process_name}"))
                 .attach(format!("Working directory: {}", working_dir.display())))?
-        },
+        }
     }
 }
 

@@ -128,7 +128,7 @@ pub fn find_required_target_with_package_name(
             Err(Error::Structured {
                 result: Box::new(error),
             })
-        },
+        }
         1 => {
             let mut filtered = filtered.into_iter();
             filtered.next().map_or_else(
@@ -143,7 +143,7 @@ pub fn find_required_target_with_package_name(
                 },
                 Ok,
             )
-        },
+        }
         _ => {
             let available: Vec<String> = filtered
                 .iter()
@@ -158,6 +158,6 @@ pub fn find_required_target_with_package_name(
             Err(Error::Structured {
                 result: Box::new(package_disambiguation_error),
             })
-        },
+        }
     }
 }

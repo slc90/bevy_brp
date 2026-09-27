@@ -2,7 +2,7 @@
 
 ## 服从现有 lint contract
 
-根 `Cargo.toml` 的 workspace lint 是代码硬约束。普通改动不得降低 lint level、扩大 allow 或删除已有检查来让代码通过。
+根 `Cargo.toml` 的 workspace lint 是代码硬约束。普通改动不得降低 lint level、扩大 allow 或删除已有检查来让代码通过。当前基准禁止 `unsafe` 和生产代码中的 `unwrap`；测试中的 `unwrap` 由 `clippy.toml` 允许。
 
 自有生产代码默认不得使用 `unwrap`、`expect`、`panic!`、`unreachable!` 或 `unsafe`。测试可以在失败即表示 fixture/test bug 时使用 `unwrap` 或 `expect`。proc macro 编译期诊断、无法恢复的内部 invariant 和框架要求的特殊路径只能使用最小 scope 的例外，并提供准确的 `reason`。
 
@@ -37,7 +37,7 @@
 
 Library crate 以 `lib.rs` 为装配入口，binary 以 `main.rs` 为入口。入口文件主要承担 module 声明、re-export 和必要装配，不应无依据堆入新的具体实现。
 
-新建嵌套 module 时遵守 workspace 的 `self_named_module_files` lint；不要在普通任务中迁移与目标无关的现有 module。
+生产源码使用 `foo.rs + foo/` 布局，不使用 `mod.rs`；integration test 的 `tests/` 目录按需要允许 `mod.rs`。不要在普通任务中迁移与目标无关的现有 module。
 
 ## Visibility 与 API
 

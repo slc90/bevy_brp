@@ -41,22 +41,22 @@ impl Operation {
                 ParameterName::Components => {
                     // Extract from params.components object keys
                     extract_from_components_object(params)
-                },
+                }
                 ParameterName::Value => {
                     // Extract from params.resource field
                     extract_from_resource_field(params)
-                },
+                }
                 _ => Vec::new(),
             },
             Self::Mutate { parameter_name } => match parameter_name {
                 ParameterName::Component => {
                     // Extract from params.component string field
                     extract_single_component_type(params)
-                },
+                }
                 ParameterName::Resource => {
                     // Extract from params.resource string field
                     extract_single_resource_type(params)
-                },
+                }
                 _ => Vec::new(),
             },
         }
@@ -83,7 +83,7 @@ impl TryFrom<BrpMethod> for Operation {
                 Ok(Self::SpawnInsert {
                     parameter_name: ParameterName::Components,
                 })
-            },
+            }
 
             BrpMethod::WorldInsertResources => Ok(Self::SpawnInsert {
                 parameter_name: ParameterName::Value,

@@ -205,19 +205,21 @@ pub(super) enum KnowledgeKey {
         /// e.g., `bevy_window::window::WindowResolution`
         struct_type: BrpTypeName,
         /// e.g., `physical_width`
-        field_name:  String,
+        field_name: String,
     },
     /// Match an indexed element within enum variants that share a signature
     EnumVariantSignature {
         enum_type: BrpTypeName,
         signature: VariantSignature,
-        index:     usize,
+        index: usize,
     },
 }
 
 impl KnowledgeKey {
     /// Create an exact match key
-    pub(super) fn exact(s: impl Into<BrpTypeName>) -> Self { Self::Exact(s.into()) }
+    pub(super) fn exact(s: impl Into<BrpTypeName>) -> Self {
+        Self::Exact(s.into())
+    }
 
     /// Create a struct field match key
     pub(super) fn struct_field(
@@ -226,7 +228,7 @@ impl KnowledgeKey {
     ) -> Self {
         Self::StructField {
             struct_type: struct_type.into(),
-            field_name:  field_name.into(),
+            field_name: field_name.into(),
         }
     }
 
@@ -251,7 +253,7 @@ pub(super) enum TypeKnowledge {
     TeachAndRecurse { example: Value },
     /// Value that should be treated as opaque (no mutation paths)
     TreatAsRootValue {
-        example:         Value,
+        example: Value,
         simplified_type: String,
     },
 }
@@ -282,7 +284,9 @@ pub(super) enum KnowledgeAction {
 
 impl TypeKnowledge {
     /// Create a simple knowledge entry with no subfields
-    pub(super) const fn new(example: Value) -> Self { Self::TeachAndRecurse { example } }
+    pub(super) const fn new(example: Value) -> Self {
+        Self::TeachAndRecurse { example }
+    }
 
     /// Create a knowledge entry that should be treated as a simple value
     pub(super) fn as_root_value(example: Value, simplified_type: impl Into<String>) -> Self {
@@ -670,10 +674,7 @@ pub(super) static BRP_TYPE_KNOWLEDGE: LazyLock<HashMap<KnowledgeKey, TypeKnowled
                 TYPE_BEVY_WINDOW_RESOLUTION,
                 FIELD_WINDOW_RESOLUTION_PHYSICAL_WIDTH,
             ),
-            TypeKnowledge::as_root_value(
-                json!(EXAMPLE_WINDOW_RESOLUTION_PHYSICAL_WIDTH),
-                TYPE_U32,
-            ), // Reasonable window width
+            TypeKnowledge::as_root_value(json!(EXAMPLE_WINDOW_RESOLUTION_PHYSICAL_WIDTH), TYPE_U32), // Reasonable window width
         );
         map.insert(
             KnowledgeKey::struct_field(
@@ -700,10 +701,7 @@ pub(super) static BRP_TYPE_KNOWLEDGE: LazyLock<HashMap<KnowledgeKey, TypeKnowled
         // Provide realistic video mode values to prevent window system crashes
         map.insert(
             KnowledgeKey::struct_field(TYPE_BEVY_VIDEO_MODE, FIELD_VIDEO_MODE_BIT_DEPTH),
-            TypeKnowledge::as_root_value(
-                json!(EXAMPLE_VIDEO_MODE_BIT_DEPTH),
-                TYPE_U16,
-            ), // Standard 32-bit color
+            TypeKnowledge::as_root_value(json!(EXAMPLE_VIDEO_MODE_BIT_DEPTH), TYPE_U16), // Standard 32-bit color
         );
         map.insert(
             KnowledgeKey::struct_field(

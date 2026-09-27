@@ -23,15 +23,15 @@ pub(super) enum ScreenshotScope {
         camera: Option<Entity>,
     },
     Entity {
-        entity:  Entity,
-        camera:  Option<Entity>,
+        entity: Entity,
+        camera: Option<Entity>,
         padding: u32,
     },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct ScreenshotRequest {
-    path:  PathBuf,
+    path: PathBuf,
     scope: ScreenshotScope,
 }
 
@@ -40,9 +40,9 @@ impl ScreenshotRequest {
         let value = params.ok_or_else(missing_path_error)?;
         let raw =
             serde_json::from_value::<RawScreenshotRequest>(value).map_err(|error| BrpError {
-                code:    INVALID_PARAMS,
+                code: INVALID_PARAMS,
                 message: format!("Invalid screenshot request: {error}"),
-                data:    None,
+                data: None,
             })?;
 
         let scope = ScreenshotScope::try_from(&raw)?;
@@ -51,18 +51,22 @@ impl ScreenshotRequest {
         Ok(Self { path, scope })
     }
 
-    pub(super) fn path(&self) -> &Path { &self.path }
+    pub(super) fn path(&self) -> &Path {
+        &self.path
+    }
 
-    pub(super) const fn scope(&self) -> &ScreenshotScope { &self.scope }
+    pub(super) const fn scope(&self) -> &ScreenshotScope {
+        &self.scope
+    }
 }
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct RawScreenshotRequest {
-    camera:  Option<u64>,
-    entity:  Option<u64>,
+    camera: Option<u64>,
+    entity: Option<u64>,
     padding: Option<u32>,
-    path:    Option<String>,
+    path: Option<String>,
 }
 
 impl TryFrom<&RawScreenshotRequest> for ScreenshotScope {
@@ -71,8 +75,8 @@ impl TryFrom<&RawScreenshotRequest> for ScreenshotScope {
     fn try_from(raw: &RawScreenshotRequest) -> Result<Self, Self::Error> {
         match raw.entity {
             Some(entity) => Ok(Self::Entity {
-                entity:  decode_entity_id(entity, PARAM_ENTITY)?,
-                camera:  raw
+                entity: decode_entity_id(entity, PARAM_ENTITY)?,
+                camera: raw
                     .camera
                     .map(|camera| decode_entity_id(camera, PARAM_CAMERA))
                     .transpose()?,
@@ -91,9 +95,9 @@ impl TryFrom<&RawScreenshotRequest> for ScreenshotScope {
 
 fn decode_entity_id(bits: u64, field: &str) -> BrpResult<Entity> {
     Entity::try_from_bits(bits).ok_or_else(|| BrpError {
-        code:    INVALID_PARAMS,
+        code: INVALID_PARAMS,
         message: format!("Invalid '{field}' entity ID: {bits}"),
-        data:    None,
+        data: None,
     })
 }
 
@@ -104,9 +108,9 @@ fn absolute_path(path: &str) -> BrpResult<PathBuf> {
     } else {
         std::env::current_dir()
             .map_err(|error| BrpError {
-                code:    INTERNAL_ERROR,
+                code: INTERNAL_ERROR,
                 message: format!("Failed to get current directory: {error}"),
-                data:    None,
+                data: None,
             })?
             .join(path)
     };
@@ -116,17 +120,17 @@ fn absolute_path(path: &str) -> BrpResult<PathBuf> {
 
 fn missing_path_error() -> BrpError {
     BrpError {
-        code:    INVALID_PARAMS,
+        code: INVALID_PARAMS,
         message: "Missing 'path' parameter".to_string(),
-        data:    None,
+        data: None,
     }
 }
 
 fn entity_scope_field_error(field: &str) -> BrpError {
     BrpError {
-        code:    INVALID_PARAMS,
+        code: INVALID_PARAMS,
         message: format!("'{field}' requires an 'entity' screenshot scope"),
-        data:    None,
+        data: None,
     }
 }
 
@@ -135,10 +139,10 @@ fn normalize_path(path: &Path) -> PathBuf {
 
     for component in path.components() {
         match component {
-            Component::CurDir => {},
+            Component::CurDir => {}
             Component::ParentDir => {
                 normalized.pop();
-            },
+            }
             Component::Normal(segment) => normalized.push(segment),
             Component::Prefix(prefix) => normalized.push(prefix.as_os_str()),
             Component::RootDir => normalized.push(component.as_os_str()),

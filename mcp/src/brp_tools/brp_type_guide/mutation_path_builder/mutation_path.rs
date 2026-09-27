@@ -14,17 +14,25 @@ pub(crate) struct MutationPath(String);
 impl Deref for MutationPath {
     type Target = String;
 
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 impl From<String> for MutationPath {
-    fn from(path: String) -> Self { Self(path) }
+    fn from(path: String) -> Self {
+        Self(path)
+    }
 }
 
 impl From<&str> for MutationPath {
-    fn from(path: &str) -> Self { Self(path.to_string()) }
+    fn from(path: &str) -> Self {
+        Self(path.to_string())
+    }
 }
 
 impl Display for MutationPath {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result { write!(f, "{}", self.0) }
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
 }

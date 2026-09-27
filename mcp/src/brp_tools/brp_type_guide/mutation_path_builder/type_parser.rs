@@ -20,13 +20,13 @@ use nom::sequence;
 struct ParsedTypePath {
     /// The full type including module path and generics
     /// e.g., "`core::option::Option`<`bevy_asset::handle::Handle`<`bevy_mesh::mesh::Mesh`>>"
-    full_type:       String,
+    full_type: String,
     /// The simplified type name with generics but no module paths
     /// e.g., "`Option<Handle<Mesh>>`"
     simplified_type: String,
     /// The variant name if present
     /// e.g., "Some"
-    variant:         Option<String>,
+    variant: Option<String>,
 }
 
 /// Parse an identifier (alphanumeric + underscore, not starting with digit)
@@ -62,7 +62,9 @@ fn type_path_inner(input: &str) -> IResult<&str, &str> {
 }
 
 /// Parse a complete type path (`module::Type<Generics>`)
-fn type_path(input: &str) -> IResult<&str, &str> { type_path_inner(input) }
+fn type_path(input: &str) -> IResult<&str, &str> {
+    type_path_inner(input)
+}
 
 /// Parse the complete type path with optional variant
 fn full_type_path(input: &str) -> IResult<&str, (&str, Option<&str>)> {
@@ -146,11 +148,11 @@ fn simplify_generics(generics_str: &str) -> String {
             '<' => {
                 depth += 1;
                 current_type.push(ch);
-            },
+            }
             '>' => {
                 depth -= 1;
                 current_type.push(ch);
-            },
+            }
             ',' if depth == 0 => {
                 // End of a type parameter
                 if !result.ends_with('<') {
@@ -158,10 +160,10 @@ fn simplify_generics(generics_str: &str) -> String {
                 }
                 result.push_str(&simplify_type(current_type.trim()));
                 current_type.clear();
-            },
+            }
             _ => {
                 current_type.push(ch);
-            },
+            }
         }
     }
 
@@ -190,11 +192,11 @@ fn parse_type_with_variant(input: &str) -> Result<ParsedTypePath, String> {
             let simplified = simplify_type(type_part);
 
             Ok(ParsedTypePath {
-                full_type:       type_part.to_string(),
+                full_type: type_part.to_string(),
                 simplified_type: simplified,
-                variant:         variant.map(ToString::to_string),
+                variant: variant.map(ToString::to_string),
             })
-        },
+        }
         Err(e) => Err(format!("Failed to parse type path: {e:?}")),
     }
 }
@@ -210,7 +212,7 @@ pub(super) fn extract_simplified_variant_name(type_path: &str) -> String {
             } else {
                 parsed.simplified_type
             }
-        },
+        }
         Err(_) => {
             // Fallback: if parsing fails, try simple extraction
             type_path.rfind("::").map_or_else(
@@ -220,7 +222,7 @@ pub(super) fn extract_simplified_variant_name(type_path: &str) -> String {
                     format!("UnknownType::{variant}")
                 },
             )
-        },
+        }
     }
 }
 

@@ -28,20 +28,20 @@ use crate::constants::METHOD_SEND_MOUSE_BUTTON;
 #[derive(Deserialize)]
 struct SendMouseButtonRequest {
     /// Mouse button to press
-    button:      MouseButton,
+    button: MouseButton,
     /// Duration in milliseconds to hold button (default: 100ms, max: 60000ms)
     #[serde(default)]
     duration_ms: Option<u32>,
     /// Target window entity (None = primary window)
     #[serde(default)]
-    window:      Option<u64>,
+    window: Option<u64>,
 }
 
 /// Response structure for `send_mouse_button`
 #[derive(Serialize)]
 struct SendMouseButtonResponse {
     /// Button that was pressed
-    button:      MouseButton,
+    button: MouseButton,
     /// Duration in milliseconds the button was held
     duration_ms: u32,
 }
@@ -63,7 +63,7 @@ pub(super) struct TimedButtonRelease {
     /// Which window the button was pressed in (None = primary)
     pub window: Option<Entity>,
     /// Timer tracking remaining duration
-    pub timer:  Timer,
+    pub timer: Timer,
 }
 
 // ============================================================================
@@ -84,11 +84,11 @@ pub(crate) fn send_mouse_button_handler(
     let duration_ms = request.duration_ms.unwrap_or(DEFAULT_MOUSE_DURATION_MS);
     if duration_ms > MAX_MOUSE_DURATION_MS {
         return Err(BrpError {
-            code:    INVALID_PARAMS,
+            code: INVALID_PARAMS,
             message: format!(
                 "Duration exceeds maximum: {duration_ms}ms > {MAX_MOUSE_DURATION_MS}ms"
             ),
-            data:    None,
+            data: None,
         });
     }
 
@@ -125,7 +125,7 @@ pub(super) fn process_timed_button_releases(
         if release.timer.is_finished() {
             let event = MouseButtonInput {
                 button: release.button,
-                state:  ButtonState::Released,
+                state: ButtonState::Released,
                 window: support::resolve_window_entity(release.window),
             };
             window_events.write(WindowEvent::from(event));

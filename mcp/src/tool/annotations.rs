@@ -33,9 +33,9 @@ pub enum ToolCategory {
 /// Ergonomic tool annotations for BRP tools
 #[derive(Debug, Clone)]
 pub struct Annotation {
-    pub title:                 String,
-    pub tool_category:         ToolCategory,
-    pub environment_impact:    EnvironmentImpact,
+    pub title: String,
+    pub tool_category: ToolCategory,
+    pub environment_impact: EnvironmentImpact,
     pub domain_of_interaction: DomainOfInteraction,
 }
 
@@ -86,7 +86,7 @@ impl From<Annotation> for ToolAnnotations {
                 // MCP client requires destructive_hint: Some(true) to show annotations
                 // So we mark additive tools as "destructive" even though they're safe
                 (Some(false), Some(true), Some(true))
-            },
+            }
             EnvironmentImpact::DestructiveNonIdempotent
             | EnvironmentImpact::AdditiveNonIdempotent => (Some(false), Some(true), Some(false)),
         };

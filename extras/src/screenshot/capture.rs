@@ -40,8 +40,8 @@ impl Plugin for CapturePlugin {
 }
 
 pub(super) struct CaptureInput {
-    pub(super) crop:              Option<URect>,
-    pub(super) render_target:     RenderTarget,
+    pub(super) crop: Option<URect>,
+    pub(super) render_target: RenderTarget,
     pub(super) response_metadata: CaptureResponseMetadata,
 }
 

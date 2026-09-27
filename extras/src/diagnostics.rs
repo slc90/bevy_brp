@@ -30,10 +30,10 @@ use crate::constants::DIAGNOSTICS_SMOOTHED_FIELD;
 pub(crate) fn handler(In(_): In<Option<Value>>, world: &mut World) -> BrpResult {
     let Some(store) = world.get_resource::<DiagnosticsStore>() else {
         return Err(BrpError {
-            code:    INTERNAL_ERROR,
+            code: INTERNAL_ERROR,
             message: "DiagnosticsStore not found - FrameTimeDiagnosticsPlugin may not be installed"
                 .to_string(),
-            data:    None,
+            data: None,
         });
     };
 

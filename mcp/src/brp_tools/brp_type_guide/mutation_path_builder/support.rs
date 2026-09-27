@@ -85,7 +85,7 @@ fn extract_child_value_for_chain(
                 let get_value = |root_ex: &RootExample| match root_ex {
                     RootExample::Available { example } if !example.is_null() => {
                         Some(Example::Json(example.clone()))
-                    }, // Skip null to prefer data-filled variants
+                    } // Skip null to prefer data-filled variants
                     _ => None,
                 };
 
@@ -212,7 +212,7 @@ pub(super) fn wrap_example_with_availability(
                 .and_then(|root_example| match root_example {
                     RootExample::Unavailable { unavailable_reason } => {
                         Some(unavailable_reason.clone())
-                    },
+                    }
                     RootExample::Available { .. } => None,
                 })
         })

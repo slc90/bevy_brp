@@ -39,13 +39,13 @@ impl TypeKindBuilder for ListMutationBuilder {
         // Extract element type from schema
         let Some(element_type) = schema.get_type(SchemaField::Items) else {
             return Err(Error::SchemaProcessing {
-                message:   format!(
+                message: format!(
                     "Failed to extract element type from schema for list: {}",
                     context.type_name()
                 ),
                 type_name: Some(context.type_name().to_string()),
                 operation: Some("extract_items_type".to_string()),
-                details:   None,
+                details: None,
             }
             .into());
         };
@@ -53,8 +53,8 @@ impl TypeKindBuilder for ListMutationBuilder {
         // Lists use indexed PathKind for the element at [0]
         // We only recurse into one element for efficiency
         Ok(vec![PathKind::ArrayElement {
-            index:       0,
-            type_name:   element_type,
+            index: 0,
+            type_name: element_type,
             parent_type: context.type_name().clone(),
         }]
         .into_iter())

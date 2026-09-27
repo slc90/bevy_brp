@@ -92,7 +92,7 @@ impl TypeKindBuilder for TupleMutationBuilder {
             return Err(BuilderError::NotMutable(
                 NotMutableReason::ImmutableHandle {
                     container_type: context.type_name().clone(),
-                    element_type:   elements[0].clone(),
+                    element_type: elements[0].clone(),
                 },
             ));
         }

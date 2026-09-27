@@ -1,148 +1,94 @@
 //! Screenshot request handling for BRP extras.
 
-#[cfg(not(target_arch = "wasm32"))]
 mod aabb;
-#[cfg(not(target_arch = "wasm32"))]
 mod capture;
-#[cfg(not(target_arch = "wasm32"))]
 mod constants;
-#[cfg(not(target_arch = "wasm32"))]
 mod request;
-#[cfg(all(feature = "ui", not(target_arch = "wasm32")))]
+#[cfg(feature = "ui")]
 mod ui;
 
-#[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
-#[cfg(not(target_arch = "wasm32"))]
 use std::path::PathBuf;
 
-#[cfg(not(target_arch = "wasm32"))]
 use bevy::asset::RenderAssetUsages;
-#[cfg(not(target_arch = "wasm32"))]
 use bevy::camera::NormalizedRenderTarget;
-#[cfg(not(target_arch = "wasm32"))]
 use bevy::camera::RenderTarget;
-#[cfg(all(not(feature = "ui"), not(target_arch = "wasm32")))]
+#[cfg(not(feature = "ui"))]
 use bevy::camera::primitives::Aabb;
-#[cfg(not(target_arch = "wasm32"))]
 use bevy::camera::primitives::Frustum;
-#[cfg(not(target_arch = "wasm32"))]
 use bevy::camera::visibility::RenderLayers;
-#[cfg(not(target_arch = "wasm32"))]
 use bevy::camera::visibility::VisibleEntities;
 use bevy::ecs::system::In;
-#[cfg(not(target_arch = "wasm32"))]
 use bevy::ecs::world::EntityRef;
 use bevy::prelude::App;
 use bevy::prelude::Plugin;
 use bevy::prelude::World;
-#[cfg(not(target_arch = "wasm32"))]
 use bevy::prelude::*;
-#[cfg(not(target_arch = "wasm32"))]
 use bevy::render::texture::ManualTextureViews;
-#[cfg(not(target_arch = "wasm32"))]
 use bevy::render::view::screenshot::Screenshot;
-#[cfg(not(target_arch = "wasm32"))]
 use bevy::window::PrimaryWindow;
 use bevy_remote::BrpError;
 use bevy_remote::BrpResult;
 use bevy_remote::error_codes::INTERNAL_ERROR;
-#[cfg(not(target_arch = "wasm32"))]
 use bevy_remote::error_codes::INVALID_PARAMS;
 use serde_json::Value;
-#[cfg(not(target_arch = "wasm32"))]
 use serde_json::json;
 
-#[cfg(not(target_arch = "wasm32"))]
 use self::capture::CaptureInput;
-#[cfg(not(target_arch = "wasm32"))]
 use self::capture::CapturePlugin;
-#[cfg(not(target_arch = "wasm32"))]
 use self::capture::PendingScreenshotCapture;
-#[cfg(not(target_arch = "wasm32"))]
 use self::constants::PARAM_CAMERA;
-#[cfg(not(target_arch = "wasm32"))]
 use self::constants::PARAM_ENTITY;
-#[cfg(not(target_arch = "wasm32"))]
 use self::constants::PARAM_PATH;
-#[cfg(not(target_arch = "wasm32"))]
 use self::request::ScreenshotRequest;
-#[cfg(not(target_arch = "wasm32"))]
 use self::request::ScreenshotScope;
-#[cfg(not(target_arch = "wasm32"))]
 use crate::constants::CAMERA_CANDIDATES_FIELD;
-#[cfg(not(target_arch = "wasm32"))]
 use crate::constants::IMAGE_EXTENSION_PNG;
-#[cfg(not(target_arch = "wasm32"))]
 use crate::constants::RESPONSE_BOUNDS_KIND_FIELD;
-#[cfg(not(target_arch = "wasm32"))]
 use crate::constants::RESPONSE_CAPTURE_KIND_FIELD;
-#[cfg(not(target_arch = "wasm32"))]
 use crate::constants::RESPONSE_HEIGHT_FIELD;
-#[cfg(not(target_arch = "wasm32"))]
 use crate::constants::RESPONSE_NAME_FIELD;
-#[cfg(not(target_arch = "wasm32"))]
 use crate::constants::RESPONSE_NOTE_FIELD;
-#[cfg(not(target_arch = "wasm32"))]
 use crate::constants::RESPONSE_REASON_FIELD;
-#[cfg(not(target_arch = "wasm32"))]
 use crate::constants::RESPONSE_RECT_FIELD;
-#[cfg(not(target_arch = "wasm32"))]
 use crate::constants::RESPONSE_STATUS_FIELD;
-#[cfg(not(target_arch = "wasm32"))]
 use crate::constants::RESPONSE_SUCCESS_FIELD;
-#[cfg(not(target_arch = "wasm32"))]
 use crate::constants::RESPONSE_WIDTH_FIELD;
-#[cfg(not(target_arch = "wasm32"))]
 use crate::constants::RESPONSE_WORKING_DIRECTORY_FIELD;
-#[cfg(not(target_arch = "wasm32"))]
 use crate::constants::RESPONSE_X_FIELD;
-#[cfg(not(target_arch = "wasm32"))]
 use crate::constants::RESPONSE_Y_FIELD;
-#[cfg(not(target_arch = "wasm32"))]
 use crate::constants::SCREENSHOT_BOUNDS_KIND_AABB;
-#[cfg(all(feature = "ui", not(target_arch = "wasm32")))]
+#[cfg(feature = "ui")]
 use crate::constants::SCREENSHOT_BOUNDS_KIND_UI;
-#[cfg(not(target_arch = "wasm32"))]
 use crate::constants::SCREENSHOT_CAMERA_REASON_AMBIGUOUS;
-#[cfg(not(target_arch = "wasm32"))]
 use crate::constants::SCREENSHOT_CAPTURE_KIND_ENTITY;
-#[cfg(not(target_arch = "wasm32"))]
 use crate::constants::SCREENSHOT_CAPTURE_NOTE;
-#[cfg(not(target_arch = "wasm32"))]
 use crate::constants::SCREENSHOT_STATUS_COMPLETED;
-#[cfg(not(target_arch = "wasm32"))]
 use crate::constants::UNKNOWN_WORKING_DIRECTORY;
 
 pub(super) struct ScreenshotPlugin;
 
 impl Plugin for ScreenshotPlugin {
     fn build(&self, app: &mut App) {
-        #[cfg(not(target_arch = "wasm32"))]
         app.add_plugins(CapturePlugin);
-        #[cfg(target_arch = "wasm32")]
-        let _ = app;
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum CaptureResponseMetadata {
     Full,
     Entity(EntityResponseMetadata),
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct EntityResponseMetadata {
     bounds_kind: BoundsKind,
-    camera:      Entity,
-    entity:      Entity,
-    name:        Option<String>,
-    rect:        URect,
+    camera: Entity,
+    entity: Entity,
+    name: Option<String>,
+    rect: URect,
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum BoundsKind {
     Aabb,
@@ -150,29 +96,26 @@ enum BoundsKind {
     Ui,
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 struct ValidatedCameraTarget {
-    camera:        Camera,
+    camera: Camera,
     #[cfg(feature = "ui")]
-    entity:        Entity,
+    entity: Entity,
     render_target: RenderTarget,
     #[cfg(feature = "ui")]
-    target_size:   UVec2,
+    target_size: UVec2,
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 struct SelectedCamera {
-    camera:           Camera,
-    entity:           Entity,
-    frustum:          Frustum,
+    camera: Camera,
+    entity: Entity,
+    frustum: Frustum,
     global_transform: GlobalTransform,
-    render_layers:    Option<RenderLayers>,
-    render_target:    RenderTarget,
+    render_layers: Option<RenderLayers>,
+    render_target: RenderTarget,
     visible_entities: Option<VisibleEntities>,
 }
 
 /// Handles the terminal `brp_extras/screenshot` watching request.
-#[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn handler(
     In(params): In<Option<Value>>,
     world: &mut World,
@@ -192,23 +135,6 @@ pub(crate) fn handler(
     Ok(None)
 }
 
-/// Returns an actionable error on targets without filesystem publication.
-#[cfg(target_arch = "wasm32")]
-pub(crate) fn handler(
-    In(params): In<Option<Value>>,
-    world: &mut World,
-) -> BrpResult<Option<Value>> {
-    drop(params);
-    let _ = world;
-    Err(BrpError {
-        code:    INTERNAL_ERROR,
-        message: "Screenshot PNG publication is unsupported on WASM; use a native target with filesystem access"
-            .to_string(),
-        data:    None,
-    })
-}
-
-#[cfg(not(target_arch = "wasm32"))]
 fn completed_response(path: &Path, metadata: &CaptureResponseMetadata) -> Value {
     let mut response = json!({
         RESPONSE_SUCCESS_FIELD: true,
@@ -243,7 +169,6 @@ fn completed_response(path: &Path, metadata: &CaptureResponseMetadata) -> Value 
     response
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn capture_input(world: &mut World, request: &ScreenshotRequest) -> BrpResult<CaptureInput> {
     match request.scope() {
         ScreenshotScope::Full { camera } => full_capture_input(world, *camera),
@@ -255,14 +180,13 @@ fn capture_input(world: &mut World, request: &ScreenshotRequest) -> BrpResult<Ca
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn full_capture_input(world: &World, requested_camera: Option<Entity>) -> BrpResult<CaptureInput> {
     if let Some(camera) = requested_camera {
         let validated = validated_camera_target(world, camera, primary_window(world))
             .ok_or_else(|| invalid_camera_error(camera))?;
         return Ok(CaptureInput {
-            crop:              validated.camera.physical_viewport_rect(),
-            render_target:     validated.render_target,
+            crop: validated.camera.physical_viewport_rect(),
+            render_target: validated.render_target,
             response_metadata: CaptureResponseMetadata::Full,
         });
     }
@@ -283,7 +207,6 @@ fn full_capture_input(world: &World, requested_camera: Option<Entity>) -> BrpRes
     })
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn entity_capture_input(
     world: &mut World,
     entity: Entity,
@@ -324,7 +247,6 @@ fn entity_capture_input(
     ))
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn entity_capture_from_parts(
     world: &World,
     entity: Entity,
@@ -350,7 +272,6 @@ fn entity_capture_from_parts(
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn select_camera(world: &mut World, requested: Option<Entity>) -> BrpResult<SelectedCamera> {
     let primary_window = primary_window(world);
     if let Some(camera) = requested {
@@ -372,7 +293,6 @@ fn select_camera(world: &mut World, requested: Option<Entity>) -> BrpResult<Sele
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn eligible_camera(
     world: &World,
     entity: Entity,
@@ -391,7 +311,6 @@ fn eligible_camera(
     })
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn validated_camera_target(
     world: &World,
     entity: Entity,
@@ -422,12 +341,11 @@ fn validated_camera_target(
     })
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn live_target_size(world: &World, target: &NormalizedRenderTarget) -> Option<UVec2> {
     let size = match target {
         NormalizedRenderTarget::Window(window) => {
             world.get::<Window>(window.entity())?.physical_size()
-        },
+        }
         NormalizedRenderTarget::Image(image_target) => {
             let image = world
                 .get_resource::<Assets<Image>>()?
@@ -436,20 +354,19 @@ fn live_target_size(world: &World, target: &NormalizedRenderTarget) -> Option<UV
                 return None;
             }
             image.size()
-        },
+        }
         NormalizedRenderTarget::TextureView(handle) => {
             world
                 .get_resource::<ManualTextureViews>()?
                 .get(handle)?
                 .size
-        },
+        }
         NormalizedRenderTarget::None { .. } => return None,
     };
 
     size.cmpgt(UVec2::ZERO).all().then_some(size)
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn primary_window(world: &World) -> Option<Entity> {
     world
         .iter_entities()
@@ -457,77 +374,71 @@ fn primary_window(world: &World) -> Option<Entity> {
         .map(|entity| entity.id())
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn ensure_png_support() -> BrpResult<()> {
     if bevy::image::ImageFormat::from_extension(IMAGE_EXTENSION_PNG).is_some() {
         return Ok(());
     }
 
     Err(BrpError {
-        code:    INTERNAL_ERROR,
+        code: INTERNAL_ERROR,
         message: "PNG support not available. Enable the 'png' feature in your Bevy dependency"
             .to_string(),
-        data:    None,
+        data: None,
     })
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn no_primary_window_error() -> BrpError {
     BrpError {
-        code:    INTERNAL_ERROR,
+        code: INTERNAL_ERROR,
         message: "Screenshot capture requires a primary window".to_string(),
-        data:    None,
+        data: None,
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn invalid_entity_error(entity: Entity) -> BrpError {
     BrpError {
-        code:    INVALID_PARAMS,
+        code: INVALID_PARAMS,
         message: format!("Invalid screenshot entity: {}", entity.to_bits()),
-        data:    None,
+        data: None,
     }
 }
 
-#[cfg(all(not(feature = "ui"), not(target_arch = "wasm32")))]
+#[cfg(not(feature = "ui"))]
 fn unsupported_bounds_error(entity: Entity) -> BrpError {
     BrpError {
-        code:    INVALID_PARAMS,
+        code: INVALID_PARAMS,
         message: format!(
             "Screenshot entity {} has no supported bounds; UI bounds support is disabled",
             entity.to_bits()
         ),
-        data:    None,
+        data: None,
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn invalid_camera_error(camera: Entity) -> BrpError {
     BrpError {
-        code:    INVALID_PARAMS,
+        code: INVALID_PARAMS,
         message: format!(
             "Screenshot camera {} is missing, inactive, uninitialized, or has an unsupported target",
             camera.to_bits()
         ),
-        data:    None,
+        data: None,
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn no_camera_error() -> BrpError {
     BrpError {
-        code:    INVALID_PARAMS,
+        code: INVALID_PARAMS,
         message: "Entity screenshot capture requires one eligible active camera".to_string(),
-        data:    None,
+        data: None,
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn ambiguous_camera_error(candidates: &[SelectedCamera]) -> BrpError {
     BrpError {
-        code:    INVALID_PARAMS,
+        code: INVALID_PARAMS,
         message: "Entity screenshot capture has multiple eligible active cameras".to_string(),
-        data:    Some(json!({
+        data: Some(json!({
             RESPONSE_REASON_FIELD: SCREENSHOT_CAMERA_REASON_AMBIGUOUS,
             CAMERA_CANDIDATES_FIELD: candidates
                 .iter()
@@ -537,7 +448,7 @@ fn ambiguous_camera_error(candidates: &[SelectedCamera]) -> BrpError {
     }
 }
 
-#[cfg(all(test, not(target_arch = "wasm32")))]
+#[cfg(test)]
 mod native_tests {
     use std::error::Error;
     use std::io;
@@ -617,8 +528,8 @@ mod native_tests {
     fn render_target_image(size: UVec2, asset_usage: RenderAssetUsages) -> Image {
         Image::new_fill(
             Extent3d {
-                width:                 size.x,
-                height:                size.y,
+                width: size.x,
+                height: size.y,
                 depth_or_array_layers: 1,
             },
             TextureDimension::D2,
@@ -662,12 +573,12 @@ mod native_tests {
                 Ok(response) => return brp(response),
                 Err(TryRecvError::Empty) if Instant::now() < deadline => {
                     std::thread::yield_now();
-                },
+                }
                 Err(error) => {
                     return Err(io::Error::other(format!(
                         "screenshot response did not complete: {error}"
                     )));
-                },
+                }
             }
         }
     }
@@ -1070,38 +981,6 @@ mod native_tests {
             target_size,
             &path,
         )?;
-        Ok(())
-    }
-}
-
-#[cfg(all(test, target_arch = "wasm32"))]
-mod wasm_tests {
-    use std::error::Error;
-    use std::io;
-
-    use bevy::prelude::*;
-    use serde_json::json;
-
-    use super::*;
-
-    #[test]
-    fn unsupported_publication_returns_before_resource_or_job_creation()
-    -> Result<(), Box<dyn Error>> {
-        let mut app = App::new();
-        app.add_plugins(ScreenshotPlugin);
-        let initial_entities = app.world().entities().len();
-        let system_id = app.world_mut().register_system(handler);
-
-        let result = app
-            .world_mut()
-            .run_system_with(system_id, Some(json!({ "path": 42 })))
-            .map_err(|error| io::Error::other(error.to_string()))?;
-
-        assert!(matches!(
-            result,
-            Err(error) if error.message.contains("unsupported on WASM")
-        ));
-        assert_eq!(app.world().entities().len(), initial_entities);
         Ok(())
     }
 }

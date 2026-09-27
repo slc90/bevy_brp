@@ -36,9 +36,9 @@ pub(super) enum TypingPhase {
 #[derive(Component)]
 pub(super) struct TextTypingQueue {
     /// 保持 Extras 活跃直到最后一个字符的 release 已产生。
-    _activity:   BrpExtrasActivityGuard,
+    _activity: BrpExtrasActivityGuard,
     /// Characters remaining to type
-    chars:        VecDeque<char>,
+    chars: VecDeque<char>,
     /// Currently pressed keys (waiting for release next frame)
     current_keys: Vec<KeyCodeWrapper>,
     /// The character we're currently typing (for proper text field on shifted chars)
@@ -58,11 +58,11 @@ pub(super) struct TypeTextRequest {
 #[derive(Debug, Serialize, Deserialize)]
 pub(super) struct TypeTextResponse {
     /// Whether the operation was initiated successfully
-    success:      bool,
+    success: bool,
     /// Number of characters queued for typing
     chars_queued: usize,
     /// Characters that couldn't be mapped to keys (skipped)
-    skipped:      Vec<char>,
+    skipped: Vec<char>,
 }
 
 /// Convert a character to the key(s) needed to type it.
@@ -73,19 +73,19 @@ fn char_to_keys(c: char) -> Option<Vec<KeyCodeWrapper>> {
         'a'..='z' => {
             let key_name = format!("Key{}", c.to_ascii_uppercase());
             KeyCodeWrapper::from_str(&key_name).ok().map(|k| vec![k])
-        },
+        }
         // Uppercase letters (need Shift)
         'A'..='Z' => {
             let key_name = format!("Key{c}");
             KeyCodeWrapper::from_str(&key_name)
                 .ok()
                 .map(|k| vec![KeyCodeWrapper::ShiftLeft, k])
-        },
+        }
         // Numbers
         '0'..='9' => {
             let key_name = format!("Digit{c}");
             KeyCodeWrapper::from_str(&key_name).ok().map(|k| vec![k])
-        },
+        }
         // Symbols - unshifted
         ' ' => Some(vec![KeyCodeWrapper::Space]),
         '-' => Some(vec![KeyCodeWrapper::Minus]),
@@ -137,23 +137,23 @@ fn char_to_keys(c: char) -> Option<Vec<KeyCodeWrapper>> {
 pub(crate) fn type_text_handler(In(params): In<Option<Value>>, world: &mut World) -> BrpResult {
     let request: TypeTextRequest = if let Some(params) = params {
         serde_json::from_value(params).map_err(|e| BrpError {
-            code:    INVALID_PARAMS,
+            code: INVALID_PARAMS,
             message: format!("Invalid request format: {e}"),
-            data:    None,
+            data: None,
         })?
     } else {
         return Err(BrpError {
-            code:    INVALID_PARAMS,
+            code: INVALID_PARAMS,
             message: MISSING_REQUEST_PARAMETERS_MESSAGE.to_string(),
-            data:    None,
+            data: None,
         });
     };
 
     if request.text.is_empty() {
         return Ok(json!(TypeTextResponse {
-            success:      true,
+            success: true,
             chars_queued: 0,
-            skipped:      vec![],
+            skipped: vec![],
         }));
     }
 
@@ -221,7 +221,7 @@ pub(super) fn process_text_typing(
                 } else {
                     queue.typing_phase = TypingPhase::PressNext;
                 }
-            },
+            }
             TypingPhase::PressNext => {
                 // Press the next character's keys
                 if let Some(c) = queue.chars.pop_front()
@@ -245,7 +245,7 @@ pub(super) fn process_text_typing(
                     // All done, despawn
                     commands.entity(entity).despawn();
                 }
-            },
+            }
         }
     }
 }

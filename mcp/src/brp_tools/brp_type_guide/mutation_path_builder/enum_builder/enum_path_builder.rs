@@ -115,28 +115,28 @@ pub(super) fn process_enum(
                 None
             } else {
                 Some(EnumPathInfo {
-                    variant_chain:       context.variant_chain.clone(),
+                    variant_chain: context.variant_chain.clone(),
                     applicable_variants: Vec::new(),
-                    root_example:        None,
+                    root_example: None,
                 })
             };
 
             return Ok(vec![MutationPathInternal {
-                example:               PathExample::Simple(Example::Json(example)),
-                mutation_path:         context.mutation_path.clone(),
-                type_name:             context.type_name().display_name(),
-                path_kind:             context.path_kind.clone(),
-                mutability:            Mutability::Mutable,
-                mutability_reason:     None,
-                enum_path_info:        enum_path_data,
-                depth:                 *context.depth,
+                example: PathExample::Simple(Example::Json(example)),
+                mutation_path: context.mutation_path.clone(),
+                type_name: context.type_name().display_name(),
+                path_kind: context.path_kind.clone(),
+                mutability: Mutability::Mutable,
+                mutability_reason: None,
+                enum_path_info: enum_path_data,
+                depth: *context.depth,
                 partial_root_examples: None,
             }]);
-        },
+        }
         KnowledgeAction::UseExampleAndRecurse(example) => {
             // Use this example but still process variants
             Example::Json(example)
-        },
+        }
         KnowledgeAction::Missing => {
             // Use preferred example from processed variants
             select_preferred_example(&enum_examples).ok_or_else(|| {
@@ -145,7 +145,7 @@ pub(super) fn process_enum(
                     context.type_name()
                 ))))
             })?
-        },
+        }
     };
 
     // Create result paths including both root AND child paths
@@ -421,13 +421,13 @@ fn build_variant_example(
             } else {
                 Example::Json(json!({ variant_name.short_name(): tuple_values }))
             }
-        },
+        }
         VariantSignature::Struct(_) => {
             // `support::assemble_struct_from_children` converts the supplied `children`
             // to a `Map<String, Value>`; wrap it under `variant_name.short_name()`.
             let field_values = support::assemble_struct_from_children(children);
             Example::Json(json!({ variant_name.short_name(): field_values }))
-        },
+        }
     };
 
     // Apply `Option<T>` transformation only for actual Option types
@@ -522,8 +522,8 @@ fn create_paths_for_signature(
             fields
                 .iter()
                 .map(|(field_name, type_name)| PathKind::StructField {
-                    field_name:  field_name.clone(),
-                    type_name:   type_name.clone(),
+                    field_name: field_name.clone(),
+                    type_name: type_name.clone(),
                     parent_type: context.type_name().clone(),
                 })
                 .collect(),
@@ -813,13 +813,13 @@ fn build_enum_mutability_reason(
                 mutability_issues,
                 message,
             ))
-        },
+        }
         Mutability::NotMutable => {
             // Use `ImmutableChildren` variant instead of raw JSON
             Some(NotMutableReason::ImmutableChildren {
                 parent_type: type_name,
             })
-        },
+        }
         Mutability::Mutable => None,
     }
 }
@@ -837,9 +837,9 @@ fn build_enum_root_path(
         None
     } else {
         Some(EnumPathInfo {
-            variant_chain:       context.variant_chain.clone(),
+            variant_chain: context.variant_chain.clone(),
             applicable_variants: Vec::new(),
-            root_example:        None,
+            root_example: None,
         })
     };
 
@@ -847,7 +847,7 @@ fn build_enum_root_path(
     MutationPathInternal {
         mutation_path: context.mutation_path.clone(),
         example: PathExample::EnumRoot {
-            groups:     enum_examples,
+            groups: enum_examples,
             for_parent: default_example,
         },
         type_name: context.type_name().display_name(),

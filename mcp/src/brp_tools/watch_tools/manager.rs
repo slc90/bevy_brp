@@ -22,17 +22,17 @@ pub(super) static WATCH_MANAGER: LazyLock<Arc<Mutex<WatchManager>>> =
 /// Information about an active watch
 #[derive(Debug, Clone)]
 pub(super) struct WatchInfo {
-    pub(super) id:        u32,
+    pub(super) id: u32,
     pub(super) entity_id: u64,
-    pub(super) kind:      String,
-    pub(super) log_path:  PathBuf,
-    pub(super) port:      Port,
+    pub(super) kind: String,
+    pub(super) log_path: PathBuf,
+    pub(super) port: Port,
 }
 
 /// Manager for watch subscriptions
 pub(super) struct WatchManager {
     /// Monotonic counter for watch IDs
-    next_watch_id:             AtomicU32,
+    next_watch_id: AtomicU32,
     /// Active watches mapped by watch ID
     pub(super) active_watches: HashMap<u32, (WatchInfo, JoinHandle<()>)>,
 }
@@ -41,13 +41,15 @@ impl WatchManager {
     /// Create a new watch manager
     fn new() -> Self {
         Self {
-            next_watch_id:  AtomicU32::new(1),
+            next_watch_id: AtomicU32::new(1),
             active_watches: HashMap::new(),
         }
     }
 
     /// Get the next watch ID (monotonically increasing)
-    pub(super) fn next_id(&self) -> u32 { self.next_watch_id.fetch_add(1, Ordering::SeqCst) }
+    pub(super) fn next_id(&self) -> u32 {
+        self.next_watch_id.fetch_add(1, Ordering::SeqCst)
+    }
 
     /// Stop a watch by ID
     pub(super) fn stop_watch(&mut self, watch_id: u32) -> Result<()> {

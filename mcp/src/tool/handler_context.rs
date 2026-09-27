@@ -35,7 +35,7 @@ use crate::error::Result;
 #[derive(Clone)]
 pub struct HandlerContext {
     pub(super) tool_def: ToolDef,
-    request:             CallToolRequestParams,
+    request: CallToolRequestParams,
 }
 
 impl HandlerContext {
@@ -114,7 +114,7 @@ impl HandlerContext {
                         )
                         .to_call_tool_result(),
                     }
-                },
+                }
                 Err(report) => Response::error_message(
                     format!("Internal error: {}", report.current_context()),
                     call_info,
@@ -137,12 +137,12 @@ impl HandlerContext {
                         )
                         .to_call_tool_result(),
                     }
-                },
+                }
                 Error::ToolCall { message, details } => {
                     // Create error response with the error message and details
                     Response::error_with_details(message, details.as_ref(), call_info)
                         .to_call_tool_result()
-                },
+                }
                 _ => Response::error_message(
                     format!("Internal error: {}", report.current_context()),
                     call_info,

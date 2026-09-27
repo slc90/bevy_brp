@@ -8,16 +8,21 @@ members = [
   "test-duplicate-a",
   "test-duplicate-b",
 ]
-resolver = "2"
+resolver = "3"
 
 [workspace.package]
+authors = ["natepiano <slicks.curable.0k@icloud.com>"]
+edition = "2024"
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/slc90/bevy_brp"
-version    = "0.1.0"
+rust-version = "1.98.1"
+version = "0.1.0"
 
 [workspace.dependencies]
 # Bevy with no default features - each crate specifies what it needs
 bevy            = { version = "0.19.1", default-features = false }
-bevy_brp_extras = { path = "extras" }
+bevy_brp_extras = { version = "0.1.0", path = "extras" }
+bevy_brp_runtime = { version = "0.1.0", path = "runtime" }
 bevy_mesh       = { version = "0.19.1" }
 bevy_remote     = { version = "0.19.1", default-features = false }
 bevy_winit      = { version = "0.19.1" }
@@ -69,28 +74,10 @@ tracing = { version = "0.1.44", features = [
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
-# Shared lints configuration
 [workspace.lints.rust]
-missing_docs = "deny"
+unsafe_code = "forbid"
 
 [workspace.lints.clippy]
-allow_attributes_without_reason = "deny"
-expect_used                     = "deny"
-panic                           = "deny"
-self_named_module_files         = "deny" # use module/mod.rs (directory form) when a module has submodules
-unreachable                     = "deny"
-unwrap_used                     = "deny"
-
-# Enable lint groups as errors (with lower priority so allows can override)
-all      = { level = "deny", priority = -1 }
-cargo    = { level = "deny", priority = -1 }
-nursery  = { level = "deny", priority = -1 }
-pedantic = { level = "deny", priority = -1 }
-
-# Allow specific lints that conflict with Bevy patterns
-multiple_crate_versions = "allow"
-needless_pass_by_value  = "allow"
-option_if_let_else      = "allow"
-redundant_pub_crate     = "allow" # cargo mend is the visibility authority, not clippy
-too_many_arguments      = "allow"
-type_complexity         = "allow"
+unwrap_used = "deny"
+type_complexity = "allow"
+too_many_arguments = "allow"

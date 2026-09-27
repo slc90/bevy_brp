@@ -48,22 +48,22 @@ pub(super) fn parse_request<T: serde::de::DeserializeOwned>(
     if matches!(empty_params_policy, EmptyParamsPolicy::Allow) && params.is_none() {
         // For requests with no required fields (e.g., `DoubleTapGestureRequest`)
         return serde_json::from_value(Value::Object(Map::default())).map_err(|e| BrpError {
-            code:    INVALID_PARAMS,
+            code: INVALID_PARAMS,
             message: format!("Failed to parse parameters: {e}"),
-            data:    None,
+            data: None,
         });
     }
 
     let params = params.ok_or_else(|| BrpError {
-        code:    INVALID_PARAMS,
+        code: INVALID_PARAMS,
         message: MISSING_REQUEST_PARAMETERS_MESSAGE.to_string(),
-        data:    None,
+        data: None,
     })?;
 
     serde_json::from_value(params).map_err(|e| BrpError {
-        code:    INVALID_PARAMS,
+        code: INVALID_PARAMS,
         message: format!("Failed to parse parameters: {e}"),
-        data:    None,
+        data: None,
     })
 }
 
@@ -81,9 +81,9 @@ pub(super) fn serialize_response<T: Serialize>(response: T, handler_name: &str) 
     serde_json::to_value(response).map_err(|e| {
         warn!("Failed to serialize {handler_name} response: {e}");
         BrpError {
-            code:    INTERNAL_ERROR,
+            code: INTERNAL_ERROR,
             message: format!("Failed to serialize response: {e}"),
-            data:    None,
+            data: None,
         }
     })
 }
@@ -188,9 +188,9 @@ pub(super) fn resolve_window(
         // Verify entity exists and is a window
         if world.get_entity(entity).is_err() {
             return Err(BrpError {
-                code:    INVALID_PARAMS,
+                code: INVALID_PARAMS,
                 message: format!("Invalid window entity: {id}"),
-                data:    None,
+                data: None,
             });
         }
         return Ok(entity);
@@ -211,8 +211,8 @@ pub(super) fn resolve_window(
     };
 
     entity.ok_or_else(|| BrpError {
-        code:    INVALID_PARAMS,
+        code: INVALID_PARAMS,
         message: "No primary window found".to_string(),
-        data:    None,
+        data: None,
     })
 }

@@ -1,13 +1,14 @@
 [package]
-authors              = ["natepiano <slicks.curable.0k@icloud.com>"]
+authors.workspace    = true
 categories           = ["development-tools", "game-development"]
 description          = "MCP server for Bevy Remote Protocol (BRP) integration"
-edition              = "2024"
+edition.workspace    = true
 keywords             = ["bevy", "brp", "mcp", "remote"]
-license              = "MIT OR Apache-2.0"
+license.workspace    = true
 name                 = "bevy_brp_mcp"
 readme               = "README.md"
 repository.workspace = true
+rust-version.workspace = true
 version.workspace    = true
 publish              = false
 

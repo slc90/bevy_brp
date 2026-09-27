@@ -40,13 +40,13 @@ pub enum NameMatchMode {
 #[derive(Clone, Deserialize, JsonSchema, ParamStruct, Serialize)]
 pub struct FindEntitiesByNameParams {
     /// Case-sensitive text to compare with reflected Bevy `Name` components.
-    pub name:       String,
+    pub name: String,
     /// Comparison mode. Defaults to `exact`; asterisks have no special meaning.
     #[serde(default)]
     pub match_mode: NameMatchMode,
     /// The BRP port (default: 15702).
     #[serde(default)]
-    pub port:       Port,
+    pub port: Port,
 }
 
 /// One entity returned by name discovery.
@@ -55,7 +55,7 @@ pub(crate) struct NamedEntity {
     /// Canonical Bevy entity ID for later BRP operations.
     pub entity: u64,
     /// The complete reflected Bevy `Name`.
-    pub name:   String,
+    pub name: String,
 }
 
 /// Result of local entity-name discovery.
@@ -63,10 +63,10 @@ pub(crate) struct NamedEntity {
 pub struct FindEntitiesByNameResult {
     /// Matching entities in ascending entity-ID order.
     #[to_result]
-    pub entities:         Vec<NamedEntity>,
+    pub entities: Vec<NamedEntity>,
     /// Number of matching entities.
     #[to_metadata]
-    pub entity_count:     usize,
+    pub entity_count: usize,
     /// Message template for formatting responses.
     #[to_message(message_template = "Found {entity_count} named entities")]
     pub message_template: String,
@@ -102,13 +102,13 @@ struct NameQueryFilter {
 
 #[derive(Serialize)]
 struct NameQueryParams {
-    data:   NameQueryData,
+    data: NameQueryData,
     filter: NameQueryFilter,
 }
 
 #[derive(Deserialize)]
 struct NameQueryRow {
-    entity:     u64,
+    entity: u64,
     components: HashMap<String, Value>,
 }
 
@@ -130,7 +130,7 @@ pub(super) async fn find_entities_by_name(
 fn build_name_query_params() -> Result<Value> {
     let component = type_name::<Name>().to_string();
     let params = NameQueryParams {
-        data:   NameQueryData {
+        data: NameQueryData {
             components: vec![component.clone()],
         },
         filter: NameQueryFilter {
@@ -155,7 +155,7 @@ fn parse_name_query_response(
     match response {
         ResponseStatus::Success(Some(value)) => {
             parse_name_query_rows(value, requested_name, match_mode, port)
-        },
+        }
         ResponseStatus::Success(None) => Err(name_query_decode_error(
             port,
             "world.query returned no result",
@@ -197,7 +197,7 @@ fn parse_name_query_rows(
 
             Ok(NamedEntity {
                 entity: row.entity,
-                name:   name.to_string(),
+                name: name.to_string(),
             })
         })
         .collect::<Result<Vec<_>>>()?;
@@ -393,11 +393,11 @@ mod tests {
             vec![
                 NamedEntity {
                     entity: TEST_ENTITY_LOW,
-                    name:   TEST_NAME.to_string(),
+                    name: TEST_NAME.to_string(),
                 },
                 NamedEntity {
                     entity: TEST_ENTITY_HIGH,
-                    name:   TEST_NAME.to_string(),
+                    name: TEST_NAME.to_string(),
                 },
             ]
         );

@@ -20,9 +20,9 @@ use schemars::Schema;
 /// [registration example](https://github.com/slc90/bevy_brp/blob/main/extras/examples/agent_tool_registration.rs).
 #[must_use]
 pub struct AgentTool {
-    pub(super) name:          String,
-    pub(super) method:        String,
-    pub(super) description:   String,
+    pub(super) name: String,
+    pub(super) method: String,
+    pub(super) description: String,
     pub(super) params_schema: Option<Schema>,
     pub(super) result_schema: Option<Schema>,
 }
@@ -40,9 +40,9 @@ impl AgentTool {
         description: impl Into<String>,
     ) -> Self {
         Self {
-            name:          name.into(),
-            method:        method.into(),
-            description:   description.into(),
+            name: name.into(),
+            method: method.into(),
+            description: description.into(),
             params_schema: None,
             result_schema: None,
         }

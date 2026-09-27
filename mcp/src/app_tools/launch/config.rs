@@ -31,14 +31,14 @@ pub(super) struct Example;
 /// Parameterized launch configuration for apps and examples
 #[derive(Clone)]
 pub(super) struct LaunchConfig<T> {
-    target:         String,
-    profile:        String,
-    package:        Option<String>,
-    port:           Port,
+    target: String,
+    profile: String,
+    package: Option<String>,
+    port: Port,
     instance_count: InstanceCount,
-    env:            Option<HashMap<String, String>>,
-    arguments:      Option<Vec<String>>,
-    phantom_data:   PhantomData<T>,
+    env: Option<HashMap<String, String>>,
+    arguments: Option<Vec<String>>,
+    phantom_data: PhantomData<T>,
 }
 
 impl<T> LaunchConfig<T> {
@@ -67,9 +67,9 @@ impl<T> LaunchConfig<T> {
 /// Represents a single launched instance
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct LaunchedInstance {
-    pid:      u32,
+    pid: u32,
     log_file: String,
-    port:     u16,
+    port: u16,
 }
 
 /// Unified result type for launching Bevy apps and examples
@@ -78,56 +78,56 @@ pub struct LaunchResult {
     /// Name of the target that was launched (app or example)
     #[serde(rename = "target_name")]
     #[to_metadata(skip_if_none)]
-    target:            Option<String>,
+    target: Option<String>,
     /// Array of launched instances (1 or more)
     #[to_result]
-    instances:         Vec<LaunchedInstance>,
+    instances: Vec<LaunchedInstance>,
     /// Working directory used for launch
     #[to_metadata(skip_if_none)]
     working_directory: Option<String>,
     /// Build profile used (debug/release)
     #[to_metadata(skip_if_none)]
-    profile:           Option<String>,
+    profile: Option<String>,
     /// Binary path of the launched app (only for apps, not examples)
     #[to_metadata(skip_if_none)]
-    binary_path:       Option<String>,
+    binary_path: Option<String>,
     /// Launch duration in milliseconds
     #[serde(rename = "launch_duration_ms")]
     #[to_metadata(skip_if_none)]
-    duration_ms:       Option<u128>,
+    duration_ms: Option<u128>,
     /// Launch timestamp
     #[serde(rename = "launch_timestamp")]
     #[to_metadata(skip_if_none)]
-    timestamp:         Option<String>,
+    timestamp: Option<String>,
     /// Workspace information
     #[to_metadata(skip_if_none)]
-    workspace:         Option<String>,
+    workspace: Option<String>,
     /// Package name containing the example (only for examples)
     #[serde(rename = "package_name")]
     #[to_metadata(skip_if_none)]
-    package:           Option<String>,
+    package: Option<String>,
     /// Whether the target was launched as an "app" or "example"
     #[to_metadata(skip_if_none)]
-    launched_as:       Option<String>,
+    launched_as: Option<String>,
     /// Available duplicate paths (for disambiguation errors)
     #[to_metadata(skip_if_none)]
-    duplicate_paths:   Option<Vec<String>>,
+    duplicate_paths: Option<Vec<String>>,
     /// Message template for formatting responses
     #[to_message]
-    message_template:  Option<String>,
+    message_template: Option<String>,
 }
 
 /// Parameters extracted from launch requests
 pub(crate) struct LaunchParams {
-    pub target:         String,
-    pub profile:        String,
-    pub path:           Option<String>,
-    pub package:        Option<String>,
-    pub port:           Port,
+    pub target: String,
+    pub profile: String,
+    pub path: Option<String>,
+    pub package: Option<String>,
+    pub port: Port,
     pub instance_count: InstanceCount,
-    pub env:            Option<HashMap<String, String>>,
-    pub search_order:   SearchOrder,
-    pub args:           Option<Vec<String>>,
+    pub env: Option<HashMap<String, String>>,
+    pub search_order: SearchOrder,
+    pub args: Option<Vec<String>>,
 }
 
 /// Trait for configuring launch behavior for different target types (app vs example)
@@ -154,7 +154,7 @@ pub(super) trait LaunchConfigTrait: Clone {
         if Self::TARGET_TYPE == TargetType::App {
             let freshness = build_freshness::check_target_freshness(target, self.profile());
             match &freshness {
-                FreshnessCheckResult::Fresh => {},
+                FreshnessCheckResult::Fresh => {}
                 FreshnessCheckResult::Stale(reason) => tracing::debug!(
                     "Lock-free freshness check marked {} '{}' stale: {reason}",
                     Self::TARGET_TYPE,
@@ -200,17 +200,29 @@ impl From<&LaunchParams> for LaunchConfig<App> {
 impl LaunchConfigTrait for LaunchConfig<App> {
     const TARGET_TYPE: TargetType = TargetType::App;
 
-    fn target(&self) -> &str { &self.target }
+    fn target(&self) -> &str {
+        &self.target
+    }
 
-    fn profile(&self) -> &str { &self.profile }
+    fn profile(&self) -> &str {
+        &self.profile
+    }
 
-    fn package(&self) -> Option<&str> { self.package.as_deref() }
+    fn package(&self) -> Option<&str> {
+        self.package.as_deref()
+    }
 
-    fn port(&self) -> Port { self.port }
+    fn port(&self) -> Port {
+        self.port
+    }
 
-    fn instance_count(&self) -> InstanceCount { self.instance_count }
+    fn instance_count(&self) -> InstanceCount {
+        self.instance_count
+    }
 
-    fn set_port(&mut self, port: Port) { self.port = port; }
+    fn set_port(&mut self, port: Port) {
+        self.port = port;
+    }
 
     fn build_command(&self, target: &BevyTarget) -> Command {
         build::build_app_command(
@@ -221,7 +233,9 @@ impl LaunchConfigTrait for LaunchConfig<App> {
         )
     }
 
-    fn extra_log_info(&self, _: &BevyTarget) -> Option<String> { None }
+    fn extra_log_info(&self, _: &BevyTarget) -> Option<String> {
+        None
+    }
 }
 
 impl From<&LaunchParams> for LaunchConfig<Example> {
@@ -241,17 +255,29 @@ impl From<&LaunchParams> for LaunchConfig<Example> {
 impl LaunchConfigTrait for LaunchConfig<Example> {
     const TARGET_TYPE: TargetType = TargetType::Example;
 
-    fn target(&self) -> &str { &self.target }
+    fn target(&self) -> &str {
+        &self.target
+    }
 
-    fn profile(&self) -> &str { &self.profile }
+    fn profile(&self) -> &str {
+        &self.profile
+    }
 
-    fn package(&self) -> Option<&str> { self.package.as_deref() }
+    fn package(&self) -> Option<&str> {
+        self.package.as_deref()
+    }
 
-    fn port(&self) -> Port { self.port }
+    fn port(&self) -> Port {
+        self.port
+    }
 
-    fn instance_count(&self) -> InstanceCount { self.instance_count }
+    fn instance_count(&self) -> InstanceCount {
+        self.instance_count
+    }
 
-    fn set_port(&mut self, port: Port) { self.port = port; }
+    fn set_port(&mut self, port: Port) {
+        self.port = port;
+    }
 
     fn build_command(&self, target: &BevyTarget) -> Command {
         build::build_app_command(
@@ -282,9 +308,9 @@ pub(super) fn build_launch_result<T: LaunchConfigTrait>(
         .zip(all_log_files.iter())
         .zip(all_ports.iter())
         .map(|((process_id, log_file), port)| LaunchedInstance {
-            pid:      process_id,
+            pid: process_id,
             log_file: log_file.display().to_string(),
-            port:     *port,
+            port: *port,
         })
         .collect();
 

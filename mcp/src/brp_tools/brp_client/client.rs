@@ -37,8 +37,8 @@ use crate::tool::ParameterName;
 /// Client for executing a BRP operation
 pub struct BrpClient {
     brp_method: BrpMethodName,
-    port:       Port,
-    params:     Option<Value>,
+    port: Port,
+    params: Option<Value>,
 }
 
 enum BrpMethodName {
@@ -115,7 +115,7 @@ impl BrpClient {
                     None,
                     Some(FormatCorrectionStatus::NotAttempted),
                 ))
-            },
+            }
             ResponseStatus::Error(err) => {
                 // Check if this result type supports adding the `TypeGuide`
                 if R::ADD_TYPE_GUIDE_TO_ERROR && err.has_format_error_code() {
@@ -134,7 +134,7 @@ impl BrpClient {
                         self.enhance_error_message(err.get_message(), err.get_code());
                     Err(Error::tool_call_failed(enhanced_message).into())
                 }
-            },
+            }
         }
     }
 
@@ -228,7 +228,7 @@ impl BrpClient {
                         ))
                         .attach(format!("Error: {e}")),
                 )
-            },
+            }
         }
     }
 
@@ -342,9 +342,9 @@ impl BrpClient {
             };
 
             ResponseStatus::Error(BrpClientError {
-                code:    error.code,
+                code: error.code,
                 message: enhanced_message,
-                data:    error.data,
+                data: error.data,
             })
         } else {
             ResponseStatus::Success(brp_response_json.result)

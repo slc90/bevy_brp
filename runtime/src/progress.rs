@@ -185,12 +185,12 @@ impl ProgressState {
                 let previous = self.main_mailbox_pending;
                 self.main_mailbox_pending = pending;
                 previous
-            },
+            }
             MailboxWorld::Render => {
                 let previous = self.render_mailbox_pending;
                 self.render_mailbox_pending = pending;
                 previous
-            },
+            }
         };
         if previous && !pending {
             self.add_tail_updates();
@@ -206,7 +206,7 @@ fn lock_state(state: &Mutex<ProgressState>) -> MutexGuard<'_, ProgressState> {
         Err(poisoned) => {
             error!("BRP runtime progress state mutex 已损坏");
             poisoned.into_inner()
-        },
+        }
     }
 }
 

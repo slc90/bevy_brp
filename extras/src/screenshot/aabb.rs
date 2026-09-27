@@ -134,22 +134,22 @@ fn project_aabb(
                 }
                 projected_min = projected_min.min(physical);
                 projected_max = projected_max.max(physical);
-            },
+            }
             Err(ViewportConversionError::PastNearPlane | ViewportConversionError::PastFarPlane) => {
                 return nonempty_intersection(viewport, target, selected_camera.entity);
-            },
+            }
             Err(ViewportConversionError::NoViewportSize) => {
                 return Err(camera_projection_error(
                     selected_camera.entity,
                     "has no viewport size",
                 ));
-            },
+            }
             Err(ViewportConversionError::InvalidData) => {
                 return Err(camera_projection_error(
                     selected_camera.entity,
                     "has invalid projection data",
                 ));
-            },
+            }
         }
     }
 
@@ -190,17 +190,17 @@ fn nonempty_intersection(rect: URect, hard_bounds: URect, camera: Entity) -> Brp
 
 fn bounds_error(entity: Entity, detail: &str) -> BrpError {
     BrpError {
-        code:    INVALID_PARAMS,
+        code: INVALID_PARAMS,
         message: format!("Screenshot entity {} {detail}", entity.to_bits()),
-        data:    None,
+        data: None,
     }
 }
 
 fn camera_projection_error(camera: Entity, detail: &str) -> BrpError {
     BrpError {
-        code:    INVALID_PARAMS,
+        code: INVALID_PARAMS,
         message: format!("Screenshot camera {} {detail}", camera.to_bits()),
-        data:    None,
+        data: None,
     }
 }
 

@@ -26,13 +26,13 @@ use crate::log_tools::TracingLevel;
 #[derive(Debug)]
 pub(super) struct LogEntry {
     pub(super) update_type: String,
-    pub(super) data:        Value,
-    pub(super) timestamp:   DateTime<Local>,
+    pub(super) data: Value,
+    pub(super) timestamp: DateTime<Local>,
 }
 
 /// Buffered logger for watch updates
 pub(super) struct BufferedWatchLogger {
-    tx:          mpsc::Sender<LogEntry>,
+    tx: mpsc::Sender<LogEntry>,
     shutdown_tx: Option<oneshot::Sender<()>>,
 }
 

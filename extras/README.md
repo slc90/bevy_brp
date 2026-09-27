@@ -43,9 +43,9 @@ bevy = { version = "0.19", features = ["png"] }
 
 **Diagnostics note**: `get_diagnostics` requires the `diagnostics` cargo feature (enabled by default). Disable with `default-features = false` if you don't want `FrameTimeDiagnosticsPlugin` added to your app.
 
-## WASM Support
+## Platform support
 
-`bevy_brp_extras` compiles on `wasm32` targets. On native platforms, HTTP transport (`RemoteHttpPlugin`) is added automatically. On WASM, only the BRP methods are registered -- you need to provide your own transport (e.g., a WebSocket relay).
+The supported target is Windows MSVC. `BrpExtrasPlugin` adds HTTP transport (`RemoteHttpPlugin`) by default; use `without_http_transport()` when the host supplies its own transport.
 
 ## Usage
 

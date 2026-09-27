@@ -58,7 +58,9 @@ pub(super) trait TypeKindBuilder {
     }
 
     /// Check if child paths should be included in the final mutation paths result.
-    fn child_path_action(&self) -> PathAction { PathAction::Create }
+    fn child_path_action(&self) -> PathAction {
+        PathAction::Create
+    }
 
     /// Collect `PathKind`s for child elements.
     fn collect_children(&self, context: &RecursionContext) -> Result<Self::Iter<'_>>;

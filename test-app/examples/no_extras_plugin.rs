@@ -38,7 +38,7 @@ fn main() {
         Err(error) => {
             eprintln!("Cannot start BRP No Plugin Test: {error}");
             return;
-        },
+        }
     };
 
     info!("Starting BRP No Plugin Test on port {port}");
@@ -74,7 +74,7 @@ fn configured_port() -> Result<u16, String> {
         Err(env::VarError::NotPresent) => Ok(FALLBACK_PORT),
         Err(env::VarError::NotUnicode(_)) => {
             Err(format!("{BRP_EXTRAS_PORT_ENV} must contain Unicode digits"))
-        },
+        }
     }
 }
 

@@ -24,9 +24,9 @@ pub(crate) fn handler(In(params): In<Option<Value>>, world: &mut World) -> BrpRe
         .and_then(|parameters| parameters.get(PARAM_TITLE))
         .and_then(Value::as_str)
         .ok_or_else(|| BrpError {
-            code:    INVALID_PARAMS,
+            code: INVALID_PARAMS,
             message: "Missing or invalid 'title' parameter".to_string(),
-            data:    None,
+            data: None,
         })?;
 
     // Query for primary window
@@ -34,9 +34,9 @@ pub(crate) fn handler(In(params): In<Option<Value>>, world: &mut World) -> BrpRe
 
     // Get mutable window reference
     let mut window = query.single_mut(world).map_err(|_| BrpError {
-        code:    INTERNAL_ERROR,
+        code: INTERNAL_ERROR,
         message: "No primary window found".to_string(),
-        data:    None,
+        data: None,
     })?;
 
     // Store old title for response

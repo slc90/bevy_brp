@@ -50,11 +50,11 @@ use crate::support::JsonObjectAccess;
 pub(crate) enum SpawnInsertExample {
     Spawn {
         agent_guidance: String,
-        example:        Example,
+        example: Example,
     },
     Resource {
         agent_guidance: String,
-        example:        Example,
+        example: Example,
     },
 }
 
@@ -72,7 +72,7 @@ impl Serialize for SpawnInsertExample {
                 let mut map = serializer.serialize_map(Some(1))?;
                 map.serialize_entry(RESPONSE_SPAWN_FIELD, &payload)?;
                 map.end()
-            },
+            }
             Self::Resource {
                 agent_guidance,
                 example,
@@ -81,7 +81,7 @@ impl Serialize for SpawnInsertExample {
                 let mut map = serializer.serialize_map(Some(1))?;
                 map.serialize_entry(RESPONSE_RESOURCE_FIELD, &payload)?;
                 map.end()
-            },
+            }
         }
     }
 }

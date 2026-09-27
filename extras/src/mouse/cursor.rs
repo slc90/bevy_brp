@@ -26,13 +26,13 @@ use crate::constants::METHOD_MOVE_MOUSE;
 struct MoveMouseRequest {
     /// Delta movement (mutually exclusive with position)
     #[serde(default)]
-    delta:    Option<Vec2>,
+    delta: Option<Vec2>,
     /// Absolute position (mutually exclusive with delta)
     #[serde(default)]
     position: Option<Vec2>,
     /// Target window entity (None = primary window)
     #[serde(default)]
-    window:   Option<u64>,
+    window: Option<u64>,
 }
 
 /// Response structure for `move_mouse`
@@ -41,7 +41,7 @@ struct MoveMouseResponse {
     /// New cursor position
     new_position: Vec2,
     /// Delta that was applied
-    delta:        Vec2,
+    delta: Vec2,
 }
 
 // ============================================================================
@@ -68,7 +68,7 @@ struct MoveMouseResponse {
 #[derive(Resource, Default)]
 pub(super) struct SimulatedCursorPosition {
     /// Per-window cursor positions
-    pub positions:   HashMap<Entity, Vec2>,
+    pub positions: HashMap<Entity, Vec2>,
     /// The last window the cursor was moved to (used as default for click/scroll operations)
     pub last_window: Option<Entity>,
 }
@@ -111,17 +111,17 @@ pub(crate) fn move_mouse_handler(In(params): In<Option<Value>>, world: &mut Worl
     // Validate that exactly one of delta or position is provided
     if request.delta.is_none() && request.position.is_none() {
         return Err(BrpError {
-            code:    INVALID_PARAMS,
+            code: INVALID_PARAMS,
             message: "Must provide either 'delta' or 'position'".to_string(),
-            data:    None,
+            data: None,
         });
     }
 
     if request.delta.is_some() && request.position.is_some() {
         return Err(BrpError {
-            code:    INVALID_PARAMS,
+            code: INVALID_PARAMS,
             message: "Cannot provide both 'delta' and 'position'".to_string(),
-            data:    None,
+            data: None,
         });
     }
 
@@ -146,9 +146,9 @@ pub(crate) fn move_mouse_handler(In(params): In<Option<Value>>, world: &mut Worl
     } else {
         // Validation above already rejects this case
         return Err(BrpError {
-            code:    INVALID_PARAMS,
+            code: INVALID_PARAMS,
             message: "Must provide either 'delta' or 'position'".to_string(),
-            data:    None,
+            data: None,
         });
     };
 

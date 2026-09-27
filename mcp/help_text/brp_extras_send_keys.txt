@@ -5,7 +5,6 @@ Key formats: Letters (KeyA-Z), Digits (Digit0-9), Function (F1-F24), Modifiers (
 Platform-specific modifiers:
 - macOS: Use "SuperLeft" or "SuperRight" for Command key (⌘)
 - Windows: Use "SuperLeft" or "SuperRight" for Windows key (⊞)
-- Linux: Use "SuperLeft" or "SuperRight" for Super/Meta key
 
 Examples:
 ```json

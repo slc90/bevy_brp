@@ -115,17 +115,23 @@ impl RecursionDepth {
     pub(super) const ZERO: Self = Self(0);
 
     /// Increment depth - private to this module
-    const fn increment(self) -> Self { Self(self.0 + 1) }
+    const fn increment(self) -> Self {
+        Self(self.0 + 1)
+    }
 
     /// Check if depth exceeds limit - private to this module
-    const fn exceeds_limit(self) -> bool { self.0 > MAX_TYPE_RECURSION_DEPTH }
+    const fn exceeds_limit(self) -> bool {
+        self.0 > MAX_TYPE_RECURSION_DEPTH
+    }
 }
 
 // Allow direct comparison with integers
 impl Deref for RecursionDepth {
     type Target = usize;
 
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 /// Context for mutation path building operations
@@ -135,19 +141,19 @@ impl Deref for RecursionDepth {
 #[derive(Debug)]
 pub(super) struct RecursionContext {
     /// The building context (root or field)
-    pub(super) path_kind:                PathKind,
+    pub(super) path_kind: PathKind,
     /// Reference to the type registry
-    pub(super) registry:                 Arc<HashMap<BrpTypeName, Value>>,
+    pub(super) registry: Arc<HashMap<BrpTypeName, Value>>,
     /// the accumulated mutation path as we recurse through the type
-    pub(super) mutation_path:            MutationPath,
+    pub(super) mutation_path: MutationPath,
     /// Action to take regarding path creation (set by `MutationPathBuilder`)
     /// Design Review: Using enum instead of boolean for clarity and type safety
-    pub(super) path_action:              PathAction,
+    pub(super) path_action: PathAction,
     /// Chain of variant constraints from root to current position
     /// Independent of `enum_context` - tracks ancestry for `PathRequirement` construction
-    pub(super) variant_chain:            Vec<VariantName>,
+    pub(super) variant_chain: Vec<VariantName>,
     /// Recursion depth tracking to prevent infinite loops
-    pub(super) depth:                    RecursionDepth,
+    pub(super) depth: RecursionDepth,
     /// Parent enum variant signature (only set when processing enum variant children)
     /// The enum type is available via `path_kind.parent_type` - no need to store it redundantly
     pub(super) parent_variant_signature: Option<VariantSignature>,
@@ -168,7 +174,9 @@ impl RecursionContext {
     }
 
     /// Get the type name being processed
-    pub(super) const fn type_name(&self) -> &BrpTypeName { self.path_kind.type_name() }
+    pub(super) const fn type_name(&self) -> &BrpTypeName {
+        self.path_kind.type_name()
+    }
 
     /// Generate the path segment string for a `PathKind` (private to this module)
     fn path_kind_to_segment(path_kind: &PathKind) -> String {
@@ -288,7 +296,7 @@ impl RecursionContext {
                 }
 
                 // Fall through to exact type match for struct fields without specific knowledge
-            },
+            }
             PathKind::IndexedElement {
                 index, parent_type, ..
             } => {
@@ -308,7 +316,7 @@ impl RecursionContext {
                             if let Some(knowledge) = BRP_TYPE_KNOWLEDGE.get(&key) {
                                 return Ok(Some(knowledge));
                             }
-                        },
+                        }
                         VariantSignature::Struct(_) | VariantSignature::Unit => {
                             // ARCHITECTURAL INVARIANT VIOLATION
                             // IndexedElement should only occur with Tuple signatures
@@ -320,14 +328,14 @@ impl RecursionContext {
                                     parent_type.display_name()
                                 ),
                             ))));
-                        },
+                        }
                     }
                 }
                 // Fall through to exact type match
-            },
+            }
             PathKind::RootValue { .. } | PathKind::ArrayElement { .. } => {
                 // For these path kinds, only exact type matching applies
-            },
+            }
         }
 
         // Try exact type match as fallback - this handles most cases
@@ -346,15 +354,15 @@ impl RecursionContext {
             Some(TypeKnowledge::TreatAsRootValue { example, .. }) => {
                 // Return example immediately - caller will build single root path
                 Ok(KnowledgeAction::CompleteWithExample(example.clone()))
-            },
+            }
             Some(TypeKnowledge::TeachAndRecurse { example }) => {
                 // Use this example but continue recursing children
                 Ok(KnowledgeAction::UseExampleAndRecurse(example.clone()))
-            },
+            }
             None => {
                 // No knowledge - proceed with normal processing
                 Ok(KnowledgeAction::Missing)
-            },
+            }
         }
     }
 

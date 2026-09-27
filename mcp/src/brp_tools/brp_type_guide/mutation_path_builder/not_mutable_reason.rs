@@ -45,7 +45,7 @@ pub(super) enum NotMutableReason {
     /// Container type has non-mutable element type
     ImmutableHandle {
         container_type: BrpTypeName,
-        element_type:   BrpTypeName,
+        element_type: BrpTypeName,
     },
     /// Type not found in registry
     NotInRegistry(BrpTypeName),
@@ -59,10 +59,10 @@ pub(super) enum NotMutableReason {
     NoExampleAvailable(BrpTypeName),
     /// Some children are mutable, others are not (results in `PartiallyMutable`)
     PartialChildMutability {
-        parent_type:       BrpTypeName,
-        message:           String,
-        mutable:           Vec<String>,
-        not_mutable:       Vec<String>,
+        parent_type: BrpTypeName,
+        message: String,
+        mutable: Vec<String>,
+        not_mutable: Vec<String>,
         partially_mutable: Vec<String>,
     },
 }
@@ -146,17 +146,17 @@ impl Display for NotMutableReason {
             ),
             Self::NotInRegistry(type_name) => {
                 write!(f, "`{type_name}` not found in schema registry")
-            },
+            }
             Self::RecursionLimitExceeded(type_name) => {
                 write!(f, "`{type_name}` analysis exceeded maximum recursion depth")
-            },
+            }
             Self::ComplexCollectionKey(type_name) => write!(
                 f,
                 "HashMap `{type_name}` has complex (enum/struct) keys that cannot be mutated through BRP - JSON requires string keys but complex types cannot currently be used with HashMap or HashSet"
             ),
             Self::ImmutableChildren { parent_type } => {
                 write!(f, "`{parent_type}` has no mutable child paths")
-            },
+            }
             Self::NoExampleAvailable(type_name) => write!(
                 f,
                 "`{type_name}` is registered in the schema but has no discoverable example value available for mutations. If you look up the type definition yourself you may be able to use it to mutate this type directly."
@@ -204,7 +204,7 @@ impl From<&NotMutableReason> for Option<Value> {
                 }
 
                 Some(Value::Object(reason))
-            },
+            }
         }
     }
 }

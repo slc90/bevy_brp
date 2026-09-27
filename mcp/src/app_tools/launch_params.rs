@@ -26,55 +26,55 @@ pub enum SearchOrder {
 pub struct LaunchBevyBinaryParams {
     /// Name of the Bevy target to launch (app or example)
     #[serde(rename = "target_name")]
-    pub target:         String,
+    pub target: String,
     /// Build profile to use (debug or release)
     #[to_metadata(skip_if_none)]
-    pub profile:        Option<String>,
+    pub profile: Option<String>,
     /// Optional OS-level path to use as the search root. Overrides the default MCP workspace
     /// roots.
     #[serde(default)]
     #[to_metadata(skip_if_none)]
-    pub path:           Option<String>,
+    pub path: Option<String>,
     /// Package name to filter when multiple targets with the same name exist
     #[serde(default)]
     #[serde(rename = "package_name")]
     #[to_metadata(skip_if_none)]
-    pub package:        Option<String>,
+    pub package: Option<String>,
     /// The BRP port (default: 15702)
     #[serde(default)]
-    pub port:           Port,
+    pub port: Port,
     /// Number of instances to launch (default: 1)
     #[serde(default)]
     pub instance_count: InstanceCount,
     /// Optional environment variables to set on the launched process
     #[serde(default)]
     #[to_metadata(skip_if_none)]
-    pub env:            Option<HashMap<String, String>>,
+    pub env: Option<HashMap<String, String>>,
     /// Search order: "app" searches apps first (default), "example" searches examples first
     #[serde(default)]
-    pub search_order:   SearchOrder,
+    pub search_order: SearchOrder,
     /// Optional command-line arguments to pass to the launched process
     #[serde(default)]
     #[to_metadata(skip_if_none)]
-    pub args:           Option<Vec<String>>,
+    pub args: Option<Vec<String>>,
 }
 
 impl LaunchBevyBinaryParams {
     /// Convert to `LaunchParams` with the given default profile
     pub fn to_launch_params(&self, default_profile: &str) -> LaunchParams {
         LaunchParams {
-            target:         self.target.clone(),
-            profile:        self
+            target: self.target.clone(),
+            profile: self
                 .profile
                 .clone()
                 .unwrap_or_else(|| default_profile.to_string()),
-            path:           self.path.clone(),
-            package:        self.package.clone(),
-            port:           self.port,
+            path: self.path.clone(),
+            package: self.package.clone(),
+            port: self.port,
             instance_count: self.instance_count,
-            env:            self.env.clone(),
-            search_order:   self.search_order.clone(),
-            args:           self.args.clone(),
+            env: self.env.clone(),
+            search_order: self.search_order.clone(),
+            args: self.args.clone(),
         }
     }
 }

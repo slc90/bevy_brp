@@ -31,7 +31,7 @@ pub struct ShutdownParams {
     pub app_name: String,
     /// The BRP port (default: 15702)
     #[serde(default)]
-    pub port:     Port,
+    pub port: Port,
 }
 
 /// Result from shutting down a Bevy app
@@ -39,21 +39,21 @@ pub struct ShutdownParams {
 pub struct ShutdownResult {
     /// App name that was shut down
     #[to_metadata]
-    app_name:         String,
+    app_name: String,
     /// Process ID
     #[to_metadata]
-    pid:              u32,
+    pid: u32,
     /// Shutdown method used
     #[serde(rename = "shutdown_method")]
     #[to_metadata]
-    method:           String,
+    method: String,
     /// Port where shutdown was attempted
     #[to_metadata]
-    port:             u16,
+    port: u16,
     /// Warning for degraded success (process kill)
     #[serde(skip_serializing_if = "Option::is_none")]
     #[to_metadata(skip_if_none)]
-    warning:          Option<String>,
+    warning: Option<String>,
     /// Message template for formatting responses
     #[to_message]
     message_template: Option<String>,
@@ -81,7 +81,7 @@ impl KillReason {
             Self::ExtrasUnavailable => {
                 "bevy_brp_extras did not answer on this port - add it for clean shutdown"
                     .to_string()
-            },
+            }
             Self::Unresponsive => format!(
                 "App did not respond to BRP within {}s and was terminated. bevy_brp_extras may be \
                  installed but unable to reply: bevy_remote drains its request mailbox once per \
@@ -98,10 +98,7 @@ enum ShutdownOutcome {
     /// Graceful shutdown via `bevy_brp_extras` succeeded
     Clean { process_id: u32 },
     /// Process was killed using system signal, because graceful shutdown was unavailable
-    ProcessKilled {
-        process_id: u32,
-        reason:     KillReason,
-    },
+    ProcessKilled { process_id: u32, reason: KillReason },
     /// Process was not running
     NotRunning,
     /// An error occurred during shutdown
@@ -154,17 +151,17 @@ async fn shutdown_app(app_name: &str, port: Port) -> ShutdownOutcome {
                     0
                 });
             ShutdownOutcome::Clean { process_id }
-        },
+        }
         Ok(None) => {
             debug!("Graceful shutdown failed, falling back to process kill");
             // BRP responded but bevy_brp_extras not available - fall back to kill
             handle_kill_process_fallback(app_name, port, None)
-        },
+        }
         Err(e) => {
             debug!("BRP communication error, falling back to process kill: {e}");
             // BRP not responsive - fall back to kill
             handle_kill_process_fallback(app_name, port, Some(e.to_string()))
-        },
+        }
     }
 }
 
@@ -189,7 +186,7 @@ fn handle_kill_process_fallback(
                 process_id: pid,
                 reason,
             }
-        },
+        }
         Ok(None) => {
             if brp_error.is_some() {
                 debug!("Process '{app_name}' not found when attempting to kill after BRP failure");
@@ -197,7 +194,7 @@ fn handle_kill_process_fallback(
                 debug!("Process '{app_name}' not found when attempting to kill");
             }
             ShutdownOutcome::NotRunning
-        },
+        }
         Err(kill_err) => {
             if brp_error.is_some() {
                 debug!("Failed to kill process '{app_name}' after BRP failure: {kill_err:?}");
@@ -211,7 +208,7 @@ fn handle_kill_process_fallback(
             ShutdownOutcome::Error {
                 message: error_message,
             }
-        },
+        }
     }
 }
 
@@ -261,7 +258,7 @@ async fn try_graceful_shutdown(port: Port) -> Result<Option<Value>> {
             // Graceful shutdown succeeded
             debug!("BRP extras shutdown successful: {result:?}");
             Ok(result)
-        },
+        }
         Ok(ResponseStatus::Error(brp_error)) => {
             // Check if this is a method not found error (bevy_brp_extras not available)
             if brp_error.get_code() == JSON_RPC_ERROR_METHOD_NOT_FOUND {
@@ -279,7 +276,7 @@ async fn try_graceful_shutdown(port: Port) -> Result<Option<Value>> {
                 );
             }
             Ok(None)
-        },
+        }
         Err(e) => {
             // BRP communication failed entirely
             debug!("BRP communication failed: {e}");
@@ -288,7 +285,7 @@ async fn try_graceful_shutdown(port: Port) -> Result<Option<Value>> {
             ))
             .attach("BRP not responsive")
             .attach(format!("Port: {port}")))
-        },
+        }
     }
 }
 

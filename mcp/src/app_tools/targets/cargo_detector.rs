@@ -73,10 +73,10 @@ impl TargetType {
         match self {
             Self::App => {
                 command.arg(CARGO_BIN_FLAG).arg(target_name);
-            },
+            }
             Self::Example => {
                 command.arg(CARGO_EXAMPLE_FLAG).arg(target_name);
-            },
+            }
         }
     }
 }
@@ -85,19 +85,19 @@ impl TargetType {
 #[derive(Debug, Clone)]
 pub struct BevyTarget {
     /// Name of the target
-    pub name:           String,
+    pub name: String,
     /// Type of target (`App` or `Example`)
-    pub target_type:    TargetType,
+    pub target_type: TargetType,
     /// Package name (for examples, this is the package containing the example)
-    pub package_name:   String,
+    pub package_name: String,
     /// Workspace root (for apps)
     pub workspace_root: PathBuf,
     /// Path to the package's Cargo.toml
-    pub manifest:       PathBuf,
+    pub manifest: PathBuf,
     /// Relative path from scan root to this item
-    pub relative:       PathBuf,
+    pub relative: PathBuf,
     /// Path to the target's source file (from `cargo metadata`)
-    pub source:         PathBuf,
+    pub source: PathBuf,
 }
 
 impl BevyTarget {
@@ -119,7 +119,9 @@ impl BevyTarget {
     }
 
     /// Check if this target is an app
-    pub fn is_app(&self) -> bool { self.target_type == TargetType::App }
+    pub fn is_app(&self) -> bool {
+        self.target_type == TargetType::App
+    }
 }
 
 /// Detects binary targets in a project or workspace
@@ -156,26 +158,26 @@ impl CargoDetector {
         // Extract apps
         for target in package.targets.iter().filter(|t| t.is_bin()) {
             targets.push(BevyTarget {
-                name:           target.name.clone(),
-                target_type:    TargetType::App,
-                package_name:   package_name.clone(),
+                name: target.name.clone(),
+                target_type: TargetType::App,
+                package_name: package_name.clone(),
                 workspace_root: workspace_root.clone(),
-                manifest:       manifest_path.clone(),
-                relative:       PathBuf::new(), // Will be set by scanning logic
-                source:         target.src_path.clone().into(),
+                manifest: manifest_path.clone(),
+                relative: PathBuf::new(), // Will be set by scanning logic
+                source: target.src_path.clone().into(),
             });
         }
 
         // Extract examples
         for target in package.targets.iter().filter(|t| t.is_example()) {
             targets.push(BevyTarget {
-                name:           target.name.clone(),
-                target_type:    TargetType::Example,
-                package_name:   package_name.clone(),
+                name: target.name.clone(),
+                target_type: TargetType::Example,
+                package_name: package_name.clone(),
                 workspace_root: workspace_root.clone(),
-                manifest:       manifest_path.clone(),
-                relative:       PathBuf::new(), // Will be set by scanning logic
-                source:         target.src_path.clone().into(),
+                manifest: manifest_path.clone(),
+                relative: PathBuf::new(), // Will be set by scanning logic
+                source: target.src_path.clone().into(),
             });
         }
 

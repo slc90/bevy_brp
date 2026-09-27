@@ -216,13 +216,13 @@ fn log_build_result(build_state: BuildState, target_name: &str, target_type: Tar
     match build_state {
         BuildState::NotFound => {
             debug!("Target '{target_name}' not found in build output, assuming it was built");
-        },
+        }
         BuildState::Fresh => {
             debug!("{target_type} '{target_name}' was already up to date");
-        },
+        }
         BuildState::Rebuilt => {
             info!("{target_type} '{target_name}' was built successfully");
-        },
+        }
     }
 }
 

@@ -20,17 +20,19 @@ use super::parameters::ParameterBuilder;
 #[derive(Clone)]
 pub struct ToolDef {
     /// Tool name and description
-    pub tool_name:   ToolName,
+    pub tool_name: ToolName,
     /// Tool annotations
     pub annotations: Annotation,
     /// Handler function
-    pub handler:     Arc<dyn ErasedToolFn>,
+    pub handler: Arc<dyn ErasedToolFn>,
     /// Function to build parameters for MCP registration
-    pub parameters:  Option<fn() -> ParameterBuilder>,
+    pub parameters: Option<fn() -> ParameterBuilder>,
 }
 
 impl ToolDef {
-    pub fn name(&self) -> &'static str { self.tool_name.into() }
+    pub fn name(&self) -> &'static str {
+        self.tool_name.into()
+    }
 
     pub async fn call_tool(
         &self,

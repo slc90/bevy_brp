@@ -72,14 +72,14 @@ type SecondaryWindowQuery<'w, 's> = Query<'w, 's, &'static mut Window, With<Seco
 #[derive(Resource, Default, Reflect)]
 #[reflect(Resource)]
 struct MouseStateTracker {
-    buttons:       ButtonStates,
-    clicks:        WindowClicks,
-    cursor:        WindowCursorState,
+    buttons: ButtonStates,
+    clicks: WindowClicks,
+    cursor: WindowCursorState,
     cursor_window: Option<Entity>,
-    gestures:      WindowGestures,
-    motion:        MotionState,
-    picking:       WindowPickingState,
-    scroll:        WindowScrollState,
+    gestures: WindowGestures,
+    motion: MotionState,
+    picking: WindowPickingState,
+    scroll: WindowScrollState,
 }
 
 #[derive(Clone, Copy)]
@@ -96,12 +96,18 @@ enum ButtonPress {
 }
 
 impl ButtonPress {
-    const fn is_pressed(self) -> bool { matches!(self, Self::Pressed) }
-    const fn is_released(self) -> bool { matches!(self, Self::Released) }
+    const fn is_pressed(self) -> bool {
+        matches!(self, Self::Pressed)
+    }
+    const fn is_released(self) -> bool {
+        matches!(self, Self::Released)
+    }
 }
 
 impl From<bool> for ButtonPress {
-    fn from(value: bool) -> Self { if value { Self::Pressed } else { Self::Released } }
+    fn from(value: bool) -> Self {
+        if value { Self::Pressed } else { Self::Released }
+    }
 }
 
 #[derive(Clone, Copy, Default, Reflect)]
@@ -112,7 +118,9 @@ enum GizmoState {
 }
 
 impl GizmoState {
-    const fn is_active(self) -> bool { matches!(self, Self::Active) }
+    const fn is_active(self) -> bool {
+        matches!(self, Self::Active)
+    }
 }
 
 #[derive(Clone, Copy, Default)]
@@ -123,13 +131,15 @@ enum MinimizeState {
 }
 
 impl MinimizeState {
-    const fn is_done(self) -> bool { matches!(self, Self::Done) }
+    const fn is_done(self) -> bool {
+        matches!(self, Self::Done)
+    }
 }
 
 #[derive(Default, Reflect)]
 struct ButtonState {
-    duration:  f32,
-    pressed:   ButtonPress,
+    duration: f32,
+    pressed: ButtonPress,
     timestamp: f32,
 }
 
@@ -151,85 +161,85 @@ impl ButtonState {
 
 #[derive(Default, Reflect)]
 struct ButtonStates {
-    back:    ButtonState,
+    back: ButtonState,
     forward: ButtonState,
-    left:    ButtonState,
-    middle:  ButtonState,
-    right:   ButtonState,
+    left: ButtonState,
+    middle: ButtonState,
+    right: ButtonState,
 }
 
 #[derive(Default, Reflect)]
 struct ClickState {
-    double_position:  Vec2,
+    double_position: Vec2,
     double_timestamp: f32,
-    position:         Vec2,
-    timestamp:        f32,
+    position: Vec2,
+    timestamp: f32,
 }
 
 #[derive(Default, Reflect)]
 struct CursorState {
-    position:  Vec2,
+    position: Vec2,
     timestamp: f32,
 }
 
 #[derive(Default, Reflect)]
 struct GestureState {
     double_tap_timestamp: f32,
-    pinch_timestamp:      f32,
-    pinch_total:          f32,
-    rotation_timestamp:   f32,
-    rotation_total:       f32,
+    pinch_timestamp: f32,
+    pinch_total: f32,
+    rotation_timestamp: f32,
+    rotation_total: f32,
 }
 
 #[derive(Default, Reflect)]
 struct MotionState {
     delta_total: Vec2,
-    timestamp:   f32,
+    timestamp: f32,
 }
 
 #[derive(Default, Reflect)]
 struct PickingState {
-    clicks:          u32,
-    double_clicks:   u32,
-    gizmo_active:    GizmoState,
+    clicks: u32,
+    double_clicks: u32,
+    gizmo_active: GizmoState,
     last_click_time: f32,
 }
 
 #[derive(Default, Reflect)]
 struct ScrollState {
-    timestamp:  f32,
-    unit:       String,
+    timestamp: f32,
+    unit: String,
     horizontal: f32,
-    vertical:   f32,
+    vertical: f32,
 }
 
 #[derive(Default, Reflect)]
 struct WindowClicks {
-    primary:   ClickState,
+    primary: ClickState,
     secondary: ClickState,
 }
 
 #[derive(Default, Reflect)]
 struct WindowCursorState {
-    primary:   CursorState,
+    primary: CursorState,
     secondary: CursorState,
 }
 
 #[derive(Default, Reflect)]
 struct WindowGestures {
-    primary:   GestureState,
+    primary: GestureState,
     secondary: GestureState,
 }
 
 #[derive(Default, Reflect)]
 struct WindowPickingState {
-    primary:   PickingState,
+    primary: PickingState,
     secondary: PickingState,
 }
 
 #[derive(Default, Reflect)]
 struct WindowScrollState {
-    primary:   ScrollState,
+    primary: ScrollState,
     secondary: ScrollState,
 }
 

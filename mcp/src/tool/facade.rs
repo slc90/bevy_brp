@@ -12,7 +12,9 @@ use crate::error::Result;
 ///
 /// Callers outside `name.rs` should depend on the `tool` subsystem boundary
 /// rather than on `ToolName` owning whole-registry construction.
-pub fn get_all_tool_definitions() -> Vec<ToolDef> { registry::get_all_tool_definitions() }
+pub fn get_all_tool_definitions() -> Vec<ToolDef> {
+    registry::get_all_tool_definitions()
+}
 
 /// Visibility facade for parameter extraction used by generated and framework code.
 ///

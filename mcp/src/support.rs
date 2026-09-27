@@ -25,7 +25,9 @@ pub(crate) enum JsonSchemaType {
 }
 
 impl From<JsonSchemaType> for Value {
-    fn from(schema_type: JsonSchemaType) -> Self { Self::String(schema_type.as_ref().to_string()) }
+    fn from(schema_type: JsonSchemaType) -> Self {
+        Self::String(schema_type.as_ref().to_string())
+    }
 }
 
 /// Registry schema field names.
@@ -150,7 +152,9 @@ pub(crate) trait JsonObjectAccess {
 }
 
 impl JsonObjectAccess for Value {
-    fn get_field<T: AsRef<str>>(&self, field: T) -> Option<&Self> { self.get(field.as_ref()) }
+    fn get_field<T: AsRef<str>>(&self, field: T) -> Option<&Self> {
+        self.get(field.as_ref())
+    }
 
     fn get_field_str<T: AsRef<str>>(&self, field: T) -> Option<&str> {
         self.get(field.as_ref()).and_then(Self::as_str)
@@ -166,11 +170,15 @@ impl JsonObjectAccess for Value {
         }
     }
 
-    fn is_complex_type(&self) -> bool { matches!(self, Self::Array(_) | Self::Object(_)) }
+    fn is_complex_type(&self) -> bool {
+        matches!(self, Self::Array(_) | Self::Object(_))
+    }
 }
 
 impl JsonObjectAccess for Map<String, Value> {
-    fn get_field<T: AsRef<str>>(&self, field: T) -> Option<&Value> { self.get(field.as_ref()) }
+    fn get_field<T: AsRef<str>>(&self, field: T) -> Option<&Value> {
+        self.get(field.as_ref())
+    }
 
     fn get_field_str<T: AsRef<str>>(&self, field: T) -> Option<&str> {
         self.get(field.as_ref()).and_then(Value::as_str)
@@ -224,5 +232,7 @@ where
     I: Iterator<Item = T>,
     T: Into<String>,
 {
-    fn into_strings(self) -> Vec<String> { self.map(Into::into).collect() }
+    fn into_strings(self) -> Vec<String> {
+        self.map(Into::into).collect()
+    }
 }

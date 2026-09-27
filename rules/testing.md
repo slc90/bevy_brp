@@ -23,7 +23,7 @@
 - Bevy App、ECS schedule、render world 或 Winit integration；
 - MCP stdio、BRP HTTP/SSE、process 和 filesystem 边界。
 
-不得为了测试方便把私有实现改成 `pub`。测试共用基础设施只有在实际重复并具有稳定职责时才提取。
+不得为了测试方便把私有实现改成 `pub`。测试共用基础设施只有在实际重复并具有稳定职责时才提取。integration test 的 `tests/` 目录按需要允许使用 `mod.rs`。
 
 ## Type 与 wire contract
 
@@ -59,12 +59,11 @@
 优先运行直接相关的最小测试以缩短 Red/Green 循环，完成后按风险扩大到 crate 或 workspace：
 
 ```bash
-cargo test -p <package-name> <test-filter>
-cargo test -p <package-name>
-cargo test --workspace --no-fail-fast
+cargo test -p <package-name> <test-filter> --locked
+cargo test -p <package-name> --locked
 ```
 
-修改公共 feature、workspace dependency、proc macro、跨 crate contract 或 build/launch 路径时，补充 `cargo check/build/clippy` 的相关 workspace/all-targets 验证。
+完整 workspace 和 feature matrix 命令统一见 [README 的 Development on Windows](../README.md#development-on-windows)。修改公共 feature、workspace dependency、proc macro、跨 crate contract 或 build/launch 路径时，补充相关 workspace/all-targets 验证。
 
 ## 运行时验证
 

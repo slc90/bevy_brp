@@ -38,4 +38,6 @@ impl ToolFn for LaunchBevyTarget {
 }
 
 /// Create a `LaunchBevyTarget` handler instance
-pub const fn create_launch_handler() -> LaunchBevyTarget { LaunchBevyTarget }
+pub const fn create_launch_handler() -> LaunchBevyTarget {
+    LaunchBevyTarget
+}

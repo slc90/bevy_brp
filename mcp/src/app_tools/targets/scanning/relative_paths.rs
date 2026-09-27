@@ -56,13 +56,13 @@ mod tests {
 
     fn make_target(name: &str, package_name: &str, manifest_path: &str) -> BevyTarget {
         BevyTarget {
-            name:           name.to_string(),
-            target_type:    TargetType::Example,
-            package_name:   package_name.to_string(),
+            name: name.to_string(),
+            target_type: TargetType::Example,
+            package_name: package_name.to_string(),
             workspace_root: PathBuf::from("/workspace"),
-            manifest:       PathBuf::from(manifest_path),
-            relative:       PathBuf::new(),
-            source:         PathBuf::new(),
+            manifest: PathBuf::from(manifest_path),
+            relative: PathBuf::new(),
+            source: PathBuf::new(),
         }
     }
 

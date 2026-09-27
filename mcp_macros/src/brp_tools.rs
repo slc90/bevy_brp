@@ -13,18 +13,18 @@ use syn::parse_macro_input;
 
 /// Attributes extracted from #[tool(...)]
 struct ToolAttrs {
-    params:     Option<String>,
-    result:     Option<String>,
+    params: Option<String>,
+    result: Option<String>,
     brp_method: String, // Make required (not Option)
 }
 
 /// Collected token streams for the `BrpMethod` enum and its conversions.
 struct BrpMethodParts {
-    variants:           Vec<proc_macro2::TokenStream>,
+    variants: Vec<proc_macro2::TokenStream>,
     to_brp_method_arms: Vec<proc_macro2::TokenStream>,
-    from_brp_method:    Vec<proc_macro2::TokenStream>,
-    string_arms:        Vec<proc_macro2::TokenStream>,
-    from_str_arms:      Vec<proc_macro2::TokenStream>,
+    from_brp_method: Vec<proc_macro2::TokenStream>,
+    string_arms: Vec<proc_macro2::TokenStream>,
+    from_str_arms: Vec<proc_macro2::TokenStream>,
 }
 
 #[derive(Clone, Copy)]
@@ -34,7 +34,9 @@ enum BrpToolAttribute {
 }
 
 impl BrpToolAttribute {
-    const fn is_present(self) -> bool { matches!(self, Self::Present) }
+    const fn is_present(self) -> bool {
+        matches!(self, Self::Present)
+    }
 }
 
 /// Implementation of the `BrpTools` derive macro
@@ -202,11 +204,11 @@ fn generate_method_match_arms(data_enum: &DataEnum) -> Vec<proc_macro2::TokenStr
 /// Generate `BrpMethod` enum variants and all associated conversion arms.
 fn generate_brp_method_parts(data_enum: &DataEnum) -> BrpMethodParts {
     let mut parts = BrpMethodParts {
-        variants:           Vec::new(),
+        variants: Vec::new(),
         to_brp_method_arms: Vec::new(),
-        from_brp_method:    Vec::new(),
-        string_arms:        Vec::new(),
-        from_str_arms:      Vec::new(),
+        from_brp_method: Vec::new(),
+        string_arms: Vec::new(),
+        from_str_arms: Vec::new(),
     };
 
     for variant in &data_enum.variants {
@@ -320,8 +322,8 @@ fn assemble_output(
 /// Extract unified tool attributes from #[tool(...)]
 fn extract_tool_attr(attributes: &[Attribute]) -> ToolAttrs {
     let mut tool_attrs = ToolAttrs {
-        params:     None,
-        result:     None,
+        params: None,
+        result: None,
         brp_method: String::new(), // Required field
     };
 

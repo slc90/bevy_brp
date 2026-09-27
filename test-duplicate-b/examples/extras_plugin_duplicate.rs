@@ -38,13 +38,13 @@ const WINDOW_WIDTH: u32 = 800;
 #[derive(Resource, Default)]
 struct KeyboardInputHistory {
     /// Currently pressed keys
-    active_keys:      Vec<String>,
+    active_keys: Vec<String>,
     /// Last pressed keys (for display after release)
-    last_keys:        Vec<String>,
+    last_keys: Vec<String>,
     /// Active modifier keys
-    modifiers:        Vec<String>,
+    modifiers: Vec<String>,
     /// Time when the last key was pressed
-    press_time:       Option<Instant>,
+    press_time: Option<Instant>,
     /// Duration between press and release in milliseconds
     last_duration_ms: Option<u64>,
     /// Completion state for the last key press
@@ -59,7 +59,9 @@ enum CompletionState {
 }
 
 impl CompletionState {
-    const fn is_completed(&self) -> bool { matches!(self, Self::Completed) }
+    const fn is_completed(&self) -> bool {
+        matches!(self, Self::Completed)
+    }
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -133,14 +135,7 @@ fn main() {
         .run();
 }
 
-/// Minimize the window immediately on startup (no-op on Linux/Wayland)
-#[cfg(target_os = "linux")]
-fn minimize_window_on_start(windows: Query<&mut Window, With<PrimaryWindow>>) {
-    let _ = windows.iter().count();
-}
-
 /// Minimize the window immediately on startup
-#[cfg(not(target_os = "linux"))]
 fn minimize_window_on_start(mut windows: Query<&mut Window, With<PrimaryWindow>>) {
     for mut window in &mut windows {
         window.set_minimized(true);
@@ -167,8 +162,8 @@ fn setup_test_entities(mut commands: Commands, port: Res<CurrentPort>) {
     commands.spawn((
         Transform {
             translation: COMPLEX_ENTITY_TRANSLATION,
-            rotation:    Quat::from_rotation_y(std::f32::consts::PI / COMPLEX_ROTATION_DIVISOR),
-            scale:       COMPLEX_ENTITY_SCALE,
+            rotation: Quat::from_rotation_y(std::f32::consts::PI / COMPLEX_ROTATION_DIVISOR),
+            scale: COMPLEX_ENTITY_SCALE,
         },
         Name::new(COMPLEX_ENTITY_NAME),
     ));
@@ -256,7 +251,7 @@ fn track_keyboard_input(
                         history.modifiers.push(label.to_string());
                     }
                 }
-            },
+            }
             bevy::input::ButtonState::Released => {
                 info!("Key released: {key_str}");
 
@@ -277,7 +272,7 @@ fn track_keyboard_input(
                 if history.active_keys.is_empty() && !history.last_keys.is_empty() {
                     history.completion_state = CompletionState::Completed;
                 }
-            },
+            }
         }
 
         if !history.active_keys.is_empty() {

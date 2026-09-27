@@ -25,18 +25,18 @@ use crate::screenshot::CaptureResponseMetadata;
 pub(super) type ImageConverter = fn(Image) -> BrpResult<TargetRgbImage>;
 
 pub(super) struct ScreenshotJob {
-    pub(super) path:              PathBuf,
-    pub(super) crop:              Option<URect>,
+    pub(super) path: PathBuf,
+    pub(super) crop: Option<URect>,
     pub(super) response_metadata: CaptureResponseMetadata,
 }
 
 pub(super) struct CaptureMetadata {
-    pub(super) dimensions:        UVec2,
+    pub(super) dimensions: UVec2,
     pub(super) response_metadata: CaptureResponseMetadata,
 }
 
 pub(super) struct OwnedTempCapture {
-    pub(super) metadata:  CaptureMetadata,
+    pub(super) metadata: CaptureMetadata,
     pub(super) temp_path: TempPath,
 }
 
@@ -46,8 +46,8 @@ pub(super) struct WorkerCompletion {
 }
 
 pub(super) struct CaptureCompletionChannel {
-    pub(super) receiver:  Mutex<Receiver<WorkerCompletion>>,
-    pub(super) sender:    Sender<WorkerCompletion>,
+    pub(super) receiver: Mutex<Receiver<WorkerCompletion>>,
+    pub(super) sender: Sender<WorkerCompletion>,
     pub(super) converter: ImageConverter,
 }
 
@@ -63,7 +63,7 @@ impl Default for CaptureCompletionChannel {
 }
 
 struct PreparedJob {
-    job:             ScreenshotJob,
+    job: ScreenshotJob,
     encoded_capture: BrpResult<EncodedCapture>,
 }
 
@@ -82,15 +82,18 @@ pub(super) fn start_capture_worker(
                 Ok(encoded_capture) => {
                     IoTaskPool::get()
                         .spawn(async move {
-                            let completion =
-                                write_temporary_capture(prepared_job.job, encoded_capture, activity);
+                            let completion = write_temporary_capture(
+                                prepared_job.job,
+                                encoded_capture,
+                                activity,
+                            );
                             if sender.send(completion).is_err() {
                                 warn!("Screenshot completion receiver 已关闭");
                             }
                             notifier.notify_progress();
                         })
                         .detach();
-                },
+                }
                 Err(error) => {
                     if sender
                         .send(WorkerCompletion {
@@ -102,7 +105,7 @@ pub(super) fn start_capture_worker(
                         warn!("Screenshot completion receiver 已关闭");
                     }
                     notifier.notify_progress();
-                },
+                }
             }
         })
         .detach();
@@ -116,10 +119,10 @@ fn prepare_capture_job(
     match converter(image) {
         Ok(target_image) => PreparedJob {
             encoded_capture: target_image.encode(screenshot_job.crop),
-            job:             screenshot_job,
+            job: screenshot_job,
         },
         Err(error) => PreparedJob {
-            job:             screenshot_job,
+            job: screenshot_job,
             encoded_capture: Err(error),
         },
     }
@@ -133,7 +136,7 @@ fn write_temporary_capture(
     let result = create_temporary_file(&job.path, &encoded_capture.bytes).map(|temp_path| {
         OwnedTempCapture {
             metadata: CaptureMetadata {
-                dimensions:        encoded_capture.dimensions,
+                dimensions: encoded_capture.dimensions,
                 response_metadata: job.response_metadata.clone(),
             },
             temp_path,
@@ -185,9 +188,9 @@ pub(super) fn create_temporary_file(destination: &Path, bytes: &[u8]) -> BrpResu
 
 fn capture_error(message: impl Into<String>) -> BrpError {
     BrpError {
-        code:    INTERNAL_ERROR,
+        code: INTERNAL_ERROR,
         message: message.into(),
-        data:    None,
+        data: None,
     }
 }
 
@@ -215,8 +218,8 @@ mod tests {
     fn test_image() -> Image {
         Image::new(
             Extent3d {
-                width:                 2,
-                height:                2,
+                width: 2,
+                height: 2,
                 depth_or_array_layers: 1,
             },
             TextureDimension::D2,

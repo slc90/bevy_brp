@@ -85,12 +85,12 @@ use crate::tool::ParameterName;
 
 /// Parameters for a watch connection
 struct WatchConnectionParams {
-    watch_id:   u32,
-    entity_id:  u64,
-    kind:       String,
+    watch_id: u32,
+    entity_id: u64,
+    kind: String,
     brp_method: BrpMethod,
-    params:     Value,
-    port:       Port,
+    params: Value,
+    port: Port,
 }
 
 /// Process a single SSE line and log the update if valid
@@ -229,7 +229,7 @@ async fn process_chunk(
         Err(e) => {
             debug!("[{watch_type}] Invalid UTF-8 in stream chunk: {e}");
             return Ok(());
-        },
+        }
     };
 
     // Add to line buffer and check total buffer size
@@ -438,12 +438,12 @@ async fn consume_stream_chunks(
                     logger,
                 )
                 .await?;
-            },
+            }
             Err(e) => {
                 handle_stream_error(e, entity_id, watch_type, logger, start_time, total_chunks)
                     .await;
                 break;
-            },
+            }
         }
     }
 
@@ -551,10 +551,10 @@ async fn run_watch_connection(conn_params: WatchConnectionParams, logger: Buffer
             {
                 error!("Watch stream processing failed: {e}");
             }
-        },
+        }
         Err(e) => {
             handle_connection_error(e, &conn_params, &logger, start_time).await;
-        },
+        }
     }
 
     // Write final log entry
@@ -620,7 +620,7 @@ async fn start_watch_task(
                 serde_json::json!(chrono::Local::now().to_rfc3339()),
             );
             Value::Object(map)
-        },
+        }
         _ => serde_json::json!({
             ParameterName::Entity: entity_id,
             ParameterName::Port: port,

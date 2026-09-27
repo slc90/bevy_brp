@@ -1,12 +1,13 @@
 [package]
 categories           = ["development-tools::testing"]
 description          = "Test infrastructure for path disambiguation testing"
-edition              = "2024"
+edition.workspace    = true
 keywords             = ["bevy", "brp", "testing"]
-license              = "MIT OR Apache-2.0"
+license.workspace    = true
 name                 = "test-app-a"
 publish              = false
 repository.workspace = true
+rust-version.workspace = true
 
 # TEST INFRASTRUCTURE - Path Disambiguation Testing
 #

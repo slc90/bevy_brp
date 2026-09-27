@@ -22,7 +22,9 @@ use super::name::CallInfo;
 pub(super) struct AnySchemaValue(pub(super) Value);
 
 impl JsonSchema for AnySchemaValue {
-    fn schema_name() -> Cow<'static, str> { "AnySchemaValue".into() }
+    fn schema_name() -> Cow<'static, str> {
+        "AnySchemaValue".into()
+    }
 
     #[allow(
         clippy::expect_used,
@@ -37,17 +39,17 @@ impl JsonSchema for AnySchemaValue {
 /// Standard JSON response structure for all tools
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub(super) struct ToolCallJsonResponse {
-    pub(super) status:                ResponseStatus,
-    pub(super) message:               String,
-    pub(super) call_info:             CallInfo,
+    pub(super) status: ResponseStatus,
+    pub(super) message: String,
+    pub(super) call_info: CallInfo,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) metadata:              Option<AnySchemaValue>,
+    pub(super) metadata: Option<AnySchemaValue>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) parameters:            Option<AnySchemaValue>,
+    pub(super) parameters: Option<AnySchemaValue>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) result:                Option<AnySchemaValue>,
+    pub(super) result: Option<AnySchemaValue>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) error_info:            Option<AnySchemaValue>,
+    pub(super) error_info: Option<AnySchemaValue>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) brp_extras_debug_info: Option<AnySchemaValue>,
 }

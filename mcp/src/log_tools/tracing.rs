@@ -102,7 +102,9 @@ impl TracingLevel {
     }
 
     /// Get the current tracing level
-    pub fn get_current_tracing_level() -> Self { Self::from(CURRENT_LEVEL.load(Ordering::Relaxed)) }
+    pub fn get_current_tracing_level() -> Self {
+        Self::from(CURRENT_LEVEL.load(Ordering::Relaxed))
+    }
 
     /// Set the current tracing level dynamically
     #[cfg(feature = "mcp-debug")]
@@ -121,7 +123,9 @@ impl TracingLevel {
 
     /// Get the path to the trace log file
     /// Useful for testing and troubleshooting
-    pub fn get_trace_log_path() -> PathBuf { std::env::temp_dir().join(TRACE_LOG_FILENAME) }
+    pub fn get_trace_log_path() -> PathBuf {
+        std::env::temp_dir().join(TRACE_LOG_FILENAME)
+    }
 }
 
 impl FromStr for TracingLevel {

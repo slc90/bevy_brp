@@ -26,7 +26,7 @@ pub(crate) struct McpService {
     /// Tool definitions `HashMap` for O(1) lookup by name
     tool_defs: HashMap<String, ToolDef>,
     /// Pre-converted MCP tools for list operations
-    tools:     Vec<Tool>,
+    tools: Vec<Tool>,
 }
 
 impl McpService {
@@ -56,7 +56,9 @@ impl McpService {
     }
 
     /// Get tool definition by name with O(1) lookup
-    fn get_tool_def(&self, name: &str) -> Option<&ToolDef> { self.tool_defs.get(name) }
+    fn get_tool_def(&self, name: &str) -> Option<&ToolDef> {
+        self.tool_defs.get(name)
+    }
 
     /// List all MCP tools using pre-converted and sorted tools
     ///

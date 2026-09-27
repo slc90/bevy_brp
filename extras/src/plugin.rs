@@ -1,24 +1,19 @@
 //! Plugin implementation for extra BRP methods
 
-#[cfg(not(target_arch = "wasm32"))]
 use std::sync::Mutex;
 
 #[cfg(feature = "diagnostics")]
 use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
 use bevy::prelude::*;
-#[cfg(not(target_arch = "wasm32"))]
 use bevy::window::PrimaryWindow;
 use bevy_remote::RemoteMethodSystemId;
 use bevy_remote::RemoteMethods;
 use bevy_remote::RemotePlugin;
-#[cfg(not(target_arch = "wasm32"))]
 use bevy_remote::http::RemoteHttpPlugin;
 
-#[cfg(not(target_arch = "wasm32"))]
 use super::DEFAULT_REMOTE_PORT;
 use super::agent_tools;
 use super::agent_tools::RegisteredAgentTools;
-#[cfg(not(target_arch = "wasm32"))]
 use super::constants::BRP_EXTRAS_PORT_ENV_VAR;
 use super::constants::EXTRAS_COMMAND_PREFIX;
 use super::constants::METHOD_AGENT_TOOLS;
@@ -61,15 +56,13 @@ use super::window_title;
 /// - `brp_extras/send_keys`: Send keyboard input
 /// - `brp_extras/set_window_title`: Change the window title
 ///
-/// On native targets, this also adds `RemoteHttpPlugin` for HTTP transport.
-/// On WASM, only the methods are registered - you need to add your own
-/// transport (e.g. a WebSocket relay).
+/// This also adds `RemoteHttpPlugin` for HTTP transport.
 /// 调用 [`BrpExtrasPlugin::without_http_transport`] 时，所有 target 都只注册
 /// methods 和相关工作 system，由宿主自行安装 transport。
 ///
 /// # HTTP transport configuration
 ///
-/// On native targets, HTTP transport can be configured in three ways
+/// HTTP transport can be configured in three ways
 /// (mutually exclusive, enforced at compile time):
 ///
 /// ```no_run
@@ -101,8 +94,7 @@ pub const BrpExtrasPlugin: BrpExtrasPlugin = BrpExtrasPlugin::new();
 /// The `HttpConfig` type parameter controls how HTTP transport is configured.
 /// See the [module-level documentation](struct@BrpExtrasPlugin) for usage examples.
 pub struct BrpExtrasPlugin<HttpConfig = Unconfigured> {
-    http_config:  HttpConfig,
-    #[cfg(not(target_arch = "wasm32"))]
+    http_config: HttpConfig,
     port_display: Option<PortDisplay>,
 }
 
@@ -113,23 +105,21 @@ impl BrpExtrasPlugin<Unconfigured> {
     #[must_use]
     pub const fn new() -> Self {
         Self {
-            http_config:                                      Unconfigured,
-            #[cfg(not(target_arch = "wasm32"))]
-            port_display:                                     None,
+            http_config: Unconfigured,
+            port_display: None,
         }
     }
 
-    /// Create plugin with a custom port (native only, ignored on WASM).
+    /// Create plugin with a custom port.
     ///
     /// The `BRP_EXTRAS_PORT` environment variable takes precedence if set.
     ///
     /// This is mutually exclusive with [`with_http_plugin`](Self::with_http_plugin)
     /// — the compiler enforces that only one can be used.
-    #[cfg(not(target_arch = "wasm32"))]
     #[must_use]
     pub const fn with_port(port: u16) -> BrpExtrasPlugin<PortConfigured> {
         BrpExtrasPlugin {
-            http_config:  PortConfigured(port),
+            http_config: PortConfigured(port),
             port_display: None,
         }
     }
@@ -141,13 +131,12 @@ impl BrpExtrasPlugin<Unconfigured> {
     ///
     /// This is mutually exclusive with [`with_port`](Self::with_port)
     /// — the compiler enforces that only one can be used.
-    #[cfg(not(target_arch = "wasm32"))]
     #[must_use]
     pub const fn with_http_plugin(
         plugin: RemoteHttpPlugin,
     ) -> BrpExtrasPlugin<HttpPluginConfigured> {
         BrpExtrasPlugin {
-            http_config:  HttpPluginConfigured(Mutex::new(Some(plugin))),
+            http_config: HttpPluginConfigured(Mutex::new(Some(plugin))),
             port_display: None,
         }
     }
@@ -160,7 +149,6 @@ impl BrpExtrasPlugin<Unconfigured> {
     pub const fn without_http_transport() -> BrpExtrasPlugin<ExternalTransport> {
         BrpExtrasPlugin {
             http_config: ExternalTransport,
-            #[cfg(not(target_arch = "wasm32"))]
             port_display: None,
         }
     }
@@ -170,7 +158,6 @@ impl BrpExtrasPlugin<Unconfigured> {
 // Port resolution
 // ---------------------------------------------------------------------------
 
-#[cfg(not(target_arch = "wasm32"))]
 impl<H: HasEffectivePort> BrpExtrasPlugin<H> {
     /// Get the effective port that will be used for HTTP transport.
     ///
@@ -194,10 +181,10 @@ impl<H: HasEffectivePort> BrpExtrasPlugin<H> {
         let source_description = match (env_port, explicit) {
             (Some(_), false) => {
                 format!("environment override from default {DEFAULT_REMOTE_PORT}")
-            },
+            }
             (Some(_), true) => {
                 format!("environment override from with_port {fallback}")
-            },
+            }
             (None, false) => "default".to_string(),
             (None, true) => "with_port".to_string(),
         };
@@ -236,26 +223,26 @@ impl<H: HasEffectivePort> BrpExtrasPlugin<H> {
 // ---------------------------------------------------------------------------
 
 impl Default for BrpExtrasPlugin<Unconfigured> {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Plugin for BrpExtrasPlugin<Unconfigured> {
     fn build(&self, app: &mut App) {
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            add_managed_http_transport(app, None);
-            maybe_add_port_title_system(app, &self.http_config, self.port_display);
-        }
+        add_managed_http_transport(app, None);
+        maybe_add_port_title_system(app, &self.http_config, self.port_display);
 
         build_shared(app);
     }
 }
 
 impl Plugin for BrpExtrasPlugin<ExternalTransport> {
-    fn build(&self, app: &mut App) { build_shared(app); }
+    fn build(&self, app: &mut App) {
+        build_shared(app);
+    }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 impl Plugin for BrpExtrasPlugin<PortConfigured> {
     fn build(&self, app: &mut App) {
         add_managed_http_transport(app, Some(self.http_config.0));
@@ -264,7 +251,6 @@ impl Plugin for BrpExtrasPlugin<PortConfigured> {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 impl Plugin for BrpExtrasPlugin<HttpPluginConfigured> {
     fn build(&self, app: &mut App) {
         let Some(plugin) = self
@@ -301,7 +287,6 @@ impl Plugin for BrpExtrasPlugin<HttpPluginConfigured> {
 ///
 /// Used with [`BrpExtrasPlugin::port_in_title`] to display the port in the
 /// primary window's title bar.
-#[cfg(not(target_arch = "wasm32"))]
 #[derive(Clone, Copy, Debug)]
 pub enum PortDisplay {
     /// Always append `(port: XXXXX)` to the window title.
@@ -321,11 +306,9 @@ pub struct Unconfigured;
 pub struct ExternalTransport;
 
 /// HTTP transport configured with an explicit port.
-#[cfg(not(target_arch = "wasm32"))]
 pub struct PortConfigured(u16);
 
 /// HTTP transport configured with a user-provided `RemoteHttpPlugin`.
-#[cfg(not(target_arch = "wasm32"))]
 pub struct HttpPluginConfigured(Mutex<Option<RemoteHttpPlugin>>);
 
 // ---------------------------------------------------------------------------
@@ -339,7 +322,6 @@ pub struct HttpPluginConfigured(Mutex<Option<RemoteHttpPlugin>>);
 ///
 /// Not implemented for [`HttpPluginConfigured`] because the user provides their
 /// own `RemoteHttpPlugin` and already knows the port they configured.
-#[cfg(not(target_arch = "wasm32"))]
 pub trait HasEffectivePort {
     /// The fallback port when `BRP_EXTRAS_PORT` env var is not set.
     fn fallback_port(&self) -> u16;
@@ -348,16 +330,22 @@ pub trait HasEffectivePort {
     fn is_explicit(&self) -> bool;
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 impl HasEffectivePort for Unconfigured {
-    fn fallback_port(&self) -> u16 { DEFAULT_REMOTE_PORT }
-    fn is_explicit(&self) -> bool { false }
+    fn fallback_port(&self) -> u16 {
+        DEFAULT_REMOTE_PORT
+    }
+    fn is_explicit(&self) -> bool {
+        false
+    }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 impl HasEffectivePort for PortConfigured {
-    fn fallback_port(&self) -> u16 { self.0 }
-    fn is_explicit(&self) -> bool { true }
+    fn fallback_port(&self) -> u16 {
+        self.0
+    }
+    fn is_explicit(&self) -> bool {
+        true
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -392,7 +380,6 @@ fn build_shared(app: &mut App) {
 }
 
 /// Add managed HTTP transport, using env var / optional port / default.
-#[cfg(not(target_arch = "wasm32"))]
 fn add_managed_http_transport(app: &mut App, configured_port: Option<u16>) {
     if app.is_plugin_added::<RemoteHttpPlugin>() {
         warn!(
@@ -412,10 +399,10 @@ fn add_managed_http_transport(app: &mut App, configured_port: Option<u16>) {
     let source_description = match (env_port, configured_port) {
         (Some(_), Some(with_port_value)) => {
             format!("environment override from with_port {with_port_value}")
-        },
+        }
         (Some(_), None) => {
             format!("environment override from default {DEFAULT_REMOTE_PORT}")
-        },
+        }
         (None, Some(_)) => "with_port".to_string(),
         (None, None) => "default".to_string(),
     };
@@ -508,14 +495,12 @@ fn register_extras_methods(world: &mut World) {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn log_initialization(port: u16, source_description: &str) {
     info!("BRP extras enabled on http://localhost:{port} ({source_description})");
 }
 
 /// Conditionally adds a `Startup` system that appends the port to the primary
 /// window's title, based on the [`PortDisplay`] policy.
-#[cfg(not(target_arch = "wasm32"))]
 fn maybe_add_port_title_system(
     app: &mut App,
     http_config: &impl HasEffectivePort,
@@ -629,9 +614,10 @@ mod tests {
         let mut app = App::new();
         app.add_plugins(RemotePlugin::default());
         let handler = app.world_mut().register_system(shutdown::handler);
-        app.world_mut()
-            .resource_mut::<RemoteMethods>()
-            .insert(UNRELATED_METHOD.to_string(), RemoteMethodSystemId::Instant(handler));
+        app.world_mut().resource_mut::<RemoteMethods>().insert(
+            UNRELATED_METHOD.to_string(),
+            RemoteMethodSystemId::Instant(handler),
+        );
 
         app.add_plugins(BrpExtrasPlugin::without_http_transport());
 

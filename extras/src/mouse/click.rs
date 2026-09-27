@@ -49,20 +49,20 @@ struct ClickMouseResponse {
 #[derive(Deserialize)]
 struct DoubleClickMouseRequest {
     /// Mouse button to double click
-    button:   MouseButton,
+    button: MouseButton,
     /// Delay between clicks in milliseconds (default: 250ms)
     #[serde(default)]
     delay_ms: Option<u32>,
     /// Target window entity (None = primary window)
     #[serde(default)]
-    window:   Option<u64>,
+    window: Option<u64>,
 }
 
 /// Response structure for `double_click_mouse`
 #[derive(Serialize)]
 struct DoubleClickMouseResponse {
     /// Button that was double-clicked
-    button:   MouseButton,
+    button: MouseButton,
     /// Delay between clicks in milliseconds
     delay_ms: u32,
 }
@@ -78,13 +78,13 @@ struct DoubleClickMouseResponse {
 #[derive(Component)]
 pub(super) struct ScheduledClick {
     /// 在第二次 click 的 timed release 接手前保持活动责任。
-    pub activity:       Option<BrpExtrasActivityGuard>,
+    pub activity: Option<BrpExtrasActivityGuard>,
     /// Which button to click
-    pub button:         MouseButton,
+    pub button: MouseButton,
     /// Which window to target (None = primary)
-    pub window:         Option<Entity>,
+    pub window: Option<Entity>,
     /// Timer for delay before sending the click
-    pub delay_timer:    Timer,
+    pub delay_timer: Timer,
     /// Duration to hold the button pressed
     pub click_duration: u32,
 }
@@ -141,10 +141,10 @@ pub(crate) fn double_click_mouse_handler(
     // Schedule second click to happen after delay
     let activity = activity::begin(world);
     world.spawn(ScheduledClick {
-        activity:       Some(activity),
-        button:         request.button,
-        window:         Some(window),
-        delay_timer:    Timer::new(Duration::from_millis(delay_ms.into()), TimerMode::Once),
+        activity: Some(activity),
+        button: request.button,
+        window: Some(window),
+        delay_timer: Timer::new(Duration::from_millis(delay_ms.into()), TimerMode::Once),
         click_duration: DEFAULT_MOUSE_DURATION_MS,
     });
 
@@ -185,7 +185,7 @@ pub(super) fn process_scheduled_clicks(
             // Send press event
             let event = MouseButtonInput {
                 button: scheduled.button,
-                state:  ButtonState::Pressed,
+                state: ButtonState::Pressed,
                 window: support::resolve_window_entity(scheduled.window),
             };
             window_events.write(WindowEvent::from(event));
@@ -196,7 +196,7 @@ pub(super) fn process_scheduled_clicks(
                 _activity: activity,
                 button: scheduled.button,
                 window: scheduled.window,
-                timer:  Timer::new(
+                timer: Timer::new(
                     Duration::from_millis(scheduled.click_duration.into()),
                     TimerMode::Once,
                 ),

@@ -19,42 +19,42 @@ use crate::brp_tools::brp_type_guide::type_kind::TypeKind;
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct PathInfo {
     /// Context describing what kind of mutation this is (how to navigate to this path)
-    pub(super) path_kind:    PathKind,
+    pub(super) path_kind: PathKind,
     /// Fully-qualified type name of the field
     #[serde(rename = "type")]
-    pub type_name:           BrpTypeName,
+    pub type_name: BrpTypeName,
     /// The kind of type this field contains (Struct, Enum, Array, etc.)
-    pub type_kind:           TypeKind,
+    pub type_kind: TypeKind,
     /// Status of whether this path can be mutated
-    pub mutability:          Mutability,
+    pub mutability: Mutability,
     /// Reason if mutation is not possible
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub mutability_reason:   Option<Value>,
+    pub mutability_reason: Option<Value>,
     /// Example: `["BottomEnum::VariantB"]`
     /// `VariantName` serializes as a string in JSON output
     #[serde(skip_serializing_if = "Option::is_none")]
     pub applicable_variants: Option<Vec<VariantName>>,
     /// Instructions for setting variants required for this mutation path (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub enum_instructions:   Option<String>,
+    pub enum_instructions: Option<String>,
     /// Either the `root_example` or the `root_example_unavailable_reason`
     /// depending on which is available on this path
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
-    pub root_example:        Option<RootExample>,
+    pub root_example: Option<RootExample>,
 }
 
 /// Information about a mutation path that we serialize to our response.
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct MutationPathExternal {
     /// The mutation path (e.g., ".translation.x" or "" for root)
-    pub path:        MutationPath,
+    pub path: MutationPath,
     /// Human-readable description of what this path mutates
     pub description: String,
     /// Combined path navigation and type metadata
-    pub path_info:   PathInfo,
+    pub path_info: PathInfo,
     /// Example data (either single value or enum variant groups)
     #[serde(flatten)]
-    path_example:    PathExample,
+    path_example: PathExample,
 }
 
 impl MutationPathExternal {
@@ -72,7 +72,9 @@ impl MutationPathExternal {
         }
     }
 
-    pub(super) fn preferred_example(&self) -> Example { self.path_example.preferred_example() }
+    pub(super) fn preferred_example(&self) -> Example {
+        self.path_example.preferred_example()
+    }
 }
 
 /// Root example for an enum variant, either available for construction or unavailable with reason

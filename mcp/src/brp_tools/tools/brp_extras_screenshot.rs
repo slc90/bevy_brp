@@ -28,18 +28,18 @@ use crate::tool::ToolResult;
 #[derive(Clone, Deserialize, Serialize, JsonSchema, ParamStruct)]
 pub struct ScreenshotParams {
     /// Canonical Bevy entity ID to capture.
-    pub entity:  Option<u64>,
+    pub entity: Option<u64>,
     /// Unique, case-sensitive exact Bevy `Name` to resolve before capture.
-    pub name:    Option<String>,
+    pub name: Option<String>,
     /// Camera entity ID. Captures its viewport, or selects it for an entity crop.
-    pub camera:  Option<u64>,
+    pub camera: Option<u64>,
     /// Physical pixels to add around an entity crop. Defaults to zero.
     pub padding: Option<u32>,
     /// File path where the complete PNG should be published.
-    pub path:    String,
+    pub path: String,
     /// The BRP port (default: 15702).
     #[serde(default)]
-    pub port:    Port,
+    pub port: Port,
 }
 
 /// Result returned after the complete PNG has been published.
@@ -48,13 +48,13 @@ pub struct ScreenshotResult {
     /// The terminal BRP response containing the final PNG metadata.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[to_result(skip_if_none)]
-    pub result:           Option<Value>,
+    pub result: Option<Value>,
     /// Canonical entity ID used for an entity or name capture.
     #[to_metadata(skip_if_none)]
-    pub entity:           Option<u64>,
+    pub entity: Option<u64>,
     /// Exact Bevy `Name` used to resolve the entity ID.
     #[to_metadata(skip_if_none)]
-    pub name:             Option<String>,
+    pub name: Option<String>,
     /// Message template for formatting responses.
     #[to_message(message_template = "Screenshot saved to {path}")]
     pub message_template: String,
@@ -88,20 +88,20 @@ enum ScreenshotScope {
         camera: Option<u64>,
     },
     Entity {
-        entity:  u64,
-        camera:  Option<u64>,
+        entity: u64,
+        camera: Option<u64>,
         padding: u32,
     },
     ExactName {
-        name:    String,
-        camera:  Option<u64>,
+        name: String,
+        camera: Option<u64>,
         padding: u32,
     },
 }
 
 struct ScreenshotRequest {
-    path:  String,
-    port:  Port,
+    path: String,
+    port: Port,
     scope: ScreenshotScope,
 }
 
@@ -123,7 +123,7 @@ impl TryFrom<ScreenshotParams> for ScreenshotRequest {
                 return Err(selector_error(
                     "`entity` and `name` are mutually exclusive; provide only one screenshot selector",
                 ));
-            },
+            }
             (Some(entity), None) => ScreenshotScope::Entity {
                 entity,
                 camera,
@@ -138,7 +138,7 @@ impl TryFrom<ScreenshotParams> for ScreenshotRequest {
                 return Err(selector_error(
                     "`padding` requires an `entity` or `name` screenshot selector",
                 ));
-            },
+            }
             (None, None) => ScreenshotScope::Full { camera },
         };
 
@@ -152,9 +152,9 @@ enum ResolvedScope {
         camera: Option<u64>,
     },
     Entity {
-        entity:  u64,
-        name:    Option<String>,
-        camera:  Option<u64>,
+        entity: u64,
+        name: Option<String>,
+        camera: Option<u64>,
         padding: u32,
     },
 }
@@ -196,12 +196,12 @@ impl ResolvedScope {
 #[derive(Serialize)]
 struct ExtrasScreenshotParams {
     #[serde(skip_serializing_if = "Option::is_none")]
-    camera:  Option<u64>,
+    camera: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    entity:  Option<u64>,
+    entity: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     padding: Option<u32>,
-    path:    String,
+    path: String,
 }
 
 async fn take_screenshot(params: ScreenshotParams) -> Result<ScreenshotResult> {
@@ -240,7 +240,7 @@ async fn resolve_scope(scope: ScreenshotScope, port: Port) -> Result<ResolvedSco
             )
             .await?;
             resolve_exact_name(name, camera, padding, entities, port)
-        },
+        }
     }
 }
 
@@ -291,7 +291,7 @@ fn screenshot_result(
         ResponseStatus::Success(result) => {
             let (entity, name) = resolved_scope.metadata();
             Ok(ScreenshotResult::new(result, entity, name))
-        },
+        }
         ResponseStatus::Error(error) => Err(screenshot_brp_error(
             error.code,
             error.message,
@@ -349,12 +349,12 @@ mod tests {
 
     fn params() -> ScreenshotParams {
         ScreenshotParams {
-            entity:  None,
-            name:    None,
-            camera:  None,
+            entity: None,
+            name: None,
+            camera: None,
             padding: None,
-            path:    TEST_PATH.to_string(),
-            port:    TEST_PORT,
+            path: TEST_PATH.to_string(),
+            port: TEST_PORT,
         }
     }
 
@@ -400,8 +400,8 @@ mod tests {
         assert_eq!(
             entity.scope,
             ScreenshotScope::Entity {
-                entity:  TEST_ENTITY_LOW,
-                camera:  None,
+                entity: TEST_ENTITY_LOW,
+                camera: None,
                 padding: u32::default(),
             }
         );
@@ -425,8 +425,8 @@ mod tests {
         assert_eq!(
             camera_entity.scope,
             ScreenshotScope::Entity {
-                entity:  TEST_ENTITY_LOW,
-                camera:  Some(TEST_CAMERA),
+                entity: TEST_ENTITY_LOW,
+                camera: Some(TEST_CAMERA),
                 padding: u32::default(),
             }
         );
@@ -450,12 +450,12 @@ mod tests {
     fn public_params_wire_and_schema_include_screenshot_selectors()
     -> core::result::Result<(), Box<dyn std::error::Error>> {
         let public_wire = serde_json::to_value(ScreenshotParams {
-            entity:  Some(TEST_ENTITY_LOW),
-            name:    None,
-            camera:  Some(TEST_CAMERA),
+            entity: Some(TEST_ENTITY_LOW),
+            name: None,
+            camera: Some(TEST_CAMERA),
             padding: Some(TEST_PADDING),
-            path:    TEST_PATH.to_string(),
-            port:    TEST_PORT,
+            path: TEST_PATH.to_string(),
+            port: TEST_PORT,
         })?;
         assert_eq!(
             public_wire,
@@ -489,8 +489,8 @@ mod tests {
         assert_eq!(
             request.scope,
             ScreenshotScope::ExactName {
-                name:    TEST_NAME.to_string(),
-                camera:  None,
+                name: TEST_NAME.to_string(),
+                camera: None,
                 padding: u32::default(),
             }
         );
@@ -506,7 +506,7 @@ mod tests {
             u32::default(),
             vec![NamedEntity {
                 entity: TEST_ENTITY_LOW,
-                name:   TEST_NAME.to_string(),
+                name: TEST_NAME.to_string(),
             }],
             TEST_PORT,
         )?;
@@ -553,11 +553,11 @@ mod tests {
             vec![
                 NamedEntity {
                     entity: TEST_ENTITY_LOW,
-                    name:   TEST_NAME.to_string(),
+                    name: TEST_NAME.to_string(),
                 },
                 NamedEntity {
                     entity: TEST_ENTITY_HIGH,
-                    name:   TEST_NAME.to_string(),
+                    name: TEST_NAME.to_string(),
                 },
             ],
             TEST_PORT,
@@ -611,9 +611,9 @@ mod tests {
         let screenshot_result = screenshot_result(
             ResponseStatus::Success(Some(terminal_result.clone())),
             ResolvedScope::Entity {
-                entity:  TEST_ENTITY_LOW,
-                name:    Some(TEST_NAME.to_string()),
-                camera:  None,
+                entity: TEST_ENTITY_LOW,
+                name: Some(TEST_NAME.to_string()),
+                camera: None,
                 padding: u32::default(),
             },
             TEST_PORT,

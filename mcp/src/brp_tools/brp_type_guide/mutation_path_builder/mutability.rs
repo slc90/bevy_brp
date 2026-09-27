@@ -42,7 +42,7 @@ impl Display for MutabilityIssueTarget {
 /// Summary of a mutation issue for diagnostic reporting
 #[derive(Debug, Clone)]
 pub(super) struct MutabilityIssue {
-    pub(super) target:     MutabilityIssueTarget,
+    pub(super) target: MutabilityIssueTarget,
     pub(super) mutability: Mutability,
 }
 
