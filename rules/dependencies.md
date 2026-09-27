@@ -26,7 +26,7 @@ Workspace 内部依赖使用 workspace/path dependency 指向当前成员。不�
 
 ## Crate 与 package
 
-现有 crate/package 名称和角色属于公共消费事实。普通任务不得改名、新增 crate、合并 crate 或改变发布方式。若当前目标明确要求结构变化，应同步 workspace members、内部依赖、lockfile、README、安装指引和直接测试宿主。
+现有 crate/package 名称和角色属于公共消费事实。普通任务不得改名、新增 crate、合并 crate 或改变发布方式。若当前目标明确要求结构变化，应同步 workspace members、内部依赖、lockfile、直接测试宿主及实际存在的消费说明。
 
 不要在通用规则中预先冻结未来 crate 数量或 module 层次；architecture 决策必须依据对应任务和当前事实单独完成。
 

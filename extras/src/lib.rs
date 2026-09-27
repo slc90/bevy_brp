@@ -3,19 +3,6 @@
 //! This crate provides additional Bevy Remote Protocol (BRP) methods that can be added
 //! to your Bevy application for enhanced remote control capabilities.
 //!
-//! # Usage
-//!
-//! Add the plugin to your Bevy app:
-//! ```no_run
-//! use bevy::prelude::*;
-//! use bevy_brp_extras::BrpExtrasPlugin;
-//!
-//! App::new()
-//!     .add_plugins(DefaultPlugins)
-//!     .add_plugins(BrpExtrasPlugin::default())
-//!     .run();
-//! ```
-//!
 //! # BRP methods and agent tools
 //!
 //! Registering a remote method inserts its system into

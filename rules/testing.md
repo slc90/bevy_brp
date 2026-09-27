@@ -63,7 +63,7 @@ cargo test -p <package-name> <test-filter> --locked
 cargo test -p <package-name> --locked
 ```
 
-完整 workspace 和 feature matrix 命令统一见 [README 的 Development on Windows](../README.md#development-on-windows)。修改公共 feature、workspace dependency、proc macro、跨 crate contract 或 build/launch 路径时，补充相关 workspace/all-targets 验证。
+完整 workspace 和 feature matrix 命令统一见 [AGENTS.md 的验证入口](../AGENTS.md#验证入口)。修改公共 feature、workspace dependency、proc macro、跨 crate contract 或 build/launch 路径时，补充相关 workspace/all-targets 验证。
 
 ## 运行时验证
 

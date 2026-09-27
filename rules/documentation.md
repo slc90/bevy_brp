@@ -2,7 +2,7 @@
 
 ## 事实、规则与方案分离
 
-- README、crate README、rustdoc、help text 和 `runtime/UPSTREAM.md` 描述已实施事实与使用 contract。
+- rustdoc、MCP help text 和 `runtime/UPSTREAM.md` 描述已实施事实与使用 contract。
 - `rules/` 只规定开发约束。
 - `plans/` 保存方案和历史设计输入，默认不作为当前事实来源。
 
@@ -12,7 +12,7 @@
 
 遵循被修改文件的既有受众和语言：
 
-- 面向公开消费者的 crate README、公共 rustdoc 和 help text 默认沿用英文；
+- 面向公开消费者的公共 rustdoc 和 help text 默认沿用英文；
 - 项目工程规则和已有中文内部说明使用中文；
 - 同一段落不要无理由切换语言；
 - API、type、method、field、protocol、runtime、transport、lifecycle 等技术术语和代码标识保留英文原名。
@@ -39,7 +39,7 @@ Doctest 可以用于简短、稳定且能真实编译的公共 API 示例。不�
 
 - 参数/结果 type 与 schema；
 - help text；
-- 相关 README 示例；
+- 相关 rustdoc 示例；
 - contract/regression test。
 
 help text 应给出可直接使用的 JSON 形状，并明确 port、entity ID、name matching、path、timeout 等关键约束。不要描述当前 tool 无法保证的结果。
@@ -54,4 +54,4 @@ help text 应给出可直接使用的 JSON 形状，并明确 port、entity ID�
 
 修改派生自上游的 transport 或协议实现时，保持 `runtime/UPSTREAM.md` 的来源、版本、license 和本地语义差异准确。
 
-已有 CHANGELOG 的 crate 发生面向用户的行为或 contract 变化时，应更新对应 CHANGELOG。没有 CHANGELOG 时同步现有 README 或 rustdoc，不为形式完整新建发布文档。纯内部重构、测试或规则修改不机械添加 release note。
+crate 发生面向用户的行为或 contract 变化时，应同步现有 rustdoc 和 MCP help text，不为形式完整新建发布文档。纯内部重构、测试或规则修改不机械添加 release note。

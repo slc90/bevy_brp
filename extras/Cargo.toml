@@ -10,7 +10,6 @@ edition.workspace = true
 keywords = ["bevy", "brp", "debugging", "gamedev", "remote"]
 license.workspace = true
 name = "bevy_brp_extras"
-readme = "README.md"
 repository.workspace = true
 rust-version.workspace = true
 version.workspace    = true

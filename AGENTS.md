@@ -1,12 +1,11 @@
 # Bevy BRP Agent Guide
 
-本文件是 Agent 进入仓库时的统一入口。详细工程约束位于 `rules/`，当前事实以源码、Cargo metadata、README 和 crate 文档为准。
+本文件是 Agent 进入仓库时的统一入口。详细工程约束位于 `rules/`，当前事实以源码、Cargo metadata、rustdoc、MCP help text 和 `runtime/UPSTREAM.md` 为准。
 
 ## 默认读取
 
 任何代码、测试、构建配置或其他工程行为修改任务，开始实施前必须读取：
 
-- `README.md`
 - `rules/task-scope.md`
 - `rules/development.md`
 - `rules/code.md`
@@ -14,14 +13,14 @@
 根据任务内容继续读取：
 
 - 依赖、Cargo 配置、feature 或 package/crate 调整：`rules/dependencies.md`
-- 注释、rustdoc、README、help text 或其他文档：`rules/documentation.md`
+- 注释、rustdoc、help text 或其他文档：`rules/documentation.md`
 - 新增行为、行为修改、bug 修复、fixture 或测试：`rules/testing.md`
 - 日志、trace、诊断输出或应用日志：`rules/logging.md`
 - Git 提交或 commit message：`rules/git.md`
 
 一个任务可以同时命中多个规则文件，必须读取全部命中规则。
 
-当前没有 architecture 专属规则或 MCP 公共协议专属规则。遇到相关任务时，以现有源码、`README.md`、`mcp/README.md`、`extras/README.md`、`runtime/UPSTREAM.md` 及实际 Cargo metadata 为事实依据，不得预先假设未来 crate、module 或 tool surface。
+当前没有 architecture 专属规则或 MCP 公共协议专属规则。遇到相关任务时，以现有源码、rustdoc、MCP help text、`runtime/UPSTREAM.md` 及实际 Cargo metadata 为事实依据，不得预先假设未来 crate、module 或 tool surface。
 
 ## 上下文边界
 
@@ -34,7 +33,7 @@
 事实与规则分开维护：
 
 - `rules/` 规定开发约束；
-- README、crate README、rustdoc 和 `runtime/UPSTREAM.md` 描述已实施事实；
+- rustdoc、MCP help text 和 `runtime/UPSTREAM.md` 描述已实施事实；
 - `plans/` 保存方案和历史设计输入。
 
 修改 workspace 成员、crate 角色、生产依赖关系、公共消费方式、BRP/MCP 公共行为或上游派生事实时，必须在同一任务中更新实际承载该事实的现有文档。没有已实施事实时，不创建空文档或把目标状态写成当前状态。
@@ -45,7 +44,24 @@ Windows 环境统一使用 PowerShell 7（`pwsh`），禁止使用 Windows Power
 
 ## 验证入口
 
-按变更风险和命中规则选择必要验证，不机械执行无关命令。工具链要求、`--locked` 命令和 feature matrix 统一见 [README 的 Development on Windows](README.md#development-on-windows)；定向测试可用 `cargo test -p <package-name> --locked`。
+按变更风险和命中规则选择必要验证，不机械执行无关命令。Windows MSVC 开发使用 Rust 1.98.1 或更新版本，活动工具链需安装 `rustfmt` 和 `clippy`。定向测试可用 `cargo test -p <package-name> --locked`。完整验证入口：
+
+```powershell
+cargo fmt --all -- --check
+cargo check --workspace --locked
+cargo clippy --workspace --all-targets --locked
+cargo test --workspace --locked --no-fail-fast
+cargo build --workspace --locked
+```
+
+独立 feature 检查入口：
+
+```powershell
+cargo check -p bevy_brp_extras --locked --no-default-features
+cargo check -p bevy_brp_extras --locked --no-default-features --features diagnostics
+cargo check -p bevy_brp_extras --locked --no-default-features --features ui
+cargo check -p bevy_brp_mcp --locked --no-default-features
+```
 
 涉及 MCP/BRP、进程 lifecycle、watch、日志、输入或截图等跨进程行为时，还应按 `rules/testing.md` 运行与修改直接相关的真实测试宿主或协议链。已知失败、新增失败和未运行项必须分开报告。
 
