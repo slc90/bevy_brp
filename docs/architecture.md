@@ -11,7 +11,17 @@
 
 生产 crate 的内部依赖只有 `bevy_brp_mcp → bevy_brp_mcp_macros` 与 `bevy_brp_runtime → bevy_brp_extras`。MCP server 与 Bevy App 之间通过 BRP 协议通信，没有互相引用的 Cargo dependency。
 
-对外 Rust 入口由 `crates/extras/src/lib.rs` 的 re-export 和 `crates/runtime/src/lib.rs` 的 `BrpRuntimePlugin` 提供。MCP crate 是 binary，其工具名称、schema、help text 与 BRP 调用构成协议入口；binary 内模块不构成可依赖的 Rust library API。各 crate 的 feature 和具体依赖以其 `Cargo.toml` 为准。
+## 模块与公共入口
+
+`crates/mcp/src/main.rs` 装配 stdio server。`mcp_service.rs` 处理 MCP tool listing 与调用；`tool/` 保存静态工具定义、参数、结果及响应装配；`app_tools/` 负责查找、构建、启动和管理 App；`brp_tools/` 包含 BRP tool 与 HTTP client；`log_tools/` 管理 Server trace 及经 MCP 启动的 App 日志读取。`crates/mcp_macros/` 在编译期生成部分工具定义、参数和结果代码。MCP 是 binary package；其模块 re-export 服务本 binary，不构成可依赖的 Rust library API。
+
+`crates/extras/src/plugin.rs` 装配 App 内扩展方法与可配置的 HTTP 插件；`agent_tools/` 发布指定 BRP method 的元数据，并在 catalog 请求时核对 live method；`keyboard/`、`mouse/`、`screenshot/` 等模块实现对应 App 内能力。`crates/runtime/src/lib.rs` 的 `BrpRuntimePlugin` 装入不自带 HTTP 的 `BrpExtrasPlugin` 与 runtime 自己的 wake-aware HTTP 插件；`http.rs` 管理传输和 listener lifecycle，`progress.rs` 管理请求到达后的推进状态。runtime 的上游来源与本地语义差异见 [`UPSTREAM.md`](../crates/runtime/UPSTREAM.md)。
+
+对外 Rust 入口由 `crates/extras/src/lib.rs` 的 re-export 和 `crates/runtime/src/lib.rs` 的 `BrpRuntimePlugin` 提供。extras 的 re-export 包括 `BrpExtrasPlugin`、`AgentTool`、`AppAgentToolExt`、`BrpExtrasActivity`、`BrpExtrasActivityState`、`DEFAULT_REMOTE_PORT`、`ExternalTransport`、`HasEffectivePort`、`HttpPluginConfigured`、`PortConfigured`、`PortDisplay`、`Unconfigured`。macro crate 暴露 `ToolDescription`、`BrpTools`、`ParamStruct`、`ResultStruct`、`ToolFn` 五个 derive，当前由 MCP binary 使用。`extras` 可独立安装扩展方法及其 HTTP transport；使用 `runtime` 时由 runtime 组合扩展方法与自己的 transport。App 通过 `RemoteMethods` 注册 BRP method；`AppAgentToolExt::register_agent_tool` 只发布 method 的 agent 元数据，catalog 请求时会验证对应 method 是已注册的 instant method。该调用不注册 BRP handler，也不创建 MCP tool。MCP 对外入口是 binary、当前 tool registry/schema/help text 与 BRP 通信。各 crate 的 feature 和具体依赖以其 `Cargo.toml` 为准。
+
+经 MCP 启动的应用日志与 MCP server 自身的 trace 分属不同用途和读取路径；App library 本身不安装全局日志 subscriber。当前日志 ownership 与输出约束见 [`rules/logging.md`](../rules/logging.md)。
+
+## 测试宿主
 
 | 路径 | Package 与 Cargo target | 验证用途 |
 | --- | --- | --- |
@@ -21,5 +31,7 @@
 | `crates/extras/tests/` | `bevy_brp_extras` 的 integration test target | 从 crate 外部验证 agent tool 注册 API。 |
 
 `tests/` 只是多个 workspace member 的容器，不是根 package 的 Cargo test harness。各宿主的 bin/example 需要通过对应 package 的 `cargo run -p …` 或 MCP 启动；`cargo test --workspace` 本身不会运行完整的 MCP→BRP 交互。
+
+`bevy_brp_test_apps` 直接依赖 `bevy_brp_runtime` 和 `bevy_brp_extras`；`test-app-a`、`test-app-b` 直接依赖 `bevy_brp_extras`。三个宿主的 Bevy feature 用于真实场景 fixture，未传播给生产 crate。`crates/extras/tests/` 则由 `bevy_brp_extras` package 的 Cargo test harness 运行。
 
 从仓库根目录使用 MCP 的 `path` 参数时，目录应使用当前实际路径，例如 `tests/test-app` 或 `crates/extras`。`brp_list_bevy` 返回的 `relative_path` 也反映这些物理目录；跨 package 的同名 target 仍可用 `package_name` 消歧。直接使用本仓库旧 manifest 路径的本地 `path` dependency 需要改为对应的 `crates/<name>` 路径；按 package 名消费的 Git dependency 和 `bevy_brp_mcp` binary 名称不变。

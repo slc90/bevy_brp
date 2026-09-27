@@ -1,6 +1,6 @@
 # Bevy BRP Agent Guide
 
-本文件是 Agent 进入仓库时的统一入口。详细工程约束位于 `rules/`，当前事实以源码、Cargo metadata、rustdoc、MCP help text 和 `crates/runtime/UPSTREAM.md` 为准。
+本文件是 Agent 进入仓库时的统一入口。详细工程约束位于 `rules/`，当前架构事实见 `docs/architecture.md` 并以源码和 Cargo metadata 核对；公共使用事实见 rustdoc、MCP help text 和 `crates/runtime/UPSTREAM.md`。
 
 ## 默认读取
 
@@ -12,7 +12,9 @@
 
 根据任务内容继续读取：
 
+- workspace、crate/module 边界、依赖方向或公共 Rust 入口：`rules/architecture.md` 与 `docs/architecture.md`
 - 依赖、Cargo 配置、feature 或 package/crate 调整：`rules/dependencies.md`
+- MCP tool、BRP method、client、HTTP transport 或 App 插件装配：`rules/brp-mcp.md`
 - 注释、rustdoc、help text 或其他文档：`rules/documentation.md`
 - 新增行为、行为修改、bug 修复、fixture 或测试：`rules/testing.md`
 - 日志、trace、诊断输出或应用日志：`rules/logging.md`
@@ -20,7 +22,7 @@
 
 一个任务可以同时命中多个规则文件，必须读取全部命中规则。
 
-当前没有 architecture 专属规则或 MCP 公共协议专属规则。遇到相关任务时，以现有源码、rustdoc、MCP help text、`crates/runtime/UPSTREAM.md` 及实际 Cargo metadata 为事实依据，不得预先假设未来 crate、module 或 tool surface。
+纯文档任务按所改内容读取相应文档规则；涉及架构事实时再读取 `docs/architecture.md`。`plans/` 不属于默认读取范围。不要预先假设未来 crate、module 或 tool surface。
 
 ## 上下文边界
 
@@ -33,10 +35,11 @@
 事实与规则分开维护：
 
 - `rules/` 规定开发约束；
-- rustdoc、MCP help text 和 `crates/runtime/UPSTREAM.md` 描述已实施事实；
+- `docs/architecture.md` 描述已实施架构；rustdoc、MCP help text 和 `crates/runtime/UPSTREAM.md` 描述使用与上游派生事实；
 - `plans/` 保存方案和历史设计输入。
 
 修改 workspace 成员、crate 角色、生产依赖关系、公共消费方式、BRP/MCP 公共行为或上游派生事实时，必须在同一任务中更新实际承载该事实的现有文档。没有已实施事实时，不创建空文档或把目标状态写成当前状态。
+只有架构事实确实变化时才同步 `docs/architecture.md`；普通源码调整或不影响架构的依赖版本更新不机械修改它。
 
 ## 命令环境
 

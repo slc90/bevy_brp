@@ -2,11 +2,12 @@
 
 ## 事实、规则与方案分离
 
-- rustdoc、MCP help text 和 `crates/runtime/UPSTREAM.md` 描述已实施事实与使用 contract。
+- `docs/architecture.md` 描述已实施的 crate、依赖方向、测试宿主与公共入口；rustdoc、MCP help text 和 `crates/runtime/UPSTREAM.md` 描述使用与上游派生事实。
 - `rules/` 只规定开发约束。
 - `plans/` 保存方案和历史设计输入，默认不作为当前事实来源。
 
 不得把未实现目标写成当前能力，也不得为了路由创建空的 architecture 文档。修改已记录事实时，同一任务更新实际承载它的文档。
+普通源码调整或不改变上述架构事实的依赖版本更新，不机械修改 `docs/architecture.md`。
 
 ## 语言
 
