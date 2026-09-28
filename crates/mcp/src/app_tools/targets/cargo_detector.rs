@@ -24,6 +24,10 @@ use super::constants::BEVY_REMOTE_REMOTE_PLUGIN_IMPORT;
 use super::constants::BRP_EXTRAS_GLOB_IMPORT_PREFIX;
 use super::constants::BRP_EXTRAS_PLUGIN_IMPORT;
 use super::constants::BRP_EXTRAS_PLUGIN_NAME;
+use super::constants::BRP_RUNTIME_CRATE_NAME;
+use super::constants::BRP_RUNTIME_GLOB_IMPORT_PREFIX;
+use super::constants::BRP_RUNTIME_PLUGIN_IMPORT;
+use super::constants::BRP_RUNTIME_PLUGIN_NAME;
 use super::constants::CARGO_EXAMPLES_DIRECTORY;
 use super::constants::CARGO_SRC_DIRECTORY;
 use super::constants::MCP_CRATE_NAME;
@@ -220,8 +224,14 @@ impl CargoDetector {
 
     /// Check if a package has BRP (Bevy Remote Protocol) support enabled
     fn package_has_brp_support(package: &Package) -> bool {
-        // First check: Must have bevy dependency with bevy_remote feature available
-        if !Self::package_has_bevy_remote_feature(package) {
+        // Runtime supplies BRP through its own dependency even when the app's Bevy
+        // dependency does not explicitly enable bevy_remote.
+        if !Self::package_has_bevy_remote_feature(package)
+            && !package
+                .dependencies
+                .iter()
+                .any(|dependency| dependency.name == BRP_RUNTIME_CRATE_NAME)
+        {
             return false;
         }
 
@@ -252,7 +262,7 @@ impl CargoDetector {
         })
     }
 
-    /// Check if a package uses `RemotePlugin` or `BrpExtrasPlugin` in its source code
+    /// Check if a package uses a BRP plugin in its source code
     fn package_uses_brp_plugins(package: &Package) -> bool {
         // Get the package directory
         let Some(package_dir) = package.manifest_path.parent() else {
@@ -293,15 +303,16 @@ impl CargoDetector {
 
     /// Determine the BRP support level of a specific file.
     ///
-    /// Returns `"extras"` if the file imports `BrpExtrasPlugin`,
+    /// Returns `"extras"` if the file imports `BrpExtrasPlugin` or `BrpRuntimePlugin`,
     /// `"brp_only"` if it imports `RemotePlugin` without extras,
-    /// or `"none"` if neither is found.
+    /// or `"none"` if no recognized plugin import is found.
     pub(super) fn file_brp_level(file_path: &Path) -> BrpLevel {
         let Ok(content) = std::fs::read_to_string(file_path) else {
             return BrpLevel::None;
         };
 
-        let has_extras = Self::content_has_extras_plugin(&content);
+        let has_extras =
+            Self::content_has_extras_plugin(&content) || Self::content_has_runtime_plugin(&content);
         let has_remote = Self::content_has_remote_plugin(&content);
 
         if has_extras {
@@ -320,6 +331,12 @@ impl CargoDetector {
                 && content.contains(BRP_EXTRAS_PLUGIN_NAME))
     }
 
+    fn content_has_runtime_plugin(content: &str) -> bool {
+        content.contains(BRP_RUNTIME_PLUGIN_IMPORT)
+            || (content.contains(BRP_RUNTIME_GLOB_IMPORT_PREFIX)
+                && content.contains(BRP_RUNTIME_PLUGIN_NAME))
+    }
+
     /// Check if file content imports `RemotePlugin` (via `bevy::remote` or `bevy_remote`)
     fn content_has_remote_plugin(content: &str) -> bool {
         content.contains(BEVY_REMOTE_PLUGIN_IMPORT)
@@ -330,7 +347,7 @@ impl CargoDetector {
                 && content.contains(REMOTE_PLUGIN_NAME))
     }
 
-    /// Check if a specific file uses `RemotePlugin` or `BrpExtrasPlugin` (any BRP support)
+    /// Check if a specific file imports a BRP plugin
     pub(super) fn file_uses_brp_plugins(file_path: &Path) -> bool {
         !matches!(Self::file_brp_level(file_path), BrpLevel::None)
     }

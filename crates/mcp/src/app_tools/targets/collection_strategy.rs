@@ -31,7 +31,8 @@ pub(super) struct AllBevyTargetsStrategy;
 
 /// A `BevyTarget` enriched with BRP status.
 ///
-/// For bins, `brp_level` reflects whether the package's `src/` tree uses BRP plugins.
+/// For bins, `brp_level` checks the package's `src/` tree and the target source file
+/// for recognized BRP plugin imports.
 /// For examples, the individual source file is checked for BRP plugin imports.
 pub(super) struct EnrichedTarget {
     pub(super) target: BevyTarget,
@@ -146,4 +147,29 @@ fn create_builds_json(item: &BevyTarget) -> Value {
         });
     }
     builds
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use super::collect_all_bevy_targets;
+
+    #[test]
+    fn lists_runtime_plugin_targets_with_extras_support() {
+        let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/test-app");
+        let targets = collect_all_bevy_targets(&[fixture]);
+
+        for (name, kind, expected_level) in [
+            ("test_app", "app", "extras"),
+            ("test_app", "example", "extras"),
+            ("no_extras_plugin", "example", "brp_only"),
+        ] {
+            let target = targets
+                .iter()
+                .find(|target| target["name"] == name && target["kind"] == kind)
+                .expect("fixture target should be listed");
+            assert_eq!(target["brp_level"], expected_level);
+        }
+    }
 }

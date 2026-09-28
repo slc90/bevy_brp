@@ -10,6 +10,7 @@ pub(super) const RUST_SOURCE_EXTENSION: &str = "rs";
 // package and feature names
 pub(super) const BEVY_CRATE_NAME: &str = "bevy";
 pub(super) const BEVY_REMOTE_FEATURE: &str = "bevy_remote";
+pub(super) const BRP_RUNTIME_CRATE_NAME: &str = "bevy_brp_runtime";
 pub(super) const MCP_CRATE_NAME: &str = "bevy_brp_mcp";
 
 // response fields
@@ -31,6 +32,9 @@ pub(super) const BEVY_REMOTE_REMOTE_PLUGIN_IMPORT: &str = "use bevy_remote::Remo
 pub(super) const BRP_EXTRAS_GLOB_IMPORT_PREFIX: &str = "use bevy_brp_extras::{";
 pub(super) const BRP_EXTRAS_PLUGIN_IMPORT: &str = "use bevy_brp_extras::BrpExtrasPlugin";
 pub(super) const BRP_EXTRAS_PLUGIN_NAME: &str = "BrpExtrasPlugin";
+pub(super) const BRP_RUNTIME_PLUGIN_IMPORT: &str = "use bevy_brp_runtime::BrpRuntimePlugin";
+pub(super) const BRP_RUNTIME_GLOB_IMPORT_PREFIX: &str = "use bevy_brp_runtime::{";
+pub(super) const BRP_RUNTIME_PLUGIN_NAME: &str = "BrpRuntimePlugin";
 pub(super) const CURRENT_DIRECTORY_SEGMENT: &str = ".";
 pub(super) const REMOTE_PLUGIN_NAME: &str = "RemotePlugin";
 
