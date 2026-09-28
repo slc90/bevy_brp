@@ -1,4 +1,5 @@
 use std::fs;
+use std::path::Path;
 use std::time::Duration;
 use std::time::SystemTime;
 
@@ -11,6 +12,8 @@ use serde::Serialize;
 
 use super::support;
 use super::support::LogFileEntry;
+use super::support::LogSource;
+use super::support::LogSourceFilter;
 use crate::error::Error;
 use crate::error::Result;
 use crate::tool::HandlerContext;
@@ -26,6 +29,8 @@ pub struct DeleteLogsParams {
     /// Optional filter to delete logs older than N seconds
     #[to_metadata(skip_if_none)]
     pub older_than_seconds: Option<u32>,
+    /// File source: all (default), app, or watch. `app_name` cannot be combined with watch.
+    pub source: Option<LogSourceFilter>,
 }
 
 /// Result from cleaning up log files
@@ -59,7 +64,15 @@ pub struct DeleteLogs;
     reason = "ToolFn trait requires async handler signature"
 )]
 async fn handle_impl(params: DeleteLogsParams) -> Result<DeleteLogsResult> {
-    let files = delete_log_files(params.app_name.as_deref(), params.older_than_seconds)?;
+    let source = params.source.unwrap_or_default();
+    if params.app_name.is_some() && source == LogSourceFilter::Watch {
+        return Err(Error::invalid("source", "watch cannot be combined with app_name").into());
+    }
+    let files = delete_log_files(
+        params.app_name.as_deref(),
+        params.older_than_seconds,
+        source,
+    )?;
 
     Ok(DeleteLogsResult::new(
         files.clone(),
@@ -72,6 +85,21 @@ async fn handle_impl(params: DeleteLogsParams) -> Result<DeleteLogsResult> {
 fn delete_log_files(
     app_name_filter: Option<&str>,
     older_than_seconds: Option<u32>,
+    source: LogSourceFilter,
+) -> Result<Vec<String>> {
+    delete_log_files_in(
+        &support::get_log_directory(),
+        app_name_filter,
+        older_than_seconds,
+        source,
+    )
+}
+
+fn delete_log_files_in(
+    directory: &Path,
+    app_name_filter: Option<&str>,
+    older_than_seconds: Option<u32>,
+    source: LogSourceFilter,
 ) -> Result<Vec<String>> {
     let mut files = Vec::new();
 
@@ -82,8 +110,11 @@ fn delete_log_files(
     // Use the iterator to get all log files with filters
     let filter = |entry: &LogFileEntry| -> bool {
         // Apply app name filter
+        if !source.includes(entry.source) {
+            return false;
+        }
         if let Some(app_filter) = app_name_filter
-            && entry.app_name != app_filter
+            && (entry.source != LogSource::App || entry.app_name != app_filter)
         {
             return false;
         }
@@ -101,21 +132,89 @@ fn delete_log_files(
         true
     };
 
-    let log_entries = if app_name_filter.is_some() {
-        // When filtering by app name, only consider app logs (with port pattern)
-        support::iterate_app_log_files(filter)
-            .map_err(|e| Error::tool_call_failed(e.to_string()))?
-    } else {
-        // When no app name filter, consider all log types
-        support::iterate_log_files(filter).map_err(|e| Error::tool_call_failed(e.to_string()))?
-    };
+    let log_entries = support::iterate_log_files_in(directory, filter)
+        .map_err(|e| Error::tool_call_failed(e.to_string()))?;
 
     // Delete the files
     for entry in log_entries {
-        if fs::remove_file(&entry.path).is_ok() {
-            files.push(entry.filename);
-        }
+        fs::remove_file(&entry.path).map_err(|error| {
+            Error::tool_call_failed_with_details(
+                format!(
+                    "Failed to delete log file {}: {error}",
+                    entry.path.display()
+                ),
+                serde_json::json!({
+                    "filename": entry.filename,
+                    "deleted_files": files,
+                }),
+            )
+        })?;
+        files.push(entry.filename);
     }
 
     Ok(files)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use tempfile::tempdir;
+
+    use super::DeleteLogsParams;
+    use super::LogSourceFilter;
+    use super::delete_log_files_in;
+    use super::handle_impl;
+
+    #[test]
+    fn deletes_only_selected_app_and_watch_logs_and_never_trace() {
+        let dir = tempdir().expect("temp directory");
+        let app = "bevy_brp_mcp_test_app_port15702_123.log";
+        let watch = "bevy_brp_mcp_watch_1_get_42_123.log";
+        let trace = "bevy_brp_mcp_trace.log";
+        for filename in [app, watch, trace] {
+            fs::write(dir.path().join(filename), filename).expect("test log");
+        }
+
+        let deleted = delete_log_files_in(dir.path(), None, None, LogSourceFilter::Watch)
+            .expect("delete watch log");
+        assert_eq!(deleted, [watch]);
+        assert!(dir.path().join(app).exists());
+        assert!(dir.path().join(trace).exists());
+
+        let deleted = delete_log_files_in(dir.path(), None, None, LogSourceFilter::All)
+            .expect("delete remaining app log");
+        assert_eq!(deleted, [app]);
+        assert!(dir.path().join(trace).exists());
+    }
+
+    #[test]
+    fn deletion_failure_names_the_file() {
+        let dir = tempdir().expect("temp directory");
+        let filename = "bevy_brp_mcp_test_app_port15702_123.log";
+        fs::create_dir(dir.path().join(filename)).expect("directory fixture");
+
+        let error = delete_log_files_in(dir.path(), None, None, LogSourceFilter::App)
+            .expect_err("directory cannot be removed as a file");
+        let crate::error::Error::ToolCall { details, .. } = error.current_context() else {
+            panic!("expected structured tool error");
+        };
+        assert_eq!(
+            details
+                .as_ref()
+                .and_then(|value| value["filename"].as_str()),
+            Some(filename)
+        );
+    }
+
+    #[tokio::test]
+    async fn rejects_watch_source_with_app_name() {
+        let result = handle_impl(DeleteLogsParams {
+            app_name: Some(String::from("test_app")),
+            older_than_seconds: None,
+            source: Some(LogSourceFilter::Watch),
+        })
+        .await;
+        assert!(result.is_err());
+    }
 }

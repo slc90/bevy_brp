@@ -1,3 +1,6 @@
-Lists bevy_brp_mcp log files sorted newest first with optional verbose details.
+List application and watch log files in the system temp directory, newest first.
 
-Returns: Log files from temp directory created when launching Bevy apps.
+Examples: {} or {"source":"app","app_name":"test_app","verbose":true} or {"source":"watch"}.
+source defaults to "all" (application and watch logs). Each result entry includes source: "app" or "watch".
+app_name only applies to application logs and cannot be combined with source="watch".
+Server trace is never listed here. Use the explicit mcp-debug build and brp_get_trace_log_path for server diagnostics.

@@ -1,7 +1,6 @@
-Deletes bevy_brp_mcp log files from temp directory with optional filters.
+Delete application and watch logs from the system temp directory.
 
-Returns: Count of deleted files.
-
-Note: Use list_logs first to preview. Only bevy_brp_mcp logs can be deleted for safety.
-
-Note: Currently watch logs cannot be deleted exclusively. You can delete _all_ logs including watch logs by not specifying app_name or older_than_seconds. You can also delete all logs older than a certain age by specifying older_than_seconds.
+Examples: {"source":"watch"} or {"source":"app","app_name":"test_app","older_than_seconds":3600}.
+source defaults to "all" (application and watch logs). app_name cannot be combined with source="watch".
+Use brp_list_logs to preview. Deleted filenames and count are returned; a deletion failure is an error.
+Server trace is never deleted by this tool, including when no filters are supplied.

@@ -63,7 +63,7 @@ impl From<LogReadMode> for bool {
 
 #[derive(Clone, Deserialize, Serialize, JsonSchema, ParamStruct)]
 pub struct ReadLogParams {
-    /// The log filename (e.g., `bevy_brp_mcp_myapp_1234567890.log`)
+    /// Filename of an application or watch log returned by `brp_list_logs`.
     pub filename: String,
     /// Optional keyword to filter lines (case-insensitive)
     #[to_metadata(skip_if_none)]
@@ -135,7 +135,9 @@ async fn handle_impl(params: ReadLogParams) -> Result<ReadLogResult> {
     let keyword = params.keyword.as_deref();
     // Validate filename format for security
     if !support::is_valid_log_filename(filename) {
-        return Err(Error::invalid("filename", "only bevy_brp_mcp log files can be read").into());
+        return Err(
+            Error::invalid("filename", "only application and watch logs can be read").into(),
+        );
     }
 
     // Build full path
@@ -204,4 +206,21 @@ fn read_log_file(
 
     let content = final_lines.join("\n");
     Ok((content, metadata))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ReadLogParams;
+    use super::handle_impl;
+
+    #[tokio::test]
+    async fn server_trace_cannot_be_read_through_public_log_tool() {
+        let result = handle_impl(ReadLogParams {
+            filename: String::from("bevy_brp_mcp_trace.log"),
+            keyword: None,
+            tail_lines: None,
+        })
+        .await;
+        assert!(result.is_err());
+    }
 }

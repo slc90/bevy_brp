@@ -119,5 +119,21 @@ mod tests {
             assert!(names.contains(expected), "missing {expected}");
         }
         assert!(service.get_tool_def("unknown_tool").is_none());
+        #[cfg(not(feature = "mcp-debug"))]
+        {
+            assert_eq!(names.len(), 47);
+            for diagnostic in ["brp_get_trace_log_path", "brp_set_tracing_level"] {
+                assert!(!names.contains(diagnostic));
+                assert!(service.get_tool_def(diagnostic).is_none());
+            }
+        }
+        #[cfg(feature = "mcp-debug")]
+        {
+            assert_eq!(names.len(), 49);
+            for diagnostic in ["brp_get_trace_log_path", "brp_set_tracing_level"] {
+                assert!(names.contains(diagnostic));
+                assert!(service.get_tool_def(diagnostic).is_some());
+            }
+        }
     }
 }

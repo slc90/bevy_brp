@@ -1,4 +1,4 @@
-Get the path to the BRP diagnostic trace log file. Useful only for debugging the mcp tool itself. You have to have trace logs in the code for anything to show up here.
+Get the MCP server's own trace log path in an explicitly built mcp-debug server. This is not an application or watch log.
 
 Returns information about the trace log file including:
 - log_path:

@@ -1,3 +1,5 @@
-Reads bevy_brp_mcp log file contents with optional filtering.
+Read a listed application or watch log by filename, with optional case-insensitive keyword and tail_lines.
 
-Note: Only bevy_brp_mcp logs readable for security. Use list_logs to find files.
+Example: {"filename":"bevy_brp_mcp_test_app_port15702_1787840000123.log","tail_lines":50}.
+Use brp_list_logs to find exact filenames. Server trace and unrecognized filenames are rejected.
+For MCP server diagnostics, use a build with mcp-debug and brp_get_trace_log_path.

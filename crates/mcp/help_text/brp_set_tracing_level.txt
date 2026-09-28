@@ -1,4 +1,4 @@
-Set the tracing level for comprehensive BRP diagnostic logging to file.
+Set the MCP server's own tracing level in an explicitly built mcp-debug server. This does not set the Bevy application's logging level.
 
 Tracing levels (from least to most verbose):
 - error
