@@ -25,6 +25,7 @@ use hyper::{Request, Response, service};
 use serde_json::Value;
 use smol_hyper::rt::{FuturesIo, SmolTimer};
 use std::error::Error;
+use std::ffi::OsStr;
 use std::fmt;
 use std::io;
 use std::net::{IpAddr, SocketAddr, TcpListener, TcpStream};
@@ -49,6 +50,7 @@ type ConnectionFuture = Pin<Box<dyn Future<Output = ConnectionOutcome> + Send>>;
 /// runtime crate 内部的 wake-aware BRP HTTP plugin。
 pub(super) struct BrpRemoteHttpPlugin {
     request_deadline: Duration,
+    main_port: u16,
 }
 
 /// 单个 World 的 HTTP endpoint 配置；Main 与 Render 共享 lifecycle 和主 event loop proxy。
@@ -182,8 +184,11 @@ enum BrpHttpBody {
 
 impl BrpRemoteHttpPlugin {
     /// 使用给定普通请求 deadline 创建 runtime transport。
-    pub(super) const fn new(request_deadline: Duration) -> Self {
-        Self { request_deadline }
+    pub(super) const fn new(request_deadline: Duration, main_port: u16) -> Self {
+        Self {
+            request_deadline,
+            main_port,
+        }
     }
 }
 
@@ -213,7 +218,10 @@ impl Plugin for BrpRemoteHttpPlugin {
                     warn!("Extras activity 变化后无法 wake event loop");
                 }
             });
-        let main_port = resolve_main_port();
+        let main_port = resolve_main_port(
+            self.main_port,
+            std::env::var_os("BRP_EXTRAS_PORT").as_deref(),
+        );
         let main_config = HttpEndpointConfig {
             endpoint: MAIN_ENDPOINT,
             address: DEFAULT_ADDR,
@@ -443,10 +451,10 @@ impl Body for BrpHttpBody {
     }
 }
 
-/// 解析 Main port，保持合法环境变量优先、非法值回退默认端口的原有语义。
-fn resolve_main_port() -> u16 {
-    let Some(value) = std::env::var_os("BRP_EXTRAS_PORT") else {
-        return bevy_brp_extras::DEFAULT_REMOTE_PORT;
+/// 解析 Main port，合法环境变量优先；无效值回退到代码配置的端口。
+fn resolve_main_port(configured_port: u16, env_value: Option<&OsStr>) -> u16 {
+    let Some(value) = env_value else {
+        return configured_port;
     };
     match value.to_string_lossy().parse::<u16>() {
         Ok(port) => port,
@@ -454,10 +462,10 @@ fn resolve_main_port() -> u16 {
             warn!(
                 value = %value.to_string_lossy(),
                 %error,
-                fallback_port = bevy_brp_extras::DEFAULT_REMOTE_PORT,
-                "BRP_EXTRAS_PORT 无效，使用默认端口"
+                fallback_port = configured_port,
+                "BRP_EXTRAS_PORT 无效，使用代码配置的端口"
             );
-            bevy_brp_extras::DEFAULT_REMOTE_PORT
+            configured_port
         }
     }
 }
@@ -879,13 +887,21 @@ mod tests {
     use async_channel::{Receiver, Sender};
     use bevy::tasks::block_on;
     use bevy_remote::{BrpMessage, BrpResult};
+    use std::ffi::OsStr;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::time::Duration;
 
     use super::{
         ResponseWaitError, SubmitError, TransportFailure, TransportLifecycle, receive_result,
-        submit_message,
+        resolve_main_port, submit_message,
     };
+
+    #[test]
+    fn main_port_uses_code_value_unless_valid_environment_overrides_it() {
+        assert_eq!(resolve_main_port(9000, None), 9000);
+        assert_eq!(resolve_main_port(9000, Some(OsStr::new("9001"))), 9001);
+        assert_eq!(resolve_main_port(9000, Some(OsStr::new("invalid"))), 9000);
+    }
 
     /// 构造只用于观察 mailbox 提交顺序的 BRP message。
     fn message() -> BrpMessage {

@@ -33,12 +33,30 @@ use self::http::BrpRemoteHttpPlugin;
 pub struct BrpRuntimePlugin {
     /// Maximum time to wait for the final result of a regular HTTP request.
     request_deadline: Duration,
+    /// Main World BRP listener port when the environment does not override it.
+    main_port: u16,
 }
 
 impl Default for BrpRuntimePlugin {
     fn default() -> Self {
         Self {
             request_deadline: Duration::from_secs(30),
+            main_port: bevy_brp_extras::DEFAULT_REMOTE_PORT,
+        }
+    }
+}
+
+impl BrpRuntimePlugin {
+    /// Create the runtime with a custom Main World BRP port.
+    ///
+    /// A valid `BRP_EXTRAS_PORT` environment variable takes precedence. The Render World
+    /// listener keeps Bevy's default Render port. Without either setting, use
+    /// [`Default`] for the standard Main port (15702).
+    #[must_use]
+    pub fn with_port(port: u16) -> Self {
+        Self {
+            main_port: port,
+            ..Self::default()
         }
     }
 }
@@ -49,7 +67,7 @@ impl Plugin for BrpRuntimePlugin {
 
         app.add_plugins((
             BrpExtrasPlugin::without_http_transport(),
-            BrpRemoteHttpPlugin::new(self.request_deadline),
+            BrpRemoteHttpPlugin::new(self.request_deadline, self.main_port),
         ));
     }
 
@@ -76,6 +94,12 @@ mod tests {
     use super::*;
 
     #[test]
+    fn code_configured_main_port_is_retained() {
+        let plugin = BrpRuntimePlugin::with_port(9000);
+        assert_eq!(plugin.main_port, 9000);
+    }
+
+    #[test]
     #[should_panic(expected = "BrpRuntimePlugin cannot share an App with RemoteHttpPlugin")]
     fn rejects_existing_stock_http_transport() {
         let mut app = App::new();
@@ -88,6 +112,7 @@ mod tests {
     #[should_panic(expected = "BrpRuntimePlugin cannot share an App with RemoteHttpPlugin")]
     fn rejects_stock_http_transport_added_after_runtime() {
         let mut app = App::new();
+        app.add_plugins(bevy::asset::AssetPlugin::default());
         app.add_plugins(bevy::winit::WinitPlugin {
             run_on_any_thread: true,
         });

@@ -221,9 +221,15 @@ fn file_modified_time(path: &Path) -> Result<SystemTime> {
 }
 
 fn parse_dep_info_dependencies(contents: &str, base_dir: &Path) -> Vec<PathBuf> {
-    let Some((_, dependency_text)) = contents.split_once(':') else {
+    let Some((separator_index, _)) = contents.match_indices(':').find(|(index, _)| {
+        contents[index + 1..]
+            .chars()
+            .next()
+            .is_some_and(char::is_whitespace)
+    }) else {
         return Vec::new();
     };
+    let dependency_text = &contents[separator_index + 1..];
 
     let mut dependencies = Vec::new();
     let mut current = String::new();
@@ -233,7 +239,12 @@ fn parse_dep_info_dependencies(contents: &str, base_dir: &Path) -> Vec<PathBuf> 
         if backslash_state.is_escaped() {
             match ch {
                 '\n' | '\r' => {}
-                _ => current.push(ch),
+                ' ' | '\t' | '\\' | '#' | ':' => current.push(ch),
+                _ => {
+                    #[cfg(windows)]
+                    current.push('\\');
+                    current.push(ch);
+                }
             }
             backslash_state = BackslashState::ReadingToken;
             continue;
@@ -248,6 +259,9 @@ fn parse_dep_info_dependencies(contents: &str, base_dir: &Path) -> Vec<PathBuf> 
         }
     }
 
+    if backslash_state.is_escaped() {
+        current.push('\\');
+    }
     push_dependency(&mut dependencies, &mut current, base_dir);
     dependencies
 }
@@ -314,6 +328,24 @@ mod tests {
                 PathBuf::from("/tmp/one.rs"),
                 PathBuf::from("/tmp/two with spaces.rs"),
                 PathBuf::from("/tmp/three.rs"),
+            ]
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn parses_windows_drive_paths_without_losing_separators() {
+        let base_dir = Path::new(r"C:\work\target\debug");
+        let dependencies = parse_dep_info_dependencies(
+            r"C:\work\target\debug\demo.exe: C:\work\src\main.rs C:\other\with\ space\lib.rs",
+            base_dir,
+        );
+
+        assert_eq!(
+            dependencies,
+            vec![
+                PathBuf::from(r"C:\work\src\main.rs"),
+                PathBuf::from(r"C:\other\with space\lib.rs"),
             ]
         );
     }

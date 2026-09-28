@@ -17,4 +17,4 @@
    cleanup wake，因为 HTTP method name 无法表达 ECS registration 的 Instant / Watching 类型。
 4. Main / Render listener 共享失败与 shutdown lifecycle，任一侧 fatal 失败都会关闭另一侧并结束 App。
 5. 在 `RemoteSystems::Cleanup` 后检查残留 mailbox，覆盖固定版本遇到未知 method 提前停止 drain 的边界。
-
+6. Main listener 可由 `BrpRuntimePlugin::with_port` 设置代码级 fallback 端口；有效的 `BRP_EXTRAS_PORT` 仍优先，Render listener 保持上游默认端口。

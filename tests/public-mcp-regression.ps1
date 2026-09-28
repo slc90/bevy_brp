@@ -80,6 +80,17 @@ try {
     $launched = $true
     $launchedPid = [int]$launch.result[0].pid
 
+    $listening = $false
+    for ($attempt = 0; $attempt -lt 120; $attempt++) {
+        if (Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue) {
+            $listening = $true
+            break
+        }
+        if (-not (Get-Process -Id $launchedPid -ErrorAction SilentlyContinue)) { break }
+        Start-Sleep -Milliseconds 250
+    }
+    Assert $listening "Launched extras_plugin did not listen on port $Port"
+
     $catalog = Tool 'brp_list_agent_tools' @{ port = $Port }
     $multiply = @($catalog.result.tools | Where-Object name -eq 'test_multiply')
     Assert ($multiply.Count -eq 1 -and $multiply[0].method -eq 'test/multiply') 'Live app method is missing from the catalog'

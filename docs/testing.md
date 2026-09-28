@@ -14,11 +14,22 @@ cargo test --workspace --locked --no-fail-fast
 在有可见桌面、可用图形设备、PowerShell 7、空闲测试端口和已构建宿主的 Windows 会话运行：
 
 ```powershell
-cargo build -p bevy_brp_mcp -p bevy_brp_test_apps --locked
+cargo build -p bevy_brp_mcp -p bevy_brp_test_apps --locked --features bevy_brp_mcp/mcp-debug
 & .\tests\regression.ps1 -Port 15712
 ```
 
-`tests/regression.ps1` 调用[方案 01 的固定 MCP 重放器](../plans/refactor/assets/01-baseline/replay.ps1)，再检查握手与工具目录、BRP 发现、Sprite Transform 从 `0` 到 `42` 的修改、watch 建立与结束、输入排队、两条 App 日志中的固定 marker、两次 clean shutdown，以及 `NatesList` 截图的尺寸和实际像素。当前基线中 `test_app` 无 primary window 的截图调用预期返回 `brp_extras/screenshot` 的 `-32603` 错误及对应原因；该断言只固定本场景已记录的行为。重放器会启动 `test_app` 和 `extras_plugin`，恢复后者窗口。脚本在运行前拒绝占用的端口、同名 App 或 MCP 进程；成功后确认端口与进程退出，并删除本轮临时记录和唯一命名的 App/watch 日志，同时把共享 trace 文件恢复到运行前长度。失败时保留记录目录及尽可能完整的交互记录，并清理、等待和复查本轮 App、MCP 进程及端口。用 `-OutputDirectory <尚不存在的目录路径>` 或 `-KeepArtifacts` 可保留成功记录。脚本不修改方案 01 的 before 样本。
+`tests/regression.ps1` 调用[方案 01 的固定 MCP 重放器](../plans/refactor/assets/01-baseline/replay.ps1)，其中包含两次仅诊断构建提供的 server trace 工具调用，因此必须先构建 `mcp-debug`。脚本再检查握手与工具目录、BRP 发现、Sprite Transform 从 `0` 到 `42` 的修改、watch 建立与结束、输入排队、两条 App 日志中的固定 marker、两次 clean shutdown，以及 `NatesList` 截图的尺寸和实际像素。当前基线中 `test_app` 无 primary window 的截图调用预期返回 `brp_extras/screenshot` 的 `-32603` 错误及对应原因；该断言只固定本场景已记录的行为。重放器会启动 `test_app` 和 `extras_plugin`，恢复后者窗口。脚本在运行前拒绝占用的端口、同名 App 或 MCP 进程；成功后确认端口与进程退出，并删除本轮临时记录和唯一命名的 App/watch 日志，同时把共享 trace 文件恢复到运行前长度。失败时保留记录目录及尽可能完整的交互记录，并清理、等待和复查本轮 App、MCP 进程及端口。用 `-OutputDirectory <尚不存在的目录路径>` 或 `-KeepArtifacts` 可保留成功记录。脚本不修改方案 01 的 before 样本。
+
+普通构建的 MCP 公共协议链使用 `cargo build -p bevy_brp_mcp -p bevy_brp_test_apps --locked` 后运行 `& .\tests\public-mcp-regression.ps1`。普通和诊断两种 tool registry 及 trace 隔离可在相应构建后运行 `& .\tests\diagnostics-regression.ps1`；诊断构建传入 `-DebugBuild`。每次切换 feature 后先重建 MCP binary，避免复用上一种构建。
+
+`BrpRuntimePlugin::with_port` 的真实监听验证使用独立示例：
+
+```powershell
+cargo build -p bevy_brp_runtime --example runtime_custom_port --locked
+& .\tests\runtime-port-regression.ps1
+```
+
+脚本要求 15752（代码配置的 Main）、15702（默认 Main）和 15703（Render）均空闲。它移除子进程继承的 `BRP_EXTRAS_PORT`，检查自定义端口能响应 `rpc.discover`、默认端口未监听，并经 `brp_extras/shutdown` 确认进程和自定义端口清理。环境变量覆盖优先级另由 runtime unit test 验证。
 
 如无交互式桌面、GPU 或图形窗口，跳过该入口并记录为**未测及缺失条件**，不要把 Cargo 测试通过等同于端到端通过。成功运行的 MCP 交互记录在 `interaction.jsonl`，完整摘要在 `summary.json`。失败时先查同目录的 `failure.json` 和已写出的部分 `interaction.jsonl`，再按实际生成情况检查 `tools-list.json` 与截图。进程、端口或 trace 文件未恢复属于测试失败。
 
