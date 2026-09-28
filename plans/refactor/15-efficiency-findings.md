@@ -46,7 +46,7 @@ $tempScript = Join-Path $env:TEMP 'bevy-brp-efficiency-replay.ps1'
 
 当前 25 个工具调用的请求 wire 合计 4,319 bytes，响应合计 62,952 bytes。最大响应来源是 `brp_list_bevy` 15,194、两次 `brp_read_log` 11,475、两次 `brp_list_logs` 11,458、三次截图 5,078 bytes；这些数含完整 MCP envelope。日志内容、已发现 target、错误详情和截图状态都对当前任务有用，不能仅凭尺寸删掉。25 个调用中，24 个响应的 text content 可解析为与 `structuredContent` 相同的 JSON；`brp_launch` 的 text 与结构化内容存在时间格式差异。`CallToolResult::structured` 同时发出两种形态，属于兼容 text-only 客户端的现有框架行为；没有真实客户端证据支持删除其中一种。
 
-另做一组已知目标目录的实测：仅把 `brp_list_bevy` 的 `path` 从仓库根目录改为 `tests/test-app`，调用本来就支持的参数，其他 24 次工具调用及验证目标保持相同。根目录发现 13 个 target，该次响应 15,194 bytes；指定 package 目录发现 6 个 target，该次响应 7,080 bytes，少 8,114 bytes，请求多 17 bytes。按 package、name、kind 和 manifest 匹配的 6 个目标，其 `brp_level` 和 `built` 一致；`relative_path` 改为相对于指定搜索目录，例如 `tests\\test-app` 变为 `test-app`，消费该字段的客户端必须按调用时的搜索根解释。完整重放仍为 25 次工具调用，离屏 PNG 与 clean shutdown 成功；整轮 server→client 为 165,580 bytes，对照轮为 172,374 bytes，但日志和运行时字段会波动，不能把整轮差值 6,794 bytes 当作稳定收益。缩小搜索目录只适用于调用方已经知道目标 package 目录的任务；目标位置未知时仍需从较宽范围发现。精简的单次发现记录与该轮结果见 [scoped-discovery.json](assets/15-efficiency/scoped-discovery.json)。
+另做一组已知目标目录的实测：仅把 `brp_list_bevy` 的 `path` 从仓库根目录改为 `tests/test-app`，调用本来就支持的参数，其他 24 次工具调用及验证目标保持相同。根目录发现 13 个 target，该次响应 15,194 bytes；指定 package 目录发现 6 个 target，该次响应 7,080 bytes，少 8,114 bytes，请求多 17 bytes。按 package、name、kind 和 manifest 匹配的 6 个目标，其 `brp_level` 和 `built` 一致；`relative_path` 从 `tests\\test-app` 变为 `test-app`。当搜索根恰为 package 目录时，此字段返回目录名而非 `.`，不能再拼到传入的 `path` 后面；需要绝对目录时应取 `manifest_path` 的父目录。完整重放仍为 25 次工具调用，离屏 PNG 与 clean shutdown 成功；整轮 server→client 为 165,580 bytes，对照轮为 172,374 bytes，但日志和运行时字段会波动，不能把整轮差值 6,794 bytes 当作稳定收益。缩小搜索目录只适用于调用方已经知道目标 package 目录的任务；目标位置未知时仍需从较宽范围发现。精简的单次发现记录与该轮结果见 [scoped-discovery.json](assets/15-efficiency/scoped-discovery.json)。
 
 服务端到 Bevy 的 BRP/HTTP 请求数**未测**。当前重放器只记录 MCP stdio，App 日志与默认构建没有逐 HTTP 请求计数；一次 MCP 调用内部可产生 discovery、查询或 watch 请求。不能把 25 次 MCP 调用当成 BRP 请求数，也不能把 trace 中仅针对带参数请求的 debug 行当完整计数。方案 16 若要证明 BRP 请求减少，应在代理或明确的请求边界单独计数，并与 MCP 次数并列报告。本次选中的目录优化不改变 BRP 请求路径，故这个未测量不影响目录字节归因。
 
@@ -59,7 +59,7 @@ $tempScript = Join-Path $env:TEMP 'bevy-brp-efficiency-replay.ps1'
 | 建议 | 修改边界与预期作用 | 兼容影响与复测 |
 | --- | --- | --- |
 | A. 精简重复的 `outputSchema` 说明性注解 | 在 MCP `tools/list` 的 output schema 生成中仅去掉 `title` / `description` 注解，保留 `$schema`、字段约束、实际 `CallToolResult`。预计单次目录响应原始字节下降约 23,265 bytes；实际值以重放为准。 | 属于公开 schema 元数据变化。检查严格 schema 客户端、text/structured 两种结果消费者；若客户端依赖这些注解或任务交互变差，应撤回。 |
-| B. 指引已知目录的定向发现 | 调整 `brp_list_bevy` 的 help text/使用样例：目标 package 目录已知时把该目录作为现有 `path` 参数；未知时从 workspace 根目录发现。不改默认搜索、tool 参数或返回结构。实测该场景单次发现响应少 8,114 bytes，MCP 调用数不变。 | 属于调用建议，不能保证所有客户端照做。`relative_path` 随搜索根变化，样例须说明解释方式；以完整同目标调用链验证找到所需 target、launch 和后续操作，另测未知目录场景不会被误导成窄搜索。 |
+| B. 指引已知目录的定向发现 | 调整 `brp_list_bevy` 的 help text/使用样例：目标 package 目录已知时把该目录作为现有 `path` 参数；未知时从 workspace 根目录发现。不改默认搜索、tool 参数或返回结构。实测该场景单次发现响应少 8,114 bytes，MCP 调用数不变。 | 属于调用建议，不能保证所有客户端照做。`relative_path` 随搜索根变化，搜索根恰为 package 目录时不能将它拼到 `path` 后；以完整同目标调用链验证找到所需 target、launch 和后续操作，另测未知目录场景不会被误导成窄搜索。 |
 
 方案 16 的共同通过条件：完整用户任务仍正确完成，错误与纠正次数不增加；MCP 次数、BRP 请求数、关键结果和端到端耗时分别记录。若实施 A，还要确认默认与 `mcp-debug` 目录的 tool 数和 output schema 字段约束不变，实际目录 wire bytes 下降。若实施 B，还要确认定向发现仍覆盖已知目标且保留宽范围发现说明。若取得真实客户端 usage，再报告输入、缓存输入、输出 token 与轮次，分别测新进程和重复会话；没有该数据时只报告字节和调用效果。任一建议若没有改善或有超出接受范围的回归，应撤回该项，不以单个字节数字判成功。
 

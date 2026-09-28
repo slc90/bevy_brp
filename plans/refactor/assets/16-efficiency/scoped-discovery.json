@@ -1,0 +1,178 @@
+{
+  "summary": {
+    "tool_count": 47,
+    "mcp_request_count": 27,
+    "tool_call_count": 25,
+    "client_to_server_bytes": 4618,
+    "server_to_client_bytes": 146221,
+    "runtime_primary_screenshot_status": "error",
+    "screenshot_bytes": 285,
+    "runtime_shutdown_method": "clean_shutdown",
+    "fixture_shutdown_method": "clean_shutdown"
+  },
+  "records": [
+    {
+      "name": "brp_list_bevy",
+      "direction": "client_to_server",
+      "bytes": 160,
+      "payload": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "tools/call",
+        "params": {
+          "name": "brp_list_bevy",
+          "arguments": {
+            "path": "<REPO>\\tests\\test-app"
+          }
+        }
+      }
+    },
+    {
+      "name": "brp_list_bevy",
+      "direction": "server_to_client",
+      "bytes": 7080,
+      "payload": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\"status\":\"success\",\"message\":\"Found 6 Bevy targets\",\"call_info\":{\"mcp_tool\":\"brp_list_bevy\"},\"metadata\":{\"count\":6},\"parameters\":{\"path\":\"<REPO>\\\\tests\\\\test-app\"},\"result\":[{\"name\":\"test_app\",\"kind\":\"app\",\"package_name\":\"bevy_brp_test_apps\",\"brp_level\":\"none\",\"workspace_root\":\"<REPO>\",\"manifest_path\":\"<REPO>\\\\tests\\\\test-app\\\\Cargo.toml\",\"relative_path\":\"test-app\",\"builds\":{\"debug\":{\"path\":\"<REPO>\\\\target\\\\debug\\\\test_app\",\"built\":false},\"release\":{\"path\":\"<REPO>\\\\target\\\\release\\\\test_app\",\"built\":false}}},{\"name\":\"extras_plugin\",\"kind\":\"example\",\"package_name\":\"bevy_brp_test_apps\",\"brp_level\":\"extras\",\"workspace_root\":\"<REPO>\",\"manifest_path\":\"<REPO>\\\\tests\\\\test-app\\\\Cargo.toml\",\"relative_path\":\"test-app\",\"builds\":{\"debug\":{\"path\":\"<REPO>\\\\target\\\\debug\\\\examples\\\\extras_plugin\",\"built\":false},\"release\":{\"path\":\"<REPO>\\\\target\\\\release\\\\examples\\\\extras_plugin\",\"built\":false}}},{\"name\":\"no_extras_plugin\",\"kind\":\"example\",\"package_name\":\"bevy_brp_test_apps\",\"brp_level\":\"brp_only\",\"workspace_root\":\"<REPO>\",\"manifest_path\":\"<REPO>\\\\tests\\\\test-app\\\\Cargo.toml\",\"relative_path\":\"test-app\",\"builds\":{\"debug\":{\"path\":\"<REPO>\\\\target\\\\debug\\\\examples\\\\no_extras_plugin\",\"built\":false},\"release\":{\"path\":\"<REPO>\\\\target\\\\release\\\\examples\\\\no_extras_plugin\",\"built\":false}}},{\"name\":\"event_test\",\"kind\":\"example\",\"package_name\":\"bevy_brp_test_apps\",\"brp_level\":\"none\",\"workspace_root\":\"<REPO>\",\"manifest_path\":\"<REPO>\\\\tests\\\\test-app\\\\Cargo.toml\",\"relative_path\":\"test-app\",\"builds\":{\"debug\":{\"path\":\"<REPO>\\\\target\\\\debug\\\\examples\\\\event_test\",\"built\":false},\"release\":{\"path\":\"<REPO>\\\\target\\\\release\\\\examples\\\\event_test\",\"built\":false}}},{\"name\":\"mouse_test\",\"kind\":\"example\",\"package_name\":\"bevy_brp_test_apps\",\"brp_level\":\"none\",\"workspace_root\":\"<REPO>\",\"manifest_path\":\"<REPO>\\\\tests\\\\test-app\\\\Cargo.toml\",\"relative_path\":\"test-app\",\"builds\":{\"debug\":{\"path\":\"<REPO>\\\\target\\\\debug\\\\examples\\\\mouse_test\",\"built\":false},\"release\":{\"path\":\"<REPO>\\\\target\\\\release\\\\examples\\\\mouse_test\",\"built\":false}}},{\"name\":\"test_app\",\"kind\":\"example\",\"package_name\":\"bevy_brp_test_apps\",\"brp_level\":\"none\",\"workspace_root\":\"<REPO>\",\"manifest_path\":\"<REPO>\\\\tests\\\\test-app\\\\Cargo.toml\",\"relative_path\":\"test-app\",\"builds\":{\"debug\":{\"path\":\"<REPO>\\\\target\\\\debug\\\\examples\\\\test_app\",\"built\":false},\"release\":{\"path\":\"<REPO>\\\\target\\\\release\\\\examples\\\\test_app\",\"built\":false}}}]}"
+            }
+          ],
+          "structuredContent": {
+            "status": "success",
+            "message": "Found 6 Bevy targets",
+            "call_info": {
+              "mcp_tool": "brp_list_bevy"
+            },
+            "metadata": {
+              "count": 6
+            },
+            "parameters": {
+              "path": "<REPO>\\tests\\test-app"
+            },
+            "result": [
+              {
+                "name": "test_app",
+                "kind": "app",
+                "package_name": "bevy_brp_test_apps",
+                "brp_level": "none",
+                "workspace_root": "<REPO>",
+                "manifest_path": "<REPO>\\tests\\test-app\\Cargo.toml",
+                "relative_path": "test-app",
+                "builds": {
+                  "debug": {
+                    "path": "<REPO>\\target\\debug\\test_app",
+                    "built": false
+                  },
+                  "release": {
+                    "path": "<REPO>\\target\\release\\test_app",
+                    "built": false
+                  }
+                }
+              },
+              {
+                "name": "extras_plugin",
+                "kind": "example",
+                "package_name": "bevy_brp_test_apps",
+                "brp_level": "extras",
+                "workspace_root": "<REPO>",
+                "manifest_path": "<REPO>\\tests\\test-app\\Cargo.toml",
+                "relative_path": "test-app",
+                "builds": {
+                  "debug": {
+                    "path": "<REPO>\\target\\debug\\examples\\extras_plugin",
+                    "built": false
+                  },
+                  "release": {
+                    "path": "<REPO>\\target\\release\\examples\\extras_plugin",
+                    "built": false
+                  }
+                }
+              },
+              {
+                "name": "no_extras_plugin",
+                "kind": "example",
+                "package_name": "bevy_brp_test_apps",
+                "brp_level": "brp_only",
+                "workspace_root": "<REPO>",
+                "manifest_path": "<REPO>\\tests\\test-app\\Cargo.toml",
+                "relative_path": "test-app",
+                "builds": {
+                  "debug": {
+                    "path": "<REPO>\\target\\debug\\examples\\no_extras_plugin",
+                    "built": false
+                  },
+                  "release": {
+                    "path": "<REPO>\\target\\release\\examples\\no_extras_plugin",
+                    "built": false
+                  }
+                }
+              },
+              {
+                "name": "event_test",
+                "kind": "example",
+                "package_name": "bevy_brp_test_apps",
+                "brp_level": "none",
+                "workspace_root": "<REPO>",
+                "manifest_path": "<REPO>\\tests\\test-app\\Cargo.toml",
+                "relative_path": "test-app",
+                "builds": {
+                  "debug": {
+                    "path": "<REPO>\\target\\debug\\examples\\event_test",
+                    "built": false
+                  },
+                  "release": {
+                    "path": "<REPO>\\target\\release\\examples\\event_test",
+                    "built": false
+                  }
+                }
+              },
+              {
+                "name": "mouse_test",
+                "kind": "example",
+                "package_name": "bevy_brp_test_apps",
+                "brp_level": "none",
+                "workspace_root": "<REPO>",
+                "manifest_path": "<REPO>\\tests\\test-app\\Cargo.toml",
+                "relative_path": "test-app",
+                "builds": {
+                  "debug": {
+                    "path": "<REPO>\\target\\debug\\examples\\mouse_test",
+                    "built": false
+                  },
+                  "release": {
+                    "path": "<REPO>\\target\\release\\examples\\mouse_test",
+                    "built": false
+                  }
+                }
+              },
+              {
+                "name": "test_app",
+                "kind": "example",
+                "package_name": "bevy_brp_test_apps",
+                "brp_level": "none",
+                "workspace_root": "<REPO>",
+                "manifest_path": "<REPO>\\tests\\test-app\\Cargo.toml",
+                "relative_path": "test-app",
+                "builds": {
+                  "debug": {
+                    "path": "<REPO>\\target\\debug\\examples\\test_app",
+                    "built": false
+                  },
+                  "release": {
+                    "path": "<REPO>\\target\\release\\examples\\test_app",
+                    "built": false
+                  }
+                }
+              }
+            ]
+          },
+          "isError": false
+        }
+      }
+    }
+  ]
+}

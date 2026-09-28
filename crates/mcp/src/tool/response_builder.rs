@@ -207,12 +207,17 @@ impl ResponseBuilder {
     }
 
     pub(super) fn build(self) -> ToolCallJsonResponse {
+        let include_parameters = matches!(&self.status, ResponseStatus::Error);
         ToolCallJsonResponse {
             status: self.status,
             message: self.message,
             call_info: self.call_info,
             metadata: self.metadata,
-            parameters: self.parameters,
+            parameters: if include_parameters {
+                self.parameters
+            } else {
+                None
+            },
             result: self.result,
             error_info: self.error_info,
             brp_extras_debug_info: self.brp_extras_debug_info,
@@ -479,5 +484,31 @@ mod tests {
         assert_eq!(wire["metadata"]["code"], -32602);
         assert_eq!(wire["error_info"]["code"], -32602);
         assert_eq!(wire["error_info"]["data"]["field"], "data");
+    }
+
+    #[test]
+    fn success_omits_parameter_echo_but_error_keeps_it() {
+        let call_info = CallInfo::Local {
+            mcp_tool: "test".to_string(),
+        };
+        let success = ResponseBuilder::success(call_info.clone())
+            .parameters(json!({"port": 15702, "position": [10, 10]}))
+            .unwrap()
+            .build();
+        let error = ResponseBuilder::error(call_info)
+            .parameters(json!({"port": 15702, "position": [10, 10]}))
+            .unwrap()
+            .build();
+
+        assert!(
+            serde_json::to_value(success)
+                .unwrap()
+                .get("parameters")
+                .is_none()
+        );
+        assert_eq!(
+            serde_json::to_value(error).unwrap()["parameters"]["port"],
+            15702
+        );
     }
 }

@@ -8,6 +8,7 @@ use rmcp::model::CallToolResult;
 use rmcp::model::JsonObject;
 use rmcp::model::Tool;
 use schemars::generate::SchemaSettings;
+use serde_json::Value;
 
 use super::HandlerContext;
 use super::annotations::Annotation;
@@ -30,6 +31,24 @@ pub struct ToolDef {
 }
 
 impl ToolDef {
+    fn remove_output_schema_annotations(value: &mut Value) {
+        match value {
+            Value::Object(object) => {
+                object.remove("title");
+                object.remove("description");
+                for nested in object.values_mut() {
+                    Self::remove_output_schema_annotations(nested);
+                }
+            }
+            Value::Array(items) => {
+                for item in items {
+                    Self::remove_output_schema_annotations(item);
+                }
+            }
+            _ => {}
+        }
+    }
+
     pub fn name(&self) -> &'static str {
         self.tool_name.into()
     }
@@ -57,10 +76,14 @@ impl ToolDef {
         let generator = schema_settings.into_generator();
         let schema = generator.into_root_schema_for::<ToolCallJsonResponse>();
 
-        let Ok(schema_value) = serde_json::to_value(schema) else {
+        let Ok(mut schema_value) = serde_json::to_value(schema) else {
             // Fallback to empty schema if serialization fails
             return Arc::new(rmcp::model::JsonObject::new());
         };
+
+        // The same output schema is published for every tool; keep validation
+        // constraints while omitting repeated explanatory annotations.
+        Self::remove_output_schema_annotations(&mut schema_value);
 
         let schema_object = schema_value
             .as_object()

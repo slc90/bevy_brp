@@ -8,4 +8,6 @@ Each item includes a `kind` field ("app" or "example") and `brp_level` field:
 For bins, `brp_level` reflects whether the package's src/ tree uses BRP plugins.
 For examples, the individual source file is checked for BRP plugin imports.
 Optional `path` parameter overrides the default search roots (MCP workspace roots / cwd). When provided, only the specified OS-level directory is searched for Bevy projects.
+When the search root contains multiple packages and the target package directory is already known, scope discovery to it, for example `{"path":"tests/test-app"}` from this repository root. This returns only targets in that search directory. A single-package search root may already return just one target, so a narrower path need not save bytes. When the target location is unknown, omit `path` or use the workspace root so other packages remain discoverable.
+`relative_path` depends on the search root: for a package below that root it is the path below the root, but when the root is the package directory itself it is the directory name (for example `test-app`), not `.`. Do not join `relative_path` to the supplied `path`. For an unambiguous absolute package directory, use the parent directory of `manifest_path`.
 Use `package_name` with `brp_launch`'s `package_name` parameter to disambiguate targets with the same name.

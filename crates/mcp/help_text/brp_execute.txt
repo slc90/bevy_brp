@@ -1,7 +1,9 @@
 Execute a one-shot BRP method registered on a running Bevy app.
 
-The tool calls rpc.discover on the selected port, requires an exact method-name match, then forwards
-the caller-supplied params as raw JSON. Use brp_list_agent_tools first when the application publishes
+The tool forwards the caller-supplied params as raw JSON to the exact method name. A successful
+one-shot call needs only that BRP request; method-not-found triggers rpc.discover to list available
+names without retrying the original call. Watching names are discovered before rejection to
+distinguish registered watches from unknown methods. Use brp_list_agent_tools first when the application publishes
 curated descriptions and raw parameter/result schemas, and follow its result.usage guidance.
 
 Example: {"method":"test/multiply","params":{"value":6,"factor":7},"port":15712}.
@@ -12,7 +14,10 @@ The raw BRP value is returned in result. A null or missing BRP result may omit t
 Watching methods return unsupported_call_mode with method and port in error_info; use
 world_get_components_watch or world_list_components_watch for the supported stock watches.
 Other watching methods have no MCP watch entry. An unknown method returns stage=discovery
-and available_methods. BRP errors retain code and data in error_info.
+and available_methods; after a direct BRP failure, error_info also retains the original BRP
+code and data plus method_error_message, which may include client guidance for missing extras
+methods. If the fallback discovery
+also fails, the original method error remains in error_info with nested discovery_error details.
 
-For MCP invocation, use brp_execute for discovery validation, timeout handling, and BRP error
+For MCP invocation, use brp_execute for missing-method guidance, timeout handling, and BRP error
 details. Direct HTTP JSON-RPC is a developer-only alternative outside MCP.

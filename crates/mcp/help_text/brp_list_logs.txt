@@ -1,6 +1,7 @@
 List application and watch log files in the system temp directory, newest first.
 
-Examples: {} or {"source":"app","app_name":"test_app","verbose":true} or {"source":"watch"}.
+Examples: {} or {"source":"app","app_name":"test_app"} or {"source":"watch"}.
 source defaults to "all" (application and watch logs). Each result entry includes source: "app" or "watch".
 app_name only applies to application logs and cannot be combined with source="watch".
+verbose defaults to false; use verbose=true only when paths, sizes, or timestamps are needed.
 Server trace is never listed here. Use the explicit mcp-debug build and brp_get_trace_log_path for server diagnostics.

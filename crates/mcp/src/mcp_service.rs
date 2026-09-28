@@ -84,6 +84,49 @@ mod tests {
 
     use super::McpService;
 
+    fn has_schema_annotation(value: &Value) -> bool {
+        match value {
+            Value::Object(object) => {
+                object.contains_key("title")
+                    || object.contains_key("description")
+                    || object.values().any(has_schema_annotation)
+            }
+            Value::Array(items) => items.iter().any(has_schema_annotation),
+            _ => false,
+        }
+    }
+
+    #[test]
+    fn output_schemas_keep_constraints_without_repeating_annotations() {
+        let service = McpService::new();
+        let listing = serde_json::to_value(service.list_mcp_tools()).expect("serialize tool list");
+        let tools = listing["tools"].as_array().expect("tool array");
+        let first_schema = &tools[0]["outputSchema"];
+
+        assert_eq!(first_schema["type"], "object");
+        assert_eq!(
+            first_schema["$schema"],
+            "https://json-schema.org/draft/2020-12/schema"
+        );
+        assert_eq!(
+            first_schema["required"],
+            serde_json::json!(["status", "message", "call_info"])
+        );
+        assert_eq!(
+            first_schema["properties"]["status"]["enum"],
+            serde_json::json!(["success", "error"])
+        );
+        assert!(first_schema["properties"]["call_info"]["anyOf"].is_array());
+        for tool in tools {
+            assert_eq!(&tool["outputSchema"], first_schema, "{}", tool["name"]);
+            assert!(
+                !has_schema_annotation(&tool["outputSchema"]),
+                "{}",
+                tool["name"]
+            );
+        }
+    }
+
     #[test]
     fn listed_tools_are_routable_and_publish_cache_contract() {
         let service = McpService::new();

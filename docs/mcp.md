@@ -7,13 +7,34 @@ an entry by `name` and description, then pass its exact `method` and raw JSON pa
 The catalog may be empty; omitted `params_schema` or `result_schema` means the app supplied no
 schema. Catalog entries are not added to `tools/list`. For other one-shot methods,
 `rpc_discover` lists the live BRP methods that `brp_execute` can call. The default port is 15702.
+For a one-shot method, `brp_execute` calls the method directly. A method-not-found BRP response
+triggers `rpc.discover` for `available_methods`; it never retries the original call. Watching
+methods retain their discovery check and return `unsupported_call_mode` when registered. If the
+fallback discovery fails, `error_info` retains the original method's `code` and `data` and includes
+the nested `discovery_error`.
+When fallback discovery confirms the method is absent, `error_info` includes `available_methods`
+alongside the original BRP `code` and `data`. `method_error_message` is the BRP client's message and
+may include plugin guidance for a missing extras method.
 To start this repository's fixture through MCP, call `brp_launch` with
 `{"target_name":"extras_plugin","package_name":"bevy_brp_test_apps","search_order":"example","path":"tests/test-app","port":15712}`.
 The wire names are `target_name` and `package_name`; those fields have not been renamed.
+If a search root contains multiple packages and the target's package directory is already known,
+scope `brp_list_bevy` to it, for example `{"path":"tests/test-app"}` from this repository root.
+A single-package root may already return one target, with no byte saving from a narrower path.
+When the location is unknown, search the workspace root so other packages remain visible.
+`relative_path` changes with the search root: if the root is the package directory itself, the
+field is its directory name (such as `test-app`), not `.`. Do not join it to the supplied `path`;
+the parent of `manifest_path` is the absolute package directory for a later `brp_launch` call.
+
+Every listed tool retains an `outputSchema` with the same validation constraints for the
+structured result. Repeated schema `title` and `description` annotations are omitted from that
+schema; tool descriptions and the result fields remain available.
 
 Tool calls return MCP `structuredContent` with `status`, `message`, `call_info`, and an optional
 raw business `result`. A large result may instead be a file reference with `saved_to_file`,
 `filepath`, `instructions`, and `original_size_tokens`; read the named file for the full value.
+The MCP `content` array is empty because the same JSON is available in `structuredContent`.
+Successful calls omit the request `parameters` echo; errors may retain it for diagnosis.
 Failures set MCP `isError` and `status="error"`. `error_info` carries stable context such as
 `stage`, `method`, `port`, BRP `code` and `data`, while `metadata` retains the earlier detail fields
 during migration. An unregistered method has `stage="discovery"` and `available_methods`.
@@ -31,9 +52,9 @@ Build the normal server with `cargo build -p bevy_brp_mcp --locked`. For an MCP 
 `brp_list_logs`, `brp_read_log`, and `brp_delete_logs` handle logs from applications launched through MCP and from MCP watch subscriptions. They do not expose the server trace. `brp_list_logs` returns a `source` field (`app` or `watch`) for each file. `source` may be `all` (default), `app`, or `watch`; `app_name` filters only app logs and cannot be used with `source=watch`. For example:
 
 ```json
-{"source":"app","app_name":"test_app","verbose":true}
+{"source":"app","app_name":"test_app"}
 ```
 
-Use a listed filename with `brp_read_log`, for example `{"filename":"bevy_brp_mcp_test_app_port15702_1787840000123.log","tail_lines":50}`. A watch tool also returns its `log_path`; its historical log remains readable after `brp_stop_watch`. Use `brp_delete_logs` with `{"source":"watch"}` to clean watch logs, or with `{"source":"app","app_name":"test_app"}` for one application's logs. Omitting filters retains the existing application and watch cleanup scope. Deletion errors are returned to the caller. The server trace must be managed through its own local file path; these public log tools never read or delete it.
+Use a listed filename with `brp_read_log`, for example `{"filename":"bevy_brp_mcp_test_app_port15702_1787840000123.log","tail_lines":50}`. The default non-verbose listing is enough for this step; set `verbose=true` when paths, sizes, or timestamps are needed. A watch tool also returns its `log_path`; its historical log remains readable after `brp_stop_watch`. Use `brp_delete_logs` with `{"source":"watch"}` to clean watch logs, or with `{"source":"app","app_name":"test_app"}` for one application's logs. Omitting filters retains the existing application and watch cleanup scope. Deletion errors are returned to the caller. The server trace must be managed through its own local file path; these public log tools never read or delete it.
 
 Application errors remain available as MCP tool errors. The diagnostic build adds server trace controls for investigating failures within the MCP server itself; it does not change BRP method registration in the Bevy application.

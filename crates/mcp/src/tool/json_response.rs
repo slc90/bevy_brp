@@ -66,10 +66,12 @@ impl ToolCallJsonResponse {
             })
         });
 
-        match self.status {
-            ResponseStatus::Success => CallToolResult::structured(value),
-            ResponseStatus::Error => CallToolResult::structured_error(value),
-        }
+        let mut result = match self.status {
+            ResponseStatus::Success => CallToolResult::success(Vec::new()),
+            ResponseStatus::Error => CallToolResult::error(Vec::new()),
+        };
+        result.structured_content = Some(value);
+        result
     }
 }
 
@@ -79,4 +81,41 @@ impl ToolCallJsonResponse {
 pub(super) enum ResponseStatus {
     Success,
     Error,
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::ResponseStatus;
+    use super::ToolCallJsonResponse;
+    use crate::tool::name::CallInfo;
+
+    #[test]
+    fn structured_results_do_not_repeat_json_as_text() {
+        for status in [ResponseStatus::Success, ResponseStatus::Error] {
+            let response = ToolCallJsonResponse {
+                status,
+                message: "example".to_string(),
+                call_info: CallInfo::Local {
+                    mcp_tool: "example".to_string(),
+                },
+                metadata: None,
+                parameters: None,
+                result: None,
+                error_info: None,
+                brp_extras_debug_info: None,
+            };
+            let wire = response.to_call_tool_result();
+            assert!(wire.content.is_empty());
+            assert_eq!(
+                wire.structured_content.as_ref().unwrap()["message"],
+                json!("example")
+            );
+            assert_eq!(
+                wire.is_error,
+                Some(matches!(response.status, ResponseStatus::Error))
+            );
+        }
+    }
 }
