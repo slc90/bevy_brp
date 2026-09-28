@@ -81,3 +81,9 @@ unsafe_code = "forbid"
 unwrap_used = "deny"
 type_complexity = "allow"
 too_many_arguments = "allow"
+
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = 0
