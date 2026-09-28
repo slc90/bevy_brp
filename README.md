@@ -37,7 +37,7 @@ cargo build -p bevy_brp_mcp --locked
 
 Configure the MCP client to launch `target/debug/bevy_brp_mcp.exe` over stdio, using an absolute path to the built executable. The normal build provides App discovery, BRP, watch, input, screenshot, and App log tools. For server trace controls, explicitly build with `cargo build -p bevy_brp_mcp --locked --features mcp-debug` and launch that executable. The diagnostic build adds two trace tools; application log tools remain available in the normal build. See [MCP usage and result contracts](docs/mcp.md).
 
-The checked-in source is the current development entry. Existing Git tag `v0.1.0` points to an earlier revision; consumers pinned to that tag do not receive these changes until their dependency reference is updated separately. Crates are not published to crates.io.
+Git tag `v0.2.0` provides this version to Git consumers. App dependencies can use `bevy_brp_runtime = { git = "https://github.com/slc90/bevy_brp.git", tag = "v0.2.0" }` in place of the local path above. MCP users can check out `v0.2.0` and build the server with the command above. Crates are not published to crates.io.
 
 ## Develop and verify
 
