@@ -1,6 +1,4 @@
-//! `brp_execute` allows for executing an arbitrary BRP method - generally this is used as a
-//! debugging tool for his MCP server but can also be used if (for example) a new brp method is
-//! added before it's been implemented in this server code.
+//! `brp_execute` calls a discovered one-shot BRP method with raw JSON parameters.
 use async_trait::async_trait;
 use bevy_brp_mcp_macros::ParamStruct;
 use bevy_brp_mcp_macros::ResultStruct;
@@ -75,7 +73,7 @@ impl ToolFn for BrpExecute {
         let brp_client =
             BrpClient::for_application(params.method.clone(), params.port, params.params.clone());
 
-        let brp_result = brp_client.execute_raw().await?;
+        let brp_result = brp_client.execute_raw_once().await?;
 
         match brp_result {
             ResponseStatus::Success(data) => Ok(ExecuteResult::new(data)),

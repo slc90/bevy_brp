@@ -157,11 +157,15 @@ impl HandlerContext {
         let tool_name = self.tool_def.tool_name;
         let call_info = tool_name.get_call_info();
 
-        Response::error_message(
-            format!("Framework error: {}", error.current_context()),
-            call_info,
-        )
-        .to_call_tool_result()
+        let message = format!("Framework error: {}", error.current_context());
+        let details = match error.current_context() {
+            Error::ParameterExtraction(reason) => Some(json!({
+                "stage": "parameter_validation",
+                "reason": reason,
+            })),
+            _ => None,
+        };
+        Response::error_with_details(message, details.as_ref(), call_info).to_call_tool_result()
     }
 
     /// Handle large responses if needed

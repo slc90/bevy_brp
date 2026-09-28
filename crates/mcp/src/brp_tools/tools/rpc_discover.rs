@@ -51,6 +51,7 @@ pub(super) async fn discover_method_names(port: Port) -> Result<Vec<String>> {
                 format!("Failed to discover BRP methods on port {port}"),
                 serde_json::json!({
                     "stage": "discovery",
+                    "method": "rpc.discover",
                     "port": port,
                     "error": error.current_context().to_string(),
                 }),
@@ -72,6 +73,7 @@ pub(super) async fn discover_method_names(port: Port) -> Result<Vec<String>> {
                 format!("rpc.discover failed on port {port}: {}", error.message),
                 serde_json::json!({
                     "stage": "discovery",
+                    "method": "rpc.discover",
                     "port": port,
                     "code": error.code,
                     "data": error.data,
@@ -108,6 +110,7 @@ fn discovery_decode_error(port: Port, error: impl ToString) -> Report<Error> {
         format!("Unable to decode rpc.discover response from port {port}"),
         serde_json::json!({
             "stage": "discovery",
+            "method": "rpc.discover",
             "port": port,
             "error": error.to_string(),
         }),

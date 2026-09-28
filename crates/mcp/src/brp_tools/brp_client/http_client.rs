@@ -157,18 +157,23 @@ impl<'method> BrpHttpClient<'method> {
                 "BRP execute_brp_method: HTTP status error - status={}",
                 response.status()
             );
-            return Err(
-                error_stack::Report::new(Error::JsonRpc("HTTP error".to_string()))
-                    .attach(format!(
-                        "BRP server returned HTTP error {}: {}",
-                        response.status(),
-                        response
-                            .status()
-                            .canonical_reason()
-                            .unwrap_or("Unknown error")
-                    ))
-                    .attach(format!("Method: {}, Port: {}", self.brp_method, self.port)),
-            );
+            return Err(error_stack::Report::new(Error::JsonRpc(format!(
+                "HTTP status {}: {}",
+                response.status(),
+                response
+                    .status()
+                    .canonical_reason()
+                    .unwrap_or("Unknown error")
+            )))
+            .attach(format!(
+                "BRP server returned HTTP error {}: {}",
+                response.status(),
+                response
+                    .status()
+                    .canonical_reason()
+                    .unwrap_or("Unknown error")
+            ))
+            .attach(format!("Method: {}, Port: {}", self.brp_method, self.port)));
         }
 
         Ok(())

@@ -1,4 +1,28 @@
-# MCP server diagnostics and logs
+# MCP tools, diagnostics, and logs
+
+The normal `tools/list` registry has 47 native tools. The catalog of application methods is a
+separate BRP response: call `brp_list_agent_tools` with `{"port":15712}` on a running app. Select
+an entry by `name` and description, then pass its exact `method` and raw JSON parameters to
+`brp_execute`, for example `{"method":"test/multiply","params":{"value":6,"factor":7},"port":15712}`.
+The catalog may be empty; omitted `params_schema` or `result_schema` means the app supplied no
+schema. Catalog entries are not added to `tools/list`. For other one-shot methods,
+`rpc_discover` lists the live BRP methods that `brp_execute` can call. The default port is 15702.
+To start this repository's fixture through MCP, call `brp_launch` with
+`{"target_name":"extras_plugin","package_name":"bevy_brp_test_apps","search_order":"example","path":"tests/test-app","port":15712}`.
+The wire names are `target_name` and `package_name`; those fields have not been renamed.
+
+Tool calls return MCP `structuredContent` with `status`, `message`, `call_info`, and an optional
+raw business `result`. A large result may instead be a file reference with `saved_to_file`,
+`filepath`, `instructions`, and `original_size_tokens`; read the named file for the full value.
+Failures set MCP `isError` and `status="error"`. `error_info` carries stable context such as
+`stage`, `method`, `port`, BRP `code` and `data`, while `metadata` retains the earlier detail fields
+during migration. An unregistered method has `stage="discovery"` and `available_methods`.
+Invalid tool parameter types return `stage="parameter_validation"` with a reason.
+A watching method has `stage="unsupported_call_mode"`; use `world_get_components_watch` or
+`world_list_components_watch` for the supported watch subscriptions, then `brp_stop_watch`.
+Other watching methods have no MCP watch entry. An accepted input or queued text result does not
+prove that the UI responded; check application state separately. Screenshot success means the PNG
+has been published at the requested path.
 
 `bevy_brp_mcp` runs over stdio. Its normal build exposes application, BRP, watch, and log tools. It does not list or dispatch the server's own trace controls. A call to `brp_get_trace_log_path` or `brp_set_tracing_level` in this build returns an MCP unknown-tool error.
 

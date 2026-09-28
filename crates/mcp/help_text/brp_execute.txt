@@ -1,8 +1,18 @@
-Execute any BRP method registered on a running Bevy app.
+Execute a one-shot BRP method registered on a running Bevy app.
 
 The tool calls rpc.discover on the selected port, requires an exact method-name match, then forwards
 the caller-supplied params as raw JSON. Use brp_list_agent_tools first when the application publishes
 curated descriptions and raw parameter/result schemas, and follow its result.usage guidance.
+
+Example: {"method":"test/multiply","params":{"value":6,"factor":7},"port":15712}.
+Port defaults to 15702 and accepts 1024-65534. The method name must match exactly. An omitted params field sends no
+JSON-RPC params; supplied params are forwarded as raw JSON without application schema validation.
+The raw BRP value is returned in result. A null or missing BRP result may omit that field.
+
+Watching methods return unsupported_call_mode with method and port in error_info; use
+world_get_components_watch or world_list_components_watch for the supported stock watches.
+Other watching methods have no MCP watch entry. An unknown method returns stage=discovery
+and available_methods. BRP errors retain code and data in error_info.
 
 For MCP invocation, use brp_execute for discovery validation, timeout handling, and BRP error
 details. Direct HTTP JSON-RPC is a developer-only alternative outside MCP.

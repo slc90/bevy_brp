@@ -59,10 +59,14 @@ impl Response {
         details: Option<&Value>,
         call_info: CallInfo,
     ) -> ToolCallJsonResponse {
-        ResponseBuilder::error(call_info)
+        let mut response = ResponseBuilder::error(call_info)
             .message(message)
             .add_optional_details(details)
-            .build()
+            .build();
+        if let Some(Value::Object(details)) = details {
+            response.error_info = Some(AnySchemaValue(Value::Object(details.clone())));
+        }
+        response
     }
 }
 
@@ -433,7 +437,9 @@ impl ResponseBuilder {
 mod tests {
     use serde_json::json;
 
+    use super::Response;
     use super::ResponseBuilder;
+    use crate::tool::name::CallInfo;
 
     /// `TargetNotFoundInPackage` interpolates `available_package_names` into its
     /// message, so an array has to name its elements rather than count them.
@@ -456,5 +462,22 @@ mod tests {
     #[test]
     fn empty_array_renders_as_empty_string() {
         assert_eq!(ResponseBuilder::value_to_string(&json!([])), "");
+    }
+
+    #[test]
+    fn tool_error_details_remain_in_metadata_and_are_machine_readable() {
+        let response = Response::error_with_details(
+            "failed",
+            Some(
+                &json!({"stage":"execution","method":"world.query","port":15702,"code":-32602,"data":{"field":"data"}}),
+            ),
+            CallInfo::Local {
+                mcp_tool: "test".to_string(),
+            },
+        );
+        let wire = serde_json::to_value(response).unwrap();
+        assert_eq!(wire["metadata"]["code"], -32602);
+        assert_eq!(wire["error_info"]["code"], -32602);
+        assert_eq!(wire["error_info"]["data"]["field"], "data");
     }
 }
