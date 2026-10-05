@@ -35,6 +35,16 @@ cargo build -p bevy_brp_runtime --example runtime_custom_port --locked
 
 ## 覆盖边界
 
+多窗口 keyboard 回归使用 `keyboard_windows` 宿主和本地 MCP stdio，验证可选 `window` schema、secondary 的文本与 press/release、默认 PrimaryWindow、无效和已销毁 target 错误，以及关闭窗口时中止长 typing/hold 并清理 Ctrl/Shift。截图和结构化状态分别记录在输出目录，fixture 只展示事件路由，不代表具体 Widget 的 focus 或编辑行为验收。需要 Python 3 和上述 Windows 桌面条件：
+
+```powershell
+cargo build --workspace --locked
+cargo build --workspace --example keyboard_windows --locked
+python tests/keyboard-window-regression.py --port 15816 --output target/keyboard-window-evidence
+```
+
+输出目录必须尚不存在，端口必须空闲。脚本只关闭本轮启动的应用，并检查应用、MCP 进程与端口退出。失败时保留交互日志用于诊断。
+
 `tests/test-duplicate-a` 与 `tests/test-duplicate-b` 保留跨 package 同名 target 的发现/消歧场景；`tests/test-app` 的同名 bin/example 保护 target kind 选择，`extras_plugin/screenshot_fixtures.rs` 提供截图边界和确定性图像。它们是供 MCP 启动的宿主，不因 `cargo test --workspace` 运行而自动完成协议验证。runtime 的 mailbox/deadline 与持续动作推进、extras 的 agent tool 注册、输入和截图边界仍由各 package 的测试覆盖。
 
 本入口重放方案 01 中已证实的场景。输入只检查排队结果，未断言最终 UI 文本；其他键盘、鼠标、手势、资源 CRUD、entity 创建/销毁/重设父级、事件与 type guide 的完整真实调用仍未覆盖。MCP 自诊断在该重放中检查调用成功，未将 trace 文件内容或 token 用量设为 contract。原始 before 数据与当时的两个 Windows build-freshness 测试失败记录在[基线记录](../plans/refactor/01-baseline.md)；当前测试结果须重新运行判定，不能沿用旧结论。

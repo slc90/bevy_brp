@@ -8,10 +8,14 @@ use bevy::prelude::Entity;
 use bevy::prelude::With;
 use bevy::prelude::World;
 use bevy::window::PrimaryWindow;
+use bevy::window::Window;
+use bevy_remote::BrpError;
+use bevy_remote::error_codes::INVALID_PARAMS;
+use serde_json::json;
 
 use super::key_code::KeyCodeWrapper;
 
-/// The window every injected keyboard event names: the primary window when
+/// The default window injected keyboard events name: the primary window when
 /// the app has one, `Entity::PLACEHOLDER` otherwise.
 ///
 /// Real `winit` events carry their window, and text editors compare it
@@ -22,6 +26,23 @@ pub(super) fn primary_window_entity(world: &mut World) -> Entity {
         .query_filtered::<Entity, With<PrimaryWindow>>()
         .single(world)
         .unwrap_or(Entity::PLACEHOLDER)
+}
+
+/// Resolve the request's window before emitting input or creating pending work.
+pub(super) fn resolve_window(
+    world: &mut World,
+    requested: Option<u64>,
+) -> Result<Entity, BrpError> {
+    let Some(bits) = requested else {
+        return Ok(primary_window_entity(world));
+    };
+    Entity::try_from_bits(bits)
+        .filter(|entity| world.get::<Window>(*entity).is_some())
+        .ok_or_else(|| BrpError {
+            code: INVALID_PARAMS,
+            message: format!("Invalid window {bits}: target does not have a live Window component"),
+            data: Some(json!({"window": bits})),
+        })
 }
 
 /// Create keyboard events from validated key code wrappers, addressed to `window`.

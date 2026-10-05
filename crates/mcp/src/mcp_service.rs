@@ -179,4 +179,27 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn keyboard_tools_publish_optional_window_target() {
+        let service = McpService::new();
+        let listing = serde_json::to_value(service.list_mcp_tools()).unwrap();
+        for name in ["brp_extras_send_keys", "brp_extras_type_text"] {
+            let tool = listing["tools"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|tool| tool["name"] == name)
+                .unwrap();
+            let schema = &tool["inputSchema"];
+            assert!(schema["properties"]["window"].is_object(), "{name}");
+            assert!(
+                !schema["required"]
+                    .as_array()
+                    .unwrap()
+                    .contains(&serde_json::json!("window"))
+            );
+            assert!(tool["description"].as_str().unwrap().contains("window"));
+        }
+    }
 }

@@ -16,13 +16,13 @@ edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/slc90/bevy_brp"
 rust-version = "1.98.1"
-version = "0.2.1"
+version = "0.2.2"
 
 [workspace.dependencies]
 # Bevy with no default features - each crate specifies what it needs
 bevy            = { version = "0.19.1", default-features = false }
-bevy_brp_extras = { version = "0.2.1", path = "crates/extras" }
-bevy_brp_runtime = { version = "0.2.1", path = "crates/runtime" }
+bevy_brp_extras = { version = "0.2.2", path = "crates/extras" }
+bevy_brp_runtime = { version = "0.2.2", path = "crates/runtime" }
 bevy_mesh       = { version = "0.19.1" }
 bevy_remote     = { version = "0.19.1", default-features = false }
 bevy_winit      = { version = "0.19.1" }
@@ -32,7 +32,7 @@ anyhow = "1.0"
 async-channel = "2.5.0"
 async-io = "2.6.0"
 async-trait = "0.1.92"
-bevy_brp_mcp_macros = { version = "0.2.1", path = "crates/mcp_macros" }
+bevy_brp_mcp_macros = { version = "0.2.2", path = "crates/mcp_macros" }
 cargo_metadata = "0.23"
 chrono = "0.4"
 either = "1.18.0"

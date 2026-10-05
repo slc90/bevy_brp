@@ -19,6 +19,10 @@ pub struct SendKeysParams {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub duration_ms: Option<u32>,
 
+    /// Optional target window entity bits. Defaults to the primary window.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub window: Option<u64>,
+
     /// The BRP port (default: 15702)
     #[serde(default)]
     pub port: Port,

@@ -6,7 +6,6 @@ use std::time::Duration;
 use bevy::input::ButtonState;
 use bevy::input::keyboard::KeyboardInput;
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
 use bevy::window::WindowEvent;
 use bevy_remote::BrpError;
 use bevy_remote::BrpResult;
@@ -34,6 +33,8 @@ pub(super) struct TimedKeyRelease {
     pub(super) keys: Vec<KeyCodeWrapper>,
     /// Timer tracking the remaining duration
     pub(super) timer: Timer,
+    /// Window captured when the request was accepted.
+    window: Entity,
 }
 
 /// Request structure for `send_keys`
@@ -44,6 +45,8 @@ pub(super) struct SendKeysRequest {
     /// Duration in milliseconds to hold the keys before releasing
     #[serde(default = "default_duration")]
     duration_ms: u32,
+    /// Optional window entity bits. Omission selects the primary window.
+    window: Option<u64>,
 }
 
 /// Response structure for `send_keys`
@@ -93,6 +96,7 @@ fn validate_keys(keys: &[String]) -> Result<Vec<(String, KeyCodeWrapper)>, BrpEr
 /// - Request parameters are missing
 /// - Request format is invalid
 /// - Any key code is invalid or unknown
+/// - An explicit window does not have a live `Window` component
 pub(crate) fn send_keys_handler(In(params): In<Option<Value>>, world: &mut World) -> BrpResult {
     // Parse the request
     let request: SendKeysRequest = if let Some(params) = params {
@@ -126,8 +130,7 @@ pub(crate) fn send_keys_handler(In(params): In<Option<Value>>, world: &mut World
         });
     }
 
-    // Always send press events first, addressed to the primary window
-    let window = events::primary_window_entity(world);
+    let window = events::resolve_window(world, request.window)?;
     let press_events = events::create_keyboard_events(&wrappers, ButtonState::Pressed, window);
     for event in press_events {
         window_event::write_input_event(world, event);
@@ -139,6 +142,7 @@ pub(crate) fn send_keys_handler(In(params): In<Option<Value>>, world: &mut World
         world.spawn(TimedKeyRelease {
             _activity: activity,
             keys: wrappers,
+            window,
             timer: Timer::new(
                 Duration::from_millis(u64::from(request.duration_ms)),
                 TimerMode::Once,
@@ -158,18 +162,23 @@ pub(super) fn process_timed_key_releases(
     mut commands: Commands,
     time: Res<Time>,
     mut query: Query<(Entity, &mut TimedKeyRelease)>,
-    primary_window: Query<Entity, With<PrimaryWindow>>,
+    windows: Query<(), With<Window>>,
     mut keyboard_events: MessageWriter<KeyboardInput>,
     mut window_events: MessageWriter<WindowEvent>,
 ) {
-    let window = primary_window.single().unwrap_or(Entity::PLACEHOLDER);
     for (entity, mut timed_release) in &mut query {
         timed_release.timer.tick(time.delta());
 
-        if timed_release.timer.is_finished() {
+        let target_gone =
+            timed_release.window != Entity::PLACEHOLDER && !windows.contains(timed_release.window);
+        if timed_release.timer.is_finished() || target_gone {
+            // 销毁后仍向原 target 发送 release，清理全局按键状态，不转发到其他窗口。
             // Send release events for all keys (text is None for release events)
-            let release_events =
-                events::create_keyboard_events(&timed_release.keys, ButtonState::Released, window);
+            let release_events = events::create_keyboard_events(
+                &timed_release.keys,
+                ButtonState::Released,
+                timed_release.window,
+            );
             for event in release_events {
                 window_events.write(WindowEvent::from(event.clone()));
                 keyboard_events.write(event);

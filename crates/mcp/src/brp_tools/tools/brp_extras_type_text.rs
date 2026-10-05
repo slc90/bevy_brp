@@ -1,4 +1,4 @@
-//! `brp_extras/type_text` tool - Type text sequentially (one char per frame)
+//! `brp_extras/type_text` tool - Type text sequentially with press/release cycles.
 
 use bevy_brp_mcp_macros::ParamStruct;
 use bevy_brp_mcp_macros::ResultStruct;
@@ -14,6 +14,10 @@ use crate::brp_tools::Port;
 pub struct TypeTextParams {
     /// Text to type (supports letters, numbers, symbols, newlines, tabs)
     pub text: String,
+
+    /// Optional target window entity bits. Defaults to the primary window.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub window: Option<u64>,
 
     /// The BRP port (default: 15702)
     #[serde(default)]

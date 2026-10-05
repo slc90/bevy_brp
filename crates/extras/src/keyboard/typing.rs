@@ -6,7 +6,6 @@ use std::str::FromStr;
 use bevy::input::ButtonState;
 use bevy::input::keyboard::KeyboardInput;
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
 use bevy::window::WindowEvent;
 use bevy_remote::BrpError;
 use bevy_remote::BrpResult;
@@ -31,7 +30,7 @@ pub(super) enum TypingPhase {
     ReleaseCurrentKeys,
 }
 
-/// Component for sequential text typing (one character per frame).
+/// Component for sequential text typing with alternating press/release frames.
 /// Used by `type_text` RPC to simulate realistic typing.
 #[derive(Component)]
 pub(super) struct TextTypingQueue {
@@ -45,6 +44,8 @@ pub(super) struct TextTypingQueue {
     current_char: Option<char>,
     /// Current phase of the typing state machine
     typing_phase: TypingPhase,
+    /// Window captured when the request was accepted.
+    window: Entity,
 }
 
 /// Request structure for `type_text`
@@ -52,6 +53,8 @@ pub(super) struct TextTypingQueue {
 pub(super) struct TypeTextRequest {
     /// Text to type (supports letters, numbers, symbols, newlines, tabs)
     text: String,
+    /// Optional window entity bits. Omission selects the primary window.
+    window: Option<u64>,
 }
 
 /// Response structure for `type_text`
@@ -133,7 +136,12 @@ fn char_to_keys(c: char) -> Option<Vec<KeyCodeWrapper>> {
 }
 
 /// Handler for the `type_text` BRP method.
-/// Types text one character per frame, simulating realistic keyboard input.
+/// Captures the target once and types text with alternating press/release frames.
+///
+/// # Errors
+///
+/// Returns `INVALID_PARAMS` for missing/malformed parameters or an explicit
+/// target without a live `Window` component, before queuing any input.
 pub(crate) fn type_text_handler(In(params): In<Option<Value>>, world: &mut World) -> BrpResult {
     let request: TypeTextRequest = if let Some(params) = params {
         serde_json::from_value(params).map_err(|e| BrpError {
@@ -149,6 +157,7 @@ pub(crate) fn type_text_handler(In(params): In<Option<Value>>, world: &mut World
         });
     };
 
+    let window = events::resolve_window(world, request.window)?;
     if request.text.is_empty() {
         return Ok(json!(TypeTextResponse {
             success: true,
@@ -180,6 +189,7 @@ pub(crate) fn type_text_handler(In(params): In<Option<Value>>, world: &mut World
             current_keys: vec![],
             current_char: None,
             typing_phase: TypingPhase::PressNext,
+            window,
         });
     }
 
@@ -190,16 +200,28 @@ pub(crate) fn type_text_handler(In(params): In<Option<Value>>, world: &mut World
     }))
 }
 
-/// System that processes text typing queues (one character per frame).
+/// System that processes text typing queues with alternating press/release frames.
 pub(super) fn process_text_typing(
     mut commands: Commands,
     mut query: Query<(Entity, &mut TextTypingQueue)>,
-    primary_window: Query<Entity, With<PrimaryWindow>>,
+    windows: Query<(), With<Window>>,
     mut keyboard_events: MessageWriter<KeyboardInput>,
     mut window_events: MessageWriter<WindowEvent>,
 ) {
-    let window = primary_window.single().unwrap_or(Entity::PLACEHOLDER);
     for (entity, mut queue) in &mut query {
+        let window = queue.window;
+        let target_gone = window != Entity::PLACEHOLDER && !windows.contains(window);
+        if target_gone {
+            // 停止未输入字符，仅向原 target 释放已按下的按键。
+            for event in
+                events::create_keyboard_events(&queue.current_keys, ButtonState::Released, window)
+            {
+                window_events.write(WindowEvent::from(event.clone()));
+                keyboard_events.write(event);
+            }
+            commands.entity(entity).despawn();
+            continue;
+        }
         match queue.typing_phase {
             TypingPhase::ReleaseCurrentKeys => {
                 // Release the current keys

@@ -29,16 +29,22 @@ mod tests {
     use bevy::app::App;
     use bevy::app::Update;
     use bevy::ecs::message::MessageCursor;
+    use bevy::input::ButtonInput;
     use bevy::input::ButtonState;
+    use bevy::input::InputPlugin;
+    use bevy::input::keyboard::KeyCode;
     use bevy::input::keyboard::KeyboardInput;
     use bevy::prelude::Entity;
     use bevy::prelude::In;
     use bevy::prelude::Messages;
     use bevy::prelude::MinimalPlugins;
+    use bevy::prelude::World;
     use bevy::window::PrimaryWindow;
     use bevy::window::Window;
     use bevy::window::WindowEvent;
+    use bevy_remote::BrpResult;
     use bevy_remote::error_codes::INVALID_PARAMS;
+    use serde_json::Value;
     use serde_json::json;
     use strum::IntoEnumIterator;
 
@@ -50,6 +56,7 @@ mod tests {
     use super::send_keys_handler;
     use super::type_text_handler;
     use super::typing;
+    use super::typing::TextTypingQueue;
     use crate::activity::BrpExtrasActivity;
     use crate::constants::MISSING_REQUEST_PARAMETERS_MESSAGE;
 
@@ -75,6 +82,319 @@ mod tests {
             .filter(|event| event.state == ButtonState::Pressed)
             .cloned()
             .collect()
+    }
+
+    #[test]
+    fn secondary_target_presses_and_releases_keep_the_original_window() {
+        let (mut app, primary) = app_with_primary_window();
+        app.add_plugins(super::KeyboardPlugin);
+        let secondary = app.world_mut().spawn(Window::default()).id();
+        send_keys_handler(
+            In(Some(
+                json!({"keys":["ControlLeft","KeyA"],"duration_ms":0,"window":secondary.to_bits()}),
+            )),
+            app.world_mut(),
+        )
+        .unwrap();
+        assert!(
+            keyboard_presses(&app)
+                .iter()
+                .all(|event| event.window == secondary)
+        );
+        app.world_mut()
+            .entity_mut(primary)
+            .remove::<PrimaryWindow>();
+        app.world_mut().spawn((Window::default(), PrimaryWindow));
+        app.update();
+        let messages = app.world().resource::<Messages<KeyboardInput>>();
+        let events: Vec<_> = MessageCursor::default().read(messages).cloned().collect();
+        assert_eq!(events.len(), 4);
+        assert!(events.iter().all(|event| event.window == secondary));
+        assert_eq!(
+            events
+                .iter()
+                .filter(|event| event.state == ButtonState::Released)
+                .count(),
+            2
+        );
+    }
+
+    #[test]
+    fn default_release_does_not_follow_a_replaced_primary_marker() {
+        let (mut app, primary) = app_with_primary_window();
+        app.add_plugins(super::KeyboardPlugin);
+        send_keys_handler(
+            In(Some(json!({"keys":["ShiftLeft"],"duration_ms":0}))),
+            app.world_mut(),
+        )
+        .unwrap();
+        app.world_mut()
+            .entity_mut(primary)
+            .remove::<PrimaryWindow>();
+        app.world_mut().spawn((Window::default(), PrimaryWindow));
+        app.update();
+        let events = app.world().resource::<Messages<KeyboardInput>>();
+        assert!(
+            MessageCursor::default()
+                .read(events)
+                .all(|event| event.window == primary)
+        );
+    }
+
+    #[test]
+    fn secondary_typing_keeps_target_across_primary_changes() {
+        let (mut app, primary) = app_with_primary_window();
+        app.add_plugins(super::KeyboardPlugin);
+        let secondary = app.world_mut().spawn(Window::default()).id();
+        type_text_handler(
+            In(Some(json!({"text":"Ab","window":secondary.to_bits()}))),
+            app.world_mut(),
+        )
+        .unwrap();
+        let mut cursor = MessageCursor::<KeyboardInput>::default();
+        let mut observed = Vec::new();
+        for index in 0..4 {
+            app.update();
+            observed.extend(
+                cursor
+                    .read(app.world().resource::<Messages<KeyboardInput>>())
+                    .cloned(),
+            );
+            if index == 0 {
+                app.world_mut()
+                    .entity_mut(primary)
+                    .remove::<PrimaryWindow>();
+                app.world_mut().spawn((Window::default(), PrimaryWindow));
+            }
+        }
+        assert_eq!(observed.len(), 6);
+        assert!(observed.iter().all(|event| event.window == secondary));
+        let text: String = observed
+            .iter()
+            .filter_map(|event| event.text.as_deref())
+            .collect();
+        assert_eq!(text, "Ab");
+        assert!(
+            !app.world()
+                .resource::<BrpExtrasActivity>()
+                .state()
+                .is_active()
+        );
+    }
+
+    #[test]
+    fn default_typing_keeps_the_window_selected_at_request_time() {
+        let (mut app, primary) = app_with_primary_window();
+        app.add_plugins(super::KeyboardPlugin);
+        type_text_handler(In(Some(json!({"text":"ab"}))), app.world_mut()).unwrap();
+        app.world_mut()
+            .entity_mut(primary)
+            .remove::<PrimaryWindow>();
+        app.world_mut().spawn((Window::default(), PrimaryWindow));
+        let mut cursor = MessageCursor::<KeyboardInput>::default();
+        let mut observed = Vec::new();
+        for _ in 0..4 {
+            app.update();
+            observed.extend(
+                cursor
+                    .read(app.world().resource::<Messages<KeyboardInput>>())
+                    .cloned(),
+            );
+        }
+        assert_eq!(observed.len(), 4);
+        assert!(observed.iter().all(|event| event.window == primary));
+    }
+
+    #[test]
+    fn explicit_window_works_without_a_primary_window() {
+        let (mut app, window) = app_with_primary_window();
+        app.world_mut().entity_mut(window).remove::<PrimaryWindow>();
+        app.add_plugins(super::KeyboardPlugin);
+        send_keys_handler(
+            In(Some(
+                json!({"keys":["KeyA"],"duration_ms":0,"window":window.to_bits()}),
+            )),
+            app.world_mut(),
+        )
+        .unwrap();
+        type_text_handler(
+            In(Some(json!({"text":"b","window":window.to_bits()}))),
+            app.world_mut(),
+        )
+        .unwrap();
+        let mut cursor = MessageCursor::<KeyboardInput>::default();
+        let mut observed = Vec::new();
+        for _ in 0..2 {
+            app.update();
+            observed.extend(
+                cursor
+                    .read(app.world().resource::<Messages<KeyboardInput>>())
+                    .cloned(),
+            );
+        }
+        assert_eq!(observed.len(), 4);
+        assert!(observed.iter().all(|event| event.window == window));
+    }
+
+    #[test]
+    fn target_destroyed_before_first_typing_frame_emits_no_input() {
+        let (mut app, _) = app_with_primary_window();
+        app.add_plugins(super::KeyboardPlugin);
+        let secondary = app.world_mut().spawn(Window::default()).id();
+        type_text_handler(
+            In(Some(json!({"text":"AB","window":secondary.to_bits()}))),
+            app.world_mut(),
+        )
+        .unwrap();
+        app.world_mut().entity_mut(secondary).despawn();
+        app.update();
+        assert_eq!(app.world().resource::<Messages<KeyboardInput>>().len(), 0);
+        assert!(
+            !app.world()
+                .resource::<BrpExtrasActivity>()
+                .state()
+                .is_active()
+        );
+    }
+
+    #[test]
+    fn invalid_explicit_targets_reject_without_input_or_pending_work() {
+        let (mut app, _) = app_with_primary_window();
+        let non_window = app.world_mut().spawn_empty().id();
+        let stale = app.world_mut().spawn(Window::default()).id();
+        app.world_mut().entity_mut(stale).despawn();
+        for target in [0, u64::MAX, non_window.to_bits(), stale.to_bits()] {
+            for empty in [false, true] {
+                let requests: [(fn(In<Option<Value>>, &mut World) -> BrpResult, Value); 2] = [
+                    (
+                        send_keys_handler,
+                        json!({"keys":if empty {Vec::<String>::new()} else {vec!["ControlLeft".into()]},"window":target}),
+                    ),
+                    (
+                        type_text_handler,
+                        json!({"text":if empty {""} else {"AB"},"window":target}),
+                    ),
+                ];
+                for (handler, request) in requests {
+                    let error = handler(In(Some(request)), app.world_mut()).unwrap_err();
+                    assert_eq!(error.code, INVALID_PARAMS);
+                    assert!(error.message.contains("window"));
+                    assert_eq!(error.data.as_ref().unwrap()["window"], target);
+                }
+            }
+        }
+        assert_eq!(app.world().resource::<Messages<KeyboardInput>>().len(), 0);
+        assert_eq!(
+            app.world_mut()
+                .query::<&TimedKeyRelease>()
+                .iter(app.world())
+                .count(),
+            0
+        );
+        assert_eq!(
+            app.world_mut()
+                .query::<&TextTypingQueue>()
+                .iter(app.world())
+                .count(),
+            0
+        );
+    }
+
+    #[test]
+    fn destroyed_timed_target_releases_modifiers_and_ends_activity() {
+        let (mut app, _) = app_with_primary_window();
+        app.add_plugins((InputPlugin, super::KeyboardPlugin));
+        let secondary = app.world_mut().spawn(Window::default()).id();
+        send_keys_handler(In(Some(json!({"keys":["ControlLeft","ShiftLeft"],"duration_ms":60000,"window":secondary.to_bits()}))), app.world_mut()).unwrap();
+        app.update();
+        assert!(
+            app.world()
+                .resource::<ButtonInput<KeyCode>>()
+                .pressed(KeyCode::ControlLeft)
+        );
+        app.world_mut().entity_mut(secondary).despawn();
+        app.update();
+        let events = app.world().resource::<Messages<KeyboardInput>>();
+        let releases: Vec<_> = MessageCursor::default()
+            .read(events)
+            .filter(|event| event.state == ButtonState::Released)
+            .cloned()
+            .collect();
+        assert_eq!(releases.len(), 2);
+        assert!(releases.iter().all(|event| event.window == secondary));
+        app.update();
+        assert!(
+            !app.world()
+                .resource::<ButtonInput<KeyCode>>()
+                .pressed(KeyCode::ControlLeft)
+        );
+        assert!(
+            !app.world()
+                .resource::<ButtonInput<KeyCode>>()
+                .pressed(KeyCode::ShiftLeft)
+        );
+        assert!(
+            !app.world()
+                .resource::<BrpExtrasActivity>()
+                .state()
+                .is_active()
+        );
+    }
+
+    #[test]
+    fn destroyed_typing_target_stops_remaining_characters_and_releases_shift() {
+        let (mut app, _) = app_with_primary_window();
+        app.add_plugins((InputPlugin, super::KeyboardPlugin));
+        let secondary = app.world_mut().spawn(Window::default()).id();
+        type_text_handler(
+            In(Some(json!({"text":"AB","window":secondary.to_bits()}))),
+            app.world_mut(),
+        )
+        .unwrap();
+        app.update();
+        let mut cursor = MessageCursor::<KeyboardInput>::default();
+        let initial: Vec<_> = cursor
+            .read(app.world().resource::<Messages<KeyboardInput>>())
+            .cloned()
+            .collect();
+        assert_eq!(
+            initial
+                .iter()
+                .filter_map(|event| event.text.as_deref())
+                .collect::<String>(),
+            "A"
+        );
+        app.world_mut().entity_mut(secondary).remove::<Window>();
+        app.update();
+        app.update();
+        let remaining: Vec<_> = cursor
+            .read(app.world().resource::<Messages<KeyboardInput>>())
+            .cloned()
+            .collect();
+        assert_eq!(remaining.len(), 2);
+        assert!(
+            remaining
+                .iter()
+                .all(|event| event.state == ButtonState::Released && event.window == secondary)
+        );
+        assert!(
+            !app.world()
+                .resource::<ButtonInput<KeyCode>>()
+                .pressed(KeyCode::ShiftLeft)
+        );
+        assert!(
+            !app.world()
+                .resource::<BrpExtrasActivity>()
+                .state()
+                .is_active()
+        );
+        assert_eq!(
+            app.world_mut()
+                .query::<&TextTypingQueue>()
+                .iter(app.world())
+                .count(),
+            0
+        );
     }
 
     /// A press from `send_keys` names the primary window, the way a `winit`

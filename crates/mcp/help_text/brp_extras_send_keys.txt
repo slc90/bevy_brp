@@ -1,5 +1,7 @@
 Sends keyboard input to Bevy apps via bevy_brp_extras. Performs complete press-hold-release cycles for testing, remote control, and automation.
 
+Optional `window` accepts window entity bits (u64). Omission selects PrimaryWindow, or the existing placeholder behavior in headless apps. An explicit target must have a live Window component, otherwise the request returns INVALID_PARAMS without sending input. Press and delayed release use the window captured when the request starts, even if focus or PrimaryWindow changes. If that window disappears, pending work ends and held keys are released to the original target to clear input state. Input never falls back to another window.
+
 Key formats: Letters (KeyA-Z), Digits (Digit0-9), Function (F1-F24), Modifiers (ShiftLeft/Right, ControlLeft/Right, AltLeft/Right, SuperLeft/Right), Navigation (Arrows, Home/End, PageUp/Down), Editing (Enter, Tab, Space, Backspace, Delete, Escape).
 
 Platform-specific modifiers:
@@ -11,5 +13,6 @@ Examples:
 {"keys": ["KeyH", "KeyI"]}              // Type "hi"
 {"keys": ["Space"], "duration_ms": 2000} // Hold space 2 sec
 {"keys": ["ShiftLeft", "KeyA"]}         // Shift+A combo
+{"keys": ["ControlLeft", "KeyA"], "window": 4294967298} // Explicit window entity bits
 ```
 Prerequisites: bevy_brp_extras dependency and BrpExtrasPlugin registered.

@@ -30,6 +30,10 @@ path = "examples/event_test.rs"
 name = "mouse_test"
 path = "examples/mouse_test.rs"
 
+[[example]]
+name = "keyboard_windows"
+path = "examples/keyboard_windows.rs"
+
 # Same name as the [[bin]] above — tests that brp_list_bevy distinguishes by kind
 [[example]]
 name = "test_app"

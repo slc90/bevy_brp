@@ -114,6 +114,14 @@
 //!
 //! ## Keyboard
 //!
+//! Both methods accept optional `window` entity bits (u64). Omission captures
+//! the primary window, or a placeholder in headless apps. Explicit targets
+//! must have a live `Window` component or the request returns `INVALID_PARAMS`
+//! without input side effects. All press/release events retain the captured
+//! window despite focus or primary-window changes. When it disappears, pending
+//! input is cancelled and held keys are released to that original target to
+//! clear global input state. No input is redirected to another window.
+//!
 //! ### `brp_extras/send_keys`
 //! Simulates keyboard input with a press-hold-release cycle. All keys are
 //! pressed simultaneously and held for the specified duration.
@@ -121,7 +129,7 @@
 //! - `duration_ms` (u32, optional, default: 100, max: 60000): hold duration in milliseconds
 //!
 //! ### `brp_extras/type_text`
-//! Types text sequentially, one character per frame, with proper shift handling
+//! Types text sequentially, alternating press and release frames, with proper shift handling
 //! for uppercase and symbols.
 //! - `text` (string, required): text to type (letters, numbers, symbols, newlines, tabs)
 //!
