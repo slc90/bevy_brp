@@ -37,26 +37,23 @@ cargo build -p bevy_brp_mcp --locked
 
 Configure the MCP client to launch `target/debug/bevy_brp_mcp.exe` over stdio, using an absolute path to the built executable. The normal build provides App discovery, BRP, watch, input, screenshot, and App log tools. For server trace controls, explicitly build with `cargo build -p bevy_brp_mcp --locked --features mcp-debug` and launch that executable. The diagnostic build adds two trace tools; application log tools remain available in the normal build. See [MCP usage and result contracts](docs/mcp.md).
 
-This checkout's production packages are version `0.3.0`, with a compatibility change to ordinary mouse input. Use the same full handoff commit for the runtime, Extras and MCP. The earlier `v0.2.2` tag does not contain Custom Pointer input. This change creates no release tag and does not publish crates to crates.io; a remote Git installation requires the handoff commit to be available on that remote.
+This checkout's production packages are version `0.3.1`, available through the `v0.3.1` Git tag. This version upgrades rmcp to 3.5.1 and removes the MCP server's `ServerInfo` deprecation warnings. It retains the ordinary mouse compatibility change introduced in `0.3.0`. Packages are consumed from Git; they are not published to crates.io.
 
-Replace the placeholder below with the full 40-character commit from the completed handoff. Use the same `rev` for Extras if your App imports it directly:
+Use the same tag for the runtime, Extras and MCP. Include Extras if your App imports it directly:
 
 ```toml
 [dependencies]
-bevy_brp_runtime = { git = "https://github.com/slc90/bevy_brp.git", rev = "<FULL_POINTER_COMMIT>" }
-bevy_brp_extras = { git = "https://github.com/slc90/bevy_brp.git", rev = "<FULL_POINTER_COMMIT>" }
+bevy_brp_runtime = { git = "https://github.com/slc90/bevy_brp.git", tag = "v0.3.1" }
+bevy_brp_extras = { git = "https://github.com/slc90/bevy_brp.git", tag = "v0.3.1" }
 ```
 
-Build or install MCP from that exact checkout. The following local installation avoids requiring publication; the client should launch the executable under the specified installation root:
+Install MCP from the same Git tag:
 
 ```powershell
-$pointerCommit = '<FULL_POINTER_COMMIT>'
-git checkout --detach $pointerCommit
-git rev-parse HEAD
-cargo install --path crates/mcp --locked --root target/pointer-mcp-install
+cargo install --git https://github.com/slc90/bevy_brp.git --tag v0.3.1 --locked bevy_brp_mcp
 ```
 
-After the same commit is available remotely, the equivalent Git installation is `cargo install --git https://github.com/slc90/bevy_brp.git --rev $pointerCommit --locked bevy_brp_mcp`. Add `--features mcp-debug` only when selecting the diagnostic server. Never pair the new App libraries with the old MCP installation. Consumers such as Widgetry must update their runtime/Extras Git revision, MCP installation command, tool-version metadata and Cargo.lock together; this repository does not modify that consumer.
+For a local checkout of `v0.3.1`, use `cargo install --path crates/mcp --locked`. Add `--features mcp-debug` only when selecting the diagnostic server. The client should launch the executable from the installation's `bin` directory. Never pair the new App libraries with the old MCP installation. Consumers such as Widgetry must update their runtime/Extras Git tag or revision, MCP installation command, tool-version metadata and Cargo.lock together; this repository does not modify that consumer.
 
 ## Ordinary mouse compatibility in 0.3.0
 
