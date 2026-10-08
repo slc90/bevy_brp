@@ -35,6 +35,25 @@ cargo build -p bevy_brp_runtime --example runtime_custom_port --locked
 
 ## 覆盖边界
 
+普通 Custom Pointer 的 Windows 桌面回归使用 `pointer_test` 宿主和共享 stdio client `tests/mcp_stdio.py`，独立于历史输入接受回放：
+
+```powershell
+cargo build --workspace --locked
+cargo build --workspace --example pointer_test --locked
+cargo test --workspace --example pointer_test --locked
+python tests/pointer-regression.py --port 15828 --output target/pointer-evidence
+```
+
+输出目录必须尚不存在、测试 port 必须空闲。测试期间保持系统鼠标静止；脚本只读 Win32 cursor/foreground PID，将 inactive 宿主窗口放在 cursor 基线之外，未激活窗口或注入 OS 输入。宿主保留 `WinitSettings::desktop_app()`，使用默认 UI Picking backend、stock Button、普通拖动目标与 scroll overflow。fixture observer 按 Pointer 输入更新真实 Node/ScrollPosition，脚本经 `fixture/state` 读出实际行为，不直接写业务 state。场景覆盖三按钮、首次 move+click/后续无 Move 点击、零时长按键、引擎多击阈值内外、最小步数跨目标拖放、Line/Pixel 滚动、stock Button 离开目标后取消、唯一 Cancel/无成功激活、多轮 UUID 复用、严格 control 参数、已销毁窗口、idle active Pointer 有界续帧与 activity 归零。
+
+证据分开保存：`tools-list.json`、`interaction.jsonl`、两窗口截图、`desktop-baseline.json` / `desktop-after.json`、`summary.json` 和 fixture 日志。截图须实际查看。raw 计数包含 individual mouse/cursor channels 与 WindowEvent mouse variants；keyboard/gesture 不混入零注入断言。只有 cursor 前后相等、OS foreground 未变、窗口实际未获焦点、raw 未增长且 UI 断言通过，才能声称桌面隔离通过；失败保留记录，不能用 headless 测试替代。脚本 finally 释放 Pointer、正常关闭本轮 PID、结束 MCP 并核查端口；正常关闭失败会报告失败并只终止本轮已核实的 PID。Native Window move/resize 区域不支持并排除在场景之外。
+
+`mouse_test` 的 raw/native 字段只展示物理输入，不能当作新普通 BRP 鼠标方法的成功计数；cuboid Picking 部分仍接收 Pointer。`extras_plugin` 通用组件/截图 fixture 与 `event_test` 事件用途保持独立。Extras 私有 Picking/RayMap 回归覆盖物理交接、不同 DPI 的窗口逻辑坐标、无关 raw 保留、暂停虚拟时间、generation 及失效；它们不证明 OS cursor 隔离。
+
+2026-10-08 本地实测：受控 Pointer 桌面链通过，cursor 前后均为 `(944, 615)`，foreground PID 未变，两个宿主 Window 均未获焦点且 native cursor 为 null；五类 raw 计数均未增长。真实按钮、双击、拖放和 Line/Pixel 滚动断言通过，两张截图已查看；idle 的两次查询间隔 0.5 秒，updates 从 482 增至 488，activity 为零；窗口销毁后归为 inactive 并保留来源 method/window 错误，App/MCP/端口清理通过。记录位于本地忽略目录 `target/pointer-stage05-controlled/`。此前一轮 cursor 发生变化，不能作为隔离通过证据；受控重跑后才得到上述结论。
+
+同轮 workspace fmt/check/Clippy/test/build、Extras 三种独立 feature 与 MCP no-default check 通过；stock Button 取消回归作为 `pointer_test` example test 自动随 workspace test 执行。共享 stdio client 下的 keyboard 桌面链、普通公共 MCP、普通/诊断目录回归（47/49 工具）以及诊断历史图形回放通过，历史 `NatesList` 图像已查看，进程/端口和 trace 清理通过。既有同名 fixture build warning 与 9 个 ignored doctest 保留。Native Window move/resize、Widgetry 具体控件和硬件多 DPI 桌面未验收；DPI 逻辑坐标已有自动化覆盖。
+
 多窗口 keyboard 回归使用 `keyboard_windows` 宿主和本地 MCP stdio，验证可选 `window` schema、secondary 的文本与 press/release、默认 PrimaryWindow、无效和已销毁 target 错误，以及关闭窗口时中止长 typing/hold 并清理 Ctrl/Shift。截图和结构化状态分别记录在输出目录，fixture 只展示事件路由，不代表具体 Widget 的 focus 或编辑行为验收。需要 Python 3 和上述 Windows 桌面条件：
 
 ```powershell
@@ -47,4 +66,4 @@ python tests/keyboard-window-regression.py --port 15816 --output target/keyboard
 
 `tests/test-duplicate-a` 与 `tests/test-duplicate-b` 保留跨 package 同名 target 的发现/消歧场景；`tests/test-app` 的同名 bin/example 保护 target kind 选择，`extras_plugin/screenshot_fixtures.rs` 提供截图边界和确定性图像。它们是供 MCP 启动的宿主，不因 `cargo test --workspace` 运行而自动完成协议验证。runtime 的 mailbox/deadline 与持续动作推进、extras 的 agent tool 注册、输入和截图边界仍由各 package 的测试覆盖。
 
-本入口重放方案 01 中已证实的场景。输入只检查排队结果，未断言最终 UI 文本；其他键盘、鼠标、手势、资源 CRUD、entity 创建/销毁/重设父级、事件与 type guide 的完整真实调用仍未覆盖。MCP 自诊断在该重放中检查调用成功，未将 trace 文件内容或 token 用量设为 contract。原始 before 数据与当时的两个 Windows build-freshness 测试失败记录在[基线记录](../plans/refactor/01-baseline.md)；当前测试结果须重新运行判定，不能沿用旧结论。
+本入口重放方案 01 中已证实的场景。历史回放的输入只检查排队结果；最终 UI 文本与普通 Pointer 行为分别由上述 keyboard / pointer 专门入口验收。其他手势、资源 CRUD、entity 创建/销毁/重设父级、事件与 type guide 的完整真实调用仍未覆盖。MCP 自诊断在该重放中检查调用成功，未将 trace 文件内容或 token 用量设为 contract。原始 before 数据与当时的两个 Windows build-freshness 测试失败记录在[基线记录](../plans/refactor/01-baseline.md)；当前测试结果须重新运行判定，不能沿用旧结论。

@@ -29,10 +29,10 @@ Extras 的 `mouse` 模块以 App 内稳定的 Custom Pointer 和统一 `First` �
 
 | 路径 | Package 与 Cargo target | 验证用途 |
 | --- | --- | --- |
-| `tests/test-app/` | `bevy_brp_test_apps`；bin `test_app`，examples `extras_plugin`、`no_extras_plugin`、`event_test`、`mouse_test`、`keyboard_windows`、`test_app` | 真实 Bevy App、runtime、输入、事件、截图和 stock BRP 宿主。`keyboard_windows` 显示两个窗口各自收到的输入，并提供正常窗口关闭的测试方法。 |
+| `tests/test-app/` | `bevy_brp_test_apps`；bin `test_app`，examples `extras_plugin`、`no_extras_plugin`、`event_test`、`mouse_test`、`keyboard_windows`、`pointer_test`、`test_app` | 真实 Bevy App、runtime、输入、事件、截图和 stock BRP 宿主。`keyboard_windows`、`pointer_test` 显示两个窗口各自收到的输入，并提供正常窗口关闭的测试方法。 |
 | `tests/test-duplicate-a/` | `test-app-a`；examples `extras_plugin_duplicate`、`test_app` | 与另一个 package 的同名 example、与 `test-app` 的同名 target，用于发现、路径和搜索顺序验证。 |
 | `tests/test-duplicate-b/` | `test-app-b`；example `extras_plugin_duplicate` | 同名 example 的第二个宿主。 |
-| `crates/extras/tests/` | `bevy_brp_extras` 的 integration test target | 从 crate 外部验证 agent tool 注册 API。 |
+| `crates/extras/tests/` | `bevy_brp_extras` 的 integration test target | 从 crate 外部验证 agent tool 与 pointer_control 注册/协议。 |
 
 `tests/` 容纳多个 workspace member 及 Windows 协议回归脚本 `regression.ps1`，不是根 package 的 Cargo test harness。各宿主的 bin/example 需要通过对应 package 的 `cargo run -p …` 或 MCP 启动；`cargo test --workspace` 本身不会运行完整的 MCP→BRP 交互。普通与图形回归入口见[测试说明](testing.md)。
 

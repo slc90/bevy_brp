@@ -1,13 +1,14 @@
 //! Mouse input test application for BRP extras
 //!
-//! This example demonstrates and tests all mouse input functionality provided by `bevy_brp_extras`.
+//! This example retains physical/raw mouse and independent gesture diagnostics.
 //! It creates two windows (primary and secondary) to test window-specific targeting.
 //!
 //! The `MouseStateTracker` resource tracks all mouse interactions and can be queried via BRP
 //! to verify correct behavior during integration tests.
 //!
-//! Each window also contains a pickable 3D cuboid to verify that simulated input events
-//! correctly flow through Bevy's picking system via the `WindowEvent` channel.
+//! Ordinary BRP mouse methods drive Custom Pointer Picking, not the raw counters or native
+//! cursor fields below. The pickable 3D cuboids still consume Pointer events. Use `pointer_test`
+//! and `tests/pointer-regression.py` for the ordinary BRP UI and isolation regression.
 
 use bevy::camera::RenderTarget;
 use bevy::color::palettes::css::CORNFLOWER_BLUE;
