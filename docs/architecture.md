@@ -21,6 +21,8 @@
 
 经 MCP 启动的应用日志与 MCP server 自身的 trace 分属不同用途和读取路径；App library 本身不安装全局日志 subscriber。当前日志 ownership 与输出约束见 [`rules/logging.md`](../rules/logging.md)。
 
+Extras 的 `mouse` 模块以 App 内稳定的 Custom Pointer 和统一 `First` 输入生产者承接 `move_mouse`；在 Picking backend 前暂时停用物理 Mouse 的命中位置，新物理输入使 Custom generation 失效。取消在交互派发后补齐原 press/drag 目标的框架 Cancel，并等待下一 Picking 周期确认退场。Extras 显式依赖 `bevy_picking` 与 UUID，但不安装 Picking 核心、交互插件或 backend，宿主承担装配责任；无 Picking 的宿主仍能安装 Extras 和使用其他能力。目前其余普通鼠标方法保留原路径。
+
 ## 测试宿主
 
 | 路径 | Package 与 Cargo target | 验证用途 |

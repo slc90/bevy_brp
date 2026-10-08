@@ -19,10 +19,12 @@ publish              = false
 # Minimal Bevy features for extras library:
 # - bevy_render: Screenshot/ScreenshotCaptured (transitively enables bevy_window, bevy_camera, bevy_image)
 # - bevy_log: info!/warn!/error! macros in bevy::prelude
+# - bevy_picking: Custom pointer types; the host installs plugins and backend
 # - serialize: Serialize/Deserialize impls on bevy input types (MouseButton, MouseScrollUnit, etc.)
 # - png: screenshot PNG support and ImageFormat::from_extension("png") check
 bevy = { workspace = true, features = [
   "bevy_log",
+  "bevy_picking",
   "bevy_render",
   "png",
   "serialize",
@@ -31,6 +33,7 @@ bevy = { workspace = true, features = [
 bevy_remote = { workspace = true, default-features = true }
 image.workspace = true
 tempfile.workspace = true
+uuid.workspace = true
 
 schemars.workspace     = true
 serde.workspace        = true

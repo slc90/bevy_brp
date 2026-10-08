@@ -112,6 +112,15 @@
 //! Returns current, average, and smoothed values for FPS and frame time,
 //! plus total frame count and history buffer metadata.
 //!
+//! ## App-owned pointer source
+//!
+//! `move_mouse` uses one stable Custom pointer per App. The host must install enabled
+//! PickingPlugin, InteractionPlugin and an appropriate picking backend. Extras does not
+//! install picking plugins or a UI backend. Coordinates are logical window pixels and movement
+//! does not write raw mouse events or the native cursor. A new physical Mouse move, press or
+//! scroll cancels the custom generation and hands control back to the physical pointer.
+//! Other mouse methods retain their existing input path until their migration is complete.
+//!
 //! ## Keyboard
 //!
 //! Both methods accept optional `window` entity bits (u64). Omission captures

@@ -15,6 +15,7 @@ mod constants;
 mod cursor;
 mod drag;
 mod gestures;
+mod pointer;
 mod scroll;
 mod support;
 
@@ -36,7 +37,7 @@ pub(super) struct MousePlugin;
 impl Plugin for MousePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SimulatedCursorPosition>();
-        app.add_systems(Update, cursor::sync_cursor_position);
+        pointer::install(app);
         app.add_systems(Update, button::process_timed_button_releases);
         app.add_systems(Update, click::process_scheduled_clicks);
         app.add_systems(Update, drag::process_drag_operations);

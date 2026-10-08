@@ -3,10 +3,7 @@
 use bevy::input::ButtonState;
 use bevy::input::mouse::MouseButton;
 use bevy::input::mouse::MouseButtonInput;
-use bevy::input::mouse::MouseMotion;
-use bevy::math::Vec2;
 use bevy::prelude::*;
-use bevy::window::CursorMoved;
 use bevy::window::PrimaryWindow;
 use bevy_remote::BrpError;
 use bevy_remote::BrpResult;
@@ -138,40 +135,6 @@ pub(super) fn send_timed_button_press(
             TimerMode::Once,
         ),
     });
-}
-
-/// Send coordinated mouse motion events
-///
-/// Sends both device-level `MouseMotion` (delta) and window-level `CursorMoved` (position)
-/// events together, and updates the `Window` component's internal cursor position.
-///
-/// The `Window` component update is critical because `window.cursor_position()` reads from
-/// `Window.physical_cursor_position`, which is normally only set by winit's OS-level cursor
-/// handler. Without this update, systems that check `window.cursor_position()` (e.g.,
-/// `OrbitCam`, UI hit-testing) would see `None` when the app is unfocused and ignore
-/// all BRP-injected input.
-///
-/// # Arguments
-/// * `world` - Mutable world reference
-/// * `window` - Target window entity
-/// * `position` - New cursor position in window coordinates (logical pixels)
-/// * `delta` - Delta movement from previous position
-pub(super) fn send_motion_events(world: &mut World, window: Entity, position: Vec2, delta: Vec2) {
-    window_event::write_input_event(world, MouseMotion { delta });
-    window_event::write_input_event(
-        world,
-        CursorMoved {
-            window,
-            position,
-            delta: Some(delta),
-        },
-    );
-
-    // Update the `Window` component's cursor position so that
-    // `window.cursor_position()` returns the correct value even when unfocused
-    if let Some(mut window_component) = world.get_mut::<Window>(window) {
-        window_component.set_cursor_position(Some(position));
-    }
 }
 
 /// Resolve window entity from optional u64 ID

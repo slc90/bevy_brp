@@ -621,6 +621,7 @@ dependencies = [
  "strum",
  "strum_macros",
  "tempfile",
+ "uuid",
 ]
 
 [[package]]

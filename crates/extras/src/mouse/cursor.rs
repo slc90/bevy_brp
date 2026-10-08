@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use bevy::ecs::system::In;
 use bevy::math::Vec2;
 use bevy::prelude::*;
-use bevy::window::CursorMoved;
 use bevy_remote::BrpError;
 use bevy_remote::BrpResult;
 use bevy_remote::error_codes::INVALID_PARAMS;
@@ -54,17 +53,7 @@ struct MoveMouseResponse {
 /// delta-based movement calculations. When moving by delta, the new position is
 /// calculated relative to the stored position for that specific window.
 ///
-/// ## Synchronization
-///
-/// The resource is synchronized with both simulated and real mouse input:
-/// - **Simulated input**: Updated by `move_mouse_handler` and `process_drag_operations`
-/// - **Real input**: Updated by `sync_cursor_position` system which listens to actual `CursorMoved`
-///   events
-///
-/// This dual-sync approach ensures delta calculations work correctly even in hybrid
-/// scenarios where both BRP commands and physical mouse movements occur. Without
-/// real input sync, delta commands could cause unexpected jumps after physical
-/// mouse movement.
+/// Physical cursor input never updates this independent position history.
 #[derive(Resource, Default)]
 pub(super) struct SimulatedCursorPosition {
     /// Per-window cursor positions
@@ -133,7 +122,7 @@ pub(crate) fn move_mouse_handler(In(params): In<Option<Value>>, world: &mut Worl
         world.init_resource::<SimulatedCursorPosition>();
     }
 
-    let mut cursor_res = world.resource_mut::<SimulatedCursorPosition>();
+    let cursor_res = world.resource::<SimulatedCursorPosition>();
 
     // Get current position for this window (default to origin if not set)
     let current_pos = cursor_res.get_position(window);
@@ -152,10 +141,16 @@ pub(crate) fn move_mouse_handler(In(params): In<Option<Value>>, world: &mut Worl
         });
     };
 
-    // Update resource and send motion events
+    super::pointer::enqueue(
+        world,
+        window,
+        new_position,
+        bevy::picking::pointer::PointerAction::Move { delta },
+        METHOD_MOVE_MOUSE,
+    )?;
+    let mut cursor_res = world.resource_mut::<SimulatedCursorPosition>();
     cursor_res.positions.insert(window, new_position);
     cursor_res.last_window = Some(window);
-    support::send_motion_events(world, window, new_position, delta);
 
     support::serialize_response(
         MoveMouseResponse {
@@ -164,50 +159,4 @@ pub(crate) fn move_mouse_handler(In(params): In<Option<Value>>, world: &mut Worl
         },
         METHOD_MOVE_MOUSE,
     )
-}
-
-// ============================================================================
-// Systems
-// ============================================================================
-
-/// System to sync `SimulatedCursorPosition` with real mouse input
-///
-/// This system listens to actual `CursorMoved` events (from physical mouse movement)
-/// and updates the `SimulatedCursorPosition` resource to reflect the real cursor
-/// position.
-///
-/// ## Purpose
-///
-/// Without this sync, delta-based BRP commands would use stale position data if the
-/// user physically moved their mouse between commands, causing unexpected cursor
-/// jumps or incorrect movement.
-///
-/// ## Example Scenario
-///
-/// ```text
-/// 1. BRP: move_mouse(position: [100, 100])
-///    -> SimulatedCursorPosition stores [100, 100]
-///
-/// 2. User physically moves mouse to [300, 300]
-///    -> WITHOUT sync: SimulatedCursorPosition still [100, 100]
-///    -> WITH sync: SimulatedCursorPosition updated to [300, 300]
-///
-/// 3. BRP: move_mouse(delta: [50, 50])
-///    -> WITHOUT sync: Moves to [150, 150] (jumps from real position)
-///    -> WITH sync: Moves to [350, 350] (correct relative movement)
-/// ```
-///
-/// ## Use Cases
-///
-/// - **Hybrid testing**: BRP automation mixed with manual interaction
-/// - **Debugging**: Developer moves mouse while running BRP commands
-/// - **Recovery**: Syncs state after unexpected manual input
-pub(super) fn sync_cursor_position(
-    mut cursor_res: ResMut<SimulatedCursorPosition>,
-    mut cursor_events: MessageReader<CursorMoved>,
-) {
-    for event in cursor_events.read() {
-        cursor_res.positions.insert(event.window, event.position);
-        cursor_res.last_window = Some(event.window);
-    }
 }
