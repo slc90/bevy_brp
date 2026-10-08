@@ -1,4 +1,4 @@
-Sends mouse wheel scroll events to Bevy apps via bevy_brp_extras. Supports both line-based and pixel-based scrolling in horizontal and vertical directions.
+Queues App-owned Custom Pointer scroll in Bevy apps via bevy_brp_extras. Supports Line and Pixel units in horizontal and vertical directions.
 
 Scroll units: Line (default text line scrolling), Pixel (precise pixel-based scrolling)
 
@@ -9,4 +9,5 @@ Examples:
 {"x": 0.0, "y": -100.0, "unit": "Pixel"}  // Scroll up 100 pixels
 ```
 
-Prerequisites: bevy_brp_extras dependency and BrpExtrasPlugin registered.
+Queues Custom Pointer scroll at the last independent BRP logical position for the target window (origin initially). Line/Pixel units are preserved. Does not write raw MouseWheel or move the OS cursor. Window defaults to the last live BRP target, then PrimaryWindow; invalid explicit/destroyed targets fail. Acceptance does not prove a UI result.
+Prerequisites: BrpExtrasPlugin, enabled PickingPlugin and InteractionPlugin, and a host-provided picking backend. Native Window move/resize is unsupported.

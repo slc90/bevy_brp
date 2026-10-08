@@ -13,7 +13,7 @@ use crate::brp_tools::mouse::MouseButtonWrapper;
 /// Parameters for the `brp_extras/drag_mouse` tool
 #[derive(Clone, Deserialize, Serialize, JsonSchema, ParamStruct)]
 pub struct DragMouseParams {
-    /// Mouse button to use for dragging (Left, Right, Middle, Back, Forward)
+    /// Mouse button to use for dragging (Left, Right, Middle)
     pub button: MouseButtonWrapper,
 
     /// Starting position as [x, y]

@@ -1,6 +1,6 @@
 Performs a smooth drag operation from start to end position via bevy_brp_extras. Interpolates cursor movement over specified number of frames while holding button pressed.
 
-Button options: Left, Right, Middle, Back, Forward
+Button options: Left, Right, Middle
 
 Examples:
 ```json

@@ -13,7 +13,7 @@ use crate::brp_tools::mouse::MouseButtonWrapper;
 /// Parameters for the `brp_extras/click_mouse` tool
 #[derive(Clone, Deserialize, Serialize, JsonSchema, ParamStruct)]
 pub struct ClickMouseParams {
-    /// Mouse button to click (Left, Right, Middle, Back, Forward)
+    /// Mouse button to click (Left, Right, Middle)
     pub button: MouseButtonWrapper,
 
     /// Optional window entity ID to target (defaults to primary window)

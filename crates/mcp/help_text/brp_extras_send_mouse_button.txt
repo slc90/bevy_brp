@@ -1,6 +1,7 @@
-Sends mouse button input to Bevy apps via bevy_brp_extras. Performs complete press-hold-release cycles for testing, remote control, and automation.
+Queues a press-hold-release cycle on the App-owned Custom Pointer without moving the OS cursor or writing raw mouse events. The host must install enabled PickingPlugin and InteractionPlugin plus a picking backend. Acceptance does not prove a UI result. Holds use real elapsed time, including when virtual game time is paused.
 
-Button options: Left, Right, Middle, Back, Forward
+Button options: Left, Right, Middle. Default duration: 100ms; maximum: 60000ms.
+Window resolution: explicit live Window entity, then last BRP window, then PrimaryWindow. BRP positions are independent of the physical mouse and start at the origin per window. Same-window move/scroll may continue during a timed hold. Repeated holds of the same button and switching windows during a hold fail. Native Window title-bar move and edge resize are unsupported.
 
 Examples:
 ```json

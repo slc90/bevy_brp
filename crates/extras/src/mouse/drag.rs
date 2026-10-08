@@ -113,7 +113,7 @@ pub(crate) fn drag_mouse_handler(In(params): In<Option<Value>>, world: &mut Worl
         });
     }
 
-    let window = support::resolve_window(world, request.window)?;
+    let window = support::resolve_window(world, request.window, METHOD_DRAG_MOUSE)?;
 
     // Spawn drag operation component
     let activity = activity::begin(world);

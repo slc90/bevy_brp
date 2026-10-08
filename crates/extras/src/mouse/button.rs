@@ -92,8 +92,22 @@ pub(crate) fn send_mouse_button_handler(
         });
     }
 
-    let window = support::resolve_window(world, request.window)?;
-    support::send_timed_button_press(world, request.button, window, duration_ms);
+    let window = support::resolve_window(world, request.window, METHOD_SEND_MOUSE_BUTTON)?;
+    let button = support::pointer_button(request.button, METHOD_SEND_MOUSE_BUTTON)?;
+    let position = world
+        .resource::<super::cursor::SimulatedCursorPosition>()
+        .get_position(window);
+    super::pointer::enqueue_hold(
+        world,
+        window,
+        position,
+        button,
+        duration_ms,
+        METHOD_SEND_MOUSE_BUTTON,
+    )?;
+    world
+        .resource_mut::<super::cursor::SimulatedCursorPosition>()
+        .last_window = Some(window);
 
     support::serialize_response(
         SendMouseButtonResponse {

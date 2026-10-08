@@ -145,16 +145,20 @@ pub(super) fn send_timed_button_press(
 pub(super) fn resolve_window(
     world: &mut World,
     window_id: Option<u64>,
+    method: &str,
 ) -> Result<Entity, BrpError> {
     if let Some(id) = window_id {
-        let entity = Entity::from_bits(id);
+        let entity = Entity::try_from_bits(id).ok_or_else(|| {
+            super::pointer::error(method, INVALID_PARAMS, "Invalid window entity bits", None)
+        })?;
         // Verify entity exists and is a window
-        if world.get_entity(entity).is_err() {
-            return Err(BrpError {
-                code: INVALID_PARAMS,
-                message: format!("Invalid window entity: {id}"),
-                data: None,
-            });
+        if world.get::<Window>(entity).is_none() {
+            return Err(super::pointer::error(
+                method,
+                INVALID_PARAMS,
+                &format!("Invalid window entity: {id}"),
+                Some(entity),
+            ));
         }
         return Ok(entity);
     }
@@ -163,19 +167,43 @@ pub(super) fn resolve_window(
     if let Some(cursor_pos) = world.get_resource::<SimulatedCursorPosition>()
         && let Some(last_window) = cursor_pos.last_window
     {
+        if world.get::<Window>(last_window).is_none() {
+            return Err(super::pointer::error(
+                method,
+                INVALID_PARAMS,
+                "Last BRP target window was destroyed",
+                Some(last_window),
+            ));
+        }
         return Ok(last_window);
     }
 
     // Fall back to primary window
     let entity = {
-        let mut query = world.query_filtered::<Entity, With<PrimaryWindow>>();
+        let mut query = world.query_filtered::<Entity, (With<PrimaryWindow>, With<Window>)>();
         let mut iter = query.iter(world);
         iter.next()
     };
 
-    entity.ok_or_else(|| BrpError {
-        code: INVALID_PARAMS,
-        message: "No primary window found".to_string(),
-        data: None,
+    entity.ok_or_else(|| {
+        super::pointer::error(method, INVALID_PARAMS, "No primary window found", None)
     })
+}
+
+pub(super) fn pointer_button(
+    button: MouseButton,
+    method: &str,
+) -> Result<bevy::picking::pointer::PointerButton, BrpError> {
+    use bevy::picking::pointer::PointerButton;
+    match button {
+        MouseButton::Left => Ok(PointerButton::Primary),
+        MouseButton::Right => Ok(PointerButton::Secondary),
+        MouseButton::Middle => Ok(PointerButton::Middle),
+        _ => Err(super::pointer::error(
+            method,
+            INVALID_PARAMS,
+            "Custom Pointer supports only Left, Right and Middle",
+            None,
+        )),
+    }
 }

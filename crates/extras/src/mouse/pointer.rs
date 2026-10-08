@@ -1,6 +1,7 @@
 //! App-owned pointer input and handover lifecycle.
 
 use std::collections::{HashSet, VecDeque};
+use std::time::{Duration, Instant};
 
 use bevy::camera::RenderTarget;
 use bevy::ecs::message::MessageCursor;
@@ -44,6 +45,15 @@ struct QueuedInput {
     position: Vec2,
     action: PointerAction,
     method: String,
+    hold_duration: Option<Duration>,
+}
+
+struct TimedHold {
+    generation: u64,
+    window: Entity,
+    button: PointerButton,
+    deadline: Instant,
+    method: String,
 }
 
 struct CancelResponsibility {
@@ -73,6 +83,7 @@ pub(super) struct BrpPointerState {
     pub pressed: Vec<PointerButton>,
     pub last_error: Option<PointerError>,
     queue: VecDeque<QueuedInput>,
+    holds: Vec<TimedHold>,
     activity: Option<BrpExtrasActivityGuard>,
     drain: Drain,
     cancelled_generation: u64,
@@ -86,6 +97,7 @@ pub(super) struct BrpPointerState {
     drag_end_reader: MessageCursor<Pointer<DragEnd>>,
     cancel_reader: MessageCursor<Pointer<Cancel>>,
     responsibilities: Vec<CancelResponsibility>,
+    last_method: String,
 }
 
 pub(super) fn install(app: &mut App) {
@@ -163,6 +175,35 @@ pub(super) fn enqueue(
     action: PointerAction,
     method: &str,
 ) -> Result<(), BrpError> {
+    enqueue_inner(world, window, position, action, method, None)
+}
+
+pub(super) fn enqueue_hold(
+    world: &mut World,
+    window: Entity,
+    position: Vec2,
+    button: PointerButton,
+    duration_ms: u32,
+    method: &str,
+) -> Result<(), BrpError> {
+    enqueue_inner(
+        world,
+        window,
+        position,
+        PointerAction::Press(button),
+        method,
+        Some(Duration::from_millis(duration_ms.into())),
+    )
+}
+
+fn enqueue_inner(
+    world: &mut World,
+    window: Entity,
+    position: Vec2,
+    action: PointerAction,
+    method: &str,
+    hold_duration: Option<Duration>,
+) -> Result<(), BrpError> {
     capability(world, method, window)?;
     if world.get::<Window>(window).is_none() || !position.is_finite() {
         return Err(error(
@@ -179,6 +220,36 @@ pub(super) fn enqueue(
                 method,
                 INVALID_PARAMS,
                 "Pointer is draining; wait for inactive before submitting input",
+                Some(window),
+            ));
+        }
+        if state.holds.iter().any(|hold| hold.window != window)
+            || state
+                .queue
+                .iter()
+                .any(|input| input.hold_duration.is_some() && input.window != window)
+            || (!state.pressed.is_empty() && state.window != Some(window))
+        {
+            return Err(error(
+                method,
+                INVALID_PARAMS,
+                "Cannot switch windows while a button is held or queued",
+                Some(window),
+            ));
+        }
+        if hold_duration.is_some()
+            && let PointerAction::Press(button) = action
+            && (state.pressed.contains(&button)
+                || state.holds.iter().any(|hold| hold.button == button)
+                || state.queue.iter().any(|input| {
+                    input.hold_duration.is_some()
+                        && matches!(input.action, PointerAction::Press(queued) if queued == button)
+                }))
+        {
+            return Err(error(
+                method,
+                INVALID_PARAMS,
+                "Button already has a timed hold",
                 Some(window),
             ));
         }
@@ -218,6 +289,7 @@ pub(super) fn enqueue(
             position,
             action,
             method: method.to_owned(),
+            hold_duration,
         });
         if state.activity.is_none() {
             state.activity = Some(activity::begin(world));
@@ -238,6 +310,7 @@ fn begin_drain(world: &mut World, state: &mut BrpPointerState) {
     state.cancelled_generation = state.generation;
     state.generation = state.generation.wrapping_add(1);
     state.queue.clear();
+    state.holds.clear();
     state.phase = Phase::Draining;
     state.drain = Drain::Pending;
     if state.activity.is_none() {
@@ -310,7 +383,7 @@ fn produce(world: &mut World) {
         if handover && state.phase == Phase::Active { begin_drain(world, &mut state); }
         if handover || (state.phase == Phase::Draining && matches!(state.drain, Drain::Pending)) { restore_physical(world, &state, !handover); }
         if state.phase == Phase::Active && state.window.is_some_and(|window| world.get::<Window>(window).is_none()) {
-            let method = state.queue.front().map_or("move_mouse", |input| input.method.as_str()).to_owned();
+            let method = state.holds.first().map(|hold| hold.method.as_str()).or_else(|| state.queue.front().map(|input| input.method.as_str())).unwrap_or(&state.last_method).to_owned();
             state.last_error = Some(PointerError { generation: state.generation, method: format!("brp_extras/{method}"), window: state.window.map(Entity::to_bits), code: INVALID_PARAMS, message: "Target window was destroyed".to_owned() });
             warn!(method, window = ?state.window, "BRP pointer target window was destroyed");
             begin_drain(world, &mut state);
@@ -326,6 +399,16 @@ fn produce(world: &mut World) {
             }
             return;
         }
+        let now = Instant::now();
+        if let Some(index) = state.holds.iter().position(|hold| hold.deadline <= now) {
+            let hold = state.holds.remove(index);
+            if hold.generation == state.generation
+                && let (Some(id), Some(location)) = (state.id, state.entity.and_then(|entity| world.get::<PointerLocation>(entity)).and_then(|location| location.location.clone())) {
+                world.write_message(PointerInput::new(id, location, PointerAction::Release(hold.button)));
+                state.pressed.retain(|button| *button != hold.button);
+            }
+            return;
+        }
         if let Some(input) = state.queue.pop_front() {
             if input.generation != state.generation { return; }
             if world.get::<Window>(input.window).is_none() {
@@ -335,6 +418,19 @@ fn produce(world: &mut World) {
                 return;
             }
             if let Some(id) = state.id {
+                let requested = location(input.window, input.position);
+                let established = state.entity.and_then(|entity| world.get::<PointerLocation>(entity)).and_then(|location| location.location.as_ref());
+                if !matches!(input.action, PointerAction::Move { .. }) && established != requested.as_ref() {
+                    if let Some(requested) = requested {
+                        let delta = established.filter(|old| old.target == requested.target).map_or(Vec2::ZERO, |old| requested.position - old.position);
+                        world.write_message(PointerInput::new(id, requested, PointerAction::Move { delta }));
+                        state.queue.push_front(input);
+                    } else {
+                        error!(window = %input.window, "Explicit pointer window could not normalize");
+                        begin_drain(world, &mut state);
+                    }
+                    return;
+                }
                 match input.action {
                     PointerAction::Press(button) => { if !state.pressed.contains(&button) { state.pressed.push(button); } }
                     PointerAction::Release(button) => state.pressed.retain(|pressed| *pressed != button),
@@ -342,6 +438,10 @@ fn produce(world: &mut World) {
                 }
                 if let Some(location) = location(input.window, input.position) {
                     world.write_message(PointerInput::new(id, location, input.action));
+                    state.last_method.clone_from(&input.method);
+                    if let (Some(duration), PointerAction::Press(button)) = (input.hold_duration, input.action) {
+                        state.holds.push(TimedHold { generation: input.generation, window: input.window, button, deadline: now + duration, method: input.method });
+                    }
                 } else {
                     error!(window = %input.window, "Explicit pointer window could not normalize");
                     begin_drain(world, &mut state);
@@ -494,7 +594,9 @@ fn finish_cycle(world: &mut World) {
                 state.drain = Drain::None;
                 state.activity = None;
             }
-            Drain::None if state.queue.is_empty() => state.activity = None,
+            Drain::None if state.queue.is_empty() && state.holds.is_empty() => {
+                state.activity = None
+            }
             _ => {}
         }
     });

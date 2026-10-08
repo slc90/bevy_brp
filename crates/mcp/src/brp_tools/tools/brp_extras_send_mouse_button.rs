@@ -13,7 +13,7 @@ use crate::brp_tools::mouse::MouseButtonWrapper;
 /// Parameters for the `brp_extras/send_mouse_button` tool
 #[derive(Clone, Deserialize, Serialize, JsonSchema, ParamStruct)]
 pub struct SendMouseButtonParams {
-    /// Mouse button to press (Left, Right, Middle, Back, Forward)
+    /// Mouse button to press (Left, Right, Middle)
     pub button: MouseButtonWrapper,
 
     /// Duration in milliseconds to hold the button before releasing (default: 100ms, max: 60000ms)

@@ -1,6 +1,6 @@
 Performs a double click with specified mouse button via bevy_brp_extras. Executes two rapid clicks with configurable delay between them.
 
-Button options: Left, Right, Middle, Back, Forward
+Button options: Left, Right, Middle
 
 Examples:
 ```json

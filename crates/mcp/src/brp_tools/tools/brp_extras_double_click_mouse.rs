@@ -13,7 +13,7 @@ use crate::brp_tools::mouse::MouseButtonWrapper;
 /// Parameters for the `brp_extras/double_click_mouse` tool
 #[derive(Clone, Deserialize, Serialize, JsonSchema, ParamStruct)]
 pub struct DoubleClickMouseParams {
-    /// Mouse button to double click (Left, Right, Middle, Back, Forward)
+    /// Mouse button to double click (Left, Right, Middle)
     pub button: MouseButtonWrapper,
 
     /// Delay in milliseconds between clicks (default: 250ms)

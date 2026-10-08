@@ -13,10 +13,34 @@ pub enum MouseButtonWrapper {
     Right,
     /// Middle mouse button (wheel click)
     Middle,
-    /// Back navigation button
-    Back,
-    /// Forward navigation button
-    Forward,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pointer_button_schema_and_decoder_support_exactly_three_buttons() {
+        let schema = serde_json::to_value(schemars::schema_for!(MouseButtonWrapper)).unwrap();
+        let buttons: Vec<_> = schema["oneOf"]
+            .as_array()
+            .expect("Documented enum variants use oneOf")
+            .iter()
+            .map(|variant| variant["const"].clone())
+            .collect();
+        assert_eq!(
+            buttons,
+            vec![
+                serde_json::json!("Left"),
+                serde_json::json!("Right"),
+                serde_json::json!("Middle")
+            ]
+        );
+        assert!(serde_json::from_value::<MouseButtonWrapper>(serde_json::json!("Back")).is_err());
+        assert!(
+            serde_json::from_value::<MouseButtonWrapper>(serde_json::json!("Forward")).is_err()
+        );
+    }
 }
 
 /// Scroll unit for BRP scroll operations

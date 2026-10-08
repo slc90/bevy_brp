@@ -115,7 +115,7 @@ pub(crate) fn move_mouse_handler(In(params): In<Option<Value>>, world: &mut Worl
     }
 
     // Resolve window entity
-    let window = support::resolve_window(world, request.window)?;
+    let window = support::resolve_window(world, request.window, METHOD_MOVE_MOUSE)?;
 
     // Get or create simulated cursor position resource
     if !world.contains_resource::<SimulatedCursorPosition>() {
@@ -141,6 +141,14 @@ pub(crate) fn move_mouse_handler(In(params): In<Option<Value>>, world: &mut Worl
         });
     };
 
+    if !new_position.is_finite() || !delta.is_finite() {
+        return Err(super::pointer::error(
+            METHOD_MOVE_MOUSE,
+            INVALID_PARAMS,
+            "Position and resulting delta must be finite",
+            Some(window),
+        ));
+    }
     super::pointer::enqueue(
         world,
         window,

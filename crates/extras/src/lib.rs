@@ -114,12 +114,15 @@
 //!
 //! ## App-owned pointer source
 //!
-//! `move_mouse` uses one stable Custom pointer per App. The host must install enabled
+//! `move_mouse`, `send_mouse_button` and `scroll_mouse` use one stable Custom pointer per App.
+//! The host must install enabled
 //! PickingPlugin, InteractionPlugin and an appropriate picking backend. Extras does not
 //! install picking plugins or a UI backend. Coordinates are logical window pixels and movement
 //! does not write raw mouse events or the native cursor. A new physical Mouse move, press or
 //! scroll cancels the custom generation and hands control back to the physical pointer.
-//! Other mouse methods retain their existing input path until their migration is complete.
+//! Left/Right/Middle map to Primary/Secondary/Middle; other mouse buttons are rejected.
+//! Timed holds use real elapsed time and allow same-window move/scroll before release.
+//! Click and drag methods retain their existing input path until their migration is complete.
 //!
 //! ## Keyboard
 //!
@@ -167,7 +170,10 @@
 //! - `window` (u64, optional)
 //!
 //! ### `brp_extras/move_mouse`
-//! Moves the cursor by delta or to an absolute position. Exactly one must be provided.
+//! Queues Custom Pointer movement by delta or absolute logical window position; provide exactly
+//! one. Each window has independent BRP history, starting at the origin. Finite positions outside
+//! the window are valid; overflow is rejected. Window defaults to the last BRP target, then primary.
+//! Explicit invalid or destroyed targets fail. Switching windows while holding a button fails.
 //! - `delta` ([f32; 2], optional): relative movement
 //! - `position` ([f32; 2], optional): absolute position
 //! - `window` (u64, optional)
@@ -181,7 +187,7 @@
 //! - `window` (u64, optional)
 //!
 //! ### `brp_extras/scroll_mouse`
-//! Sends mouse wheel scroll events.
+//! Queues Custom Pointer scroll after establishing the target location. Units are preserved.
 //! - `x` (f32, required): horizontal scroll amount
 //! - `y` (f32, required): vertical scroll amount
 //! - `unit` (string, required): `"Line"` or `"Pixel"`
