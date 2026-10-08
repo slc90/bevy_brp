@@ -54,6 +54,10 @@ python tests/pointer-regression.py --port 15828 --output target/pointer-evidence
 
 同轮 workspace fmt/check/Clippy/test/build、Extras 三种独立 feature 与 MCP no-default check 通过；stock Button 取消回归作为 `pointer_test` example test 自动随 workspace test 执行。共享 stdio client 下的 keyboard 桌面链、普通公共 MCP、普通/诊断目录回归（47/49 工具）以及诊断历史图形回放通过，历史 `NatesList` 图像已查看，进程/端口和 trace 清理通过。既有同名 fixture build warning 与 9 个 ignored doctest 保留。Native Window move/resize、Widgetry 具体控件和硬件多 DPI 桌面未验收；DPI 逻辑坐标已有自动化覆盖。
 
+06 固定版本验证（2026-10-08）：四个生产 package、内部 version/path 和 Cargo.lock 一致为 `0.3.0`；workspace fmt/check/Clippy/test/build 与四项独立 feature 检查重新通过，保留同名 fixture warning 和 9 个既有 ignored doctest。隔离消费者同时引用 runtime 与 Extras，公共 Plugin/activity 入口通过独立 workspace 的 `cargo check --locked --offline`。本地 MCP 以 `cargo install --path crates/mcp --locked --debug --root target/pointer-stage06/mcp-install` 安装成功；本轮验证的是 debug 安装，未验证 release 安装或远程 Git 下载。
+
+用该安装目录的 executable 运行同一 Pointer 桌面回归（临时启动 wrapper 只替换 MCP executable 路径，未修改永久脚本），普通目录为 47 工具；cursor 前后 `(1032, -813)`，foreground 未变、两窗口未获焦点、raw 五通道零增长，点击/多击/拖放/滚动/取消/UUID/窗口销毁通过。截图已查看，idle 0.5 秒 updates 从 472 增至 477、activity 为零，App/MCP/15830 端口清理通过。证据位于本地忽略目录 `target/pointer-stage06/installed-pointer/`；安装 binary 与摘要记录的 debug binary SHA256 相同。此证据采集于 06 提交前，摘要中的 revision 是当时 HEAD，版本修改属于当时 working tree；不可把该字段解释成最终固定提交。消费方使用最终交接的完整 commit，且 runtime、Extras 和 MCP 必须来自同一 revision。Native Window、Widgetry、硬件多 DPI 的未测边界不变。
+
 多窗口 keyboard 回归使用 `keyboard_windows` 宿主和本地 MCP stdio，验证可选 `window` schema、secondary 的文本与 press/release、默认 PrimaryWindow、无效和已销毁 target 错误，以及关闭窗口时中止长 typing/hold 并清理 Ctrl/Shift。截图和结构化状态分别记录在输出目录，fixture 只展示事件路由，不代表具体 Widget 的 focus 或编辑行为验收。需要 Python 3 和上述 Windows 桌面条件：
 
 ```powershell

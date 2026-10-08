@@ -58,3 +58,40 @@ Build the normal server with `cargo build -p bevy_brp_mcp --locked`. For an MCP 
 Use a listed filename with `brp_read_log`, for example `{"filename":"bevy_brp_mcp_test_app_port15702_1787840000123.log","tail_lines":50}`. The default non-verbose listing is enough for this step; set `verbose=true` when paths, sizes, or timestamps are needed. A watch tool also returns its `log_path`; its historical log remains readable after `brp_stop_watch`. Use `brp_delete_logs` with `{"source":"watch"}` to clean watch logs, or with `{"source":"app","app_name":"test_app"}` for one application's logs. Omitting filters retains the existing application and watch cleanup scope. Deletion errors are returned to the caller. The server trace must be managed through its own local file path; these public log tools never read or delete it.
 
 Application errors remain available as MCP tool errors. The diagnostic build adds server trace controls for investigating failures within the MCP server itself; it does not change BRP method registration in the Bevy application.
+
+## Ordinary mouse input and control
+
+Version 0.3.0 requires matching App libraries and MCP from the same full commit; see the [fixed consumption instructions](../README.md#connect-an-mcp-client). Ordinary mouse methods produce Custom Pointer input only. Their successful responses confirm acceptance; wait for input work and verify the App's actual UI separately. Hosts supply enabled Picking/interaction plugins and a backend. Raw/native mouse consumers and official Mouse-only hover consumers need migration.
+
+| Tool suffix (`brp_extras_…`) | Parameter boundary |
+| --- | --- |
+| `move_mouse` | Exactly one of `position` or `delta`, each two finite f32 logical pixels; per-window BRP history starts at the origin. |
+| `send_mouse_button` | `button`: Left/Right/Middle; `duration_ms`: default 100, maximum 60000, zero allowed. Same-window move/scroll can continue during the hold. |
+| `click_mouse` | `button`: Left/Right/Middle; one 100 ms click after establishing a Picking hit. |
+| `double_click_mouse` | `button`: Left/Right/Middle; two 100 ms clicks, `delay_ms` default 250 after the first release. Bevy's multi-click interval determines the event count. |
+| `drag_mouse` | `button`: Left/Right/Middle; finite `start`/`end` pairs; `frames` at least 1 counts interpolation steps, with additional setup/release cycles. |
+| `scroll_mouse` | Finite `x`/`y`, `unit`: Line/Pixel, preserved in Pointer scroll. |
+
+Every tool accepts optional `window` entity bits. Omission resolves the last BRP target, then PrimaryWindow. Explicit invalid/destroyed windows fail, and switching windows or repeating the same button while it is held fails. Automatic gestures wait for existing timed holds and keep later input queued. New physical Mouse move/press/scroll cancels the Custom generation. Cancellation emits Cancel, which does not imply a successful Release, Click or Drop.
+
+`brp_extras/pointer_control` is an App instant method discovered by `rpc_discover`, with no extra static MCP tool or default agent catalog entry. Invoke it through `brp_execute`:
+
+```json
+{"method":"brp_extras/pointer_control","params":{"action":"status"},"port":15712}
+```
+
+The raw value under MCP `structuredContent.result` initially has this shape:
+
+```json
+{"phase":"inactive","busy":false,"pointer_id":null,"window":null,"generation":0,"queued_actions":0,"pressed_buttons":[],"last_error":null}
+```
+
+After activation, `pointer_id` is the stable UUID and `window` is the current window's entity bits. `phase` is inactive, active or draining; an idle active Pointer can hover with busy=false. `pressed_buttons` uses Left/Right/Middle. A queued failure leaves `last_error` with `generation`, `method`, `window`, `code` and `message`; status and release preserve it until a successful new activation. Requests must be objects containing only the string `action` status or release; other shapes/fields return INVALID_PARAMS without changing state.
+
+In a cleanup/finally block, call:
+
+```json
+{"method":"brp_extras/pointer_control","params":{"action":"release"},"port":15712}
+```
+
+Release bypasses the FIFO and invalidates pending work. It is idempotent during draining and when inactive. Poll status until phase=inactive before handing input back or starting another automation generation; ordinary input is rejected while draining. Busy=false alone does not prove that a widget action succeeded. Native Window move/resize is unsupported: avoid those regions, whose existing native observers may still react to Custom Press. The [desktop and automatic validation record](testing.md) separates tested ordinary UI behavior from Widgetry and native-window boundaries.
