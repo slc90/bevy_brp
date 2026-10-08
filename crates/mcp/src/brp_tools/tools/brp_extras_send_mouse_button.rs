@@ -20,7 +20,7 @@ pub struct SendMouseButtonParams {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub duration_ms: Option<u32>,
 
-    /// Optional window entity ID to target (defaults to primary window)
+    /// Optional window entity ID to target (defaults to last BRP target, then primary window)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub window: Option<u64>,
 

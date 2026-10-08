@@ -1309,3 +1309,121 @@ fn lost_pointer_component_cancels_press_and_next_generation_reuses_only_identity
     let trace = app.world().resource::<Trace>();
     assert_eq!(trace.clicks.len(), 1);
 }
+
+fn control(app: &mut App, action: &str) -> serde_json::Value {
+    super::super::control::pointer_control_handler(
+        In(Some(json!({"action":action}))),
+        app.world_mut(),
+    )
+    .unwrap()
+}
+
+#[test]
+fn control_snapshot_tracks_queue_press_cleanup_and_idle_without_waking() {
+    let (mut app, window, _) = fixture();
+    super::super::button::send_mouse_button_handler(
+        In(Some(json!({"button":"Left","duration_ms":60000}))),
+        app.world_mut(),
+    )
+    .unwrap();
+    let queued = control(&mut app, "status");
+    assert_eq!(queued["phase"], "active");
+    assert_eq!(queued["window"], window.to_bits());
+    assert_eq!(queued["queued_actions"], 1);
+    let id = queued["pointer_id"].as_str().unwrap();
+    uuid::Uuid::parse_str(id).unwrap();
+    app.update();
+    app.update();
+    let pressed = control(&mut app, "status");
+    assert_eq!(pressed["pressed_buttons"], json!(["Left"]));
+    assert_eq!(pressed["queued_actions"], 0);
+    assert_eq!(pressed["busy"], true);
+    let draining = control(&mut app, "release");
+    assert_eq!(draining["phase"], "draining");
+    assert_eq!(
+        draining["generation"],
+        queued["generation"].as_u64().unwrap() + 1
+    );
+    assert_eq!(control(&mut app, "release"), draining);
+    let rejected = super::super::cursor::move_mouse_handler(
+        In(Some(json!({"position":[20.0,30.0]}))),
+        app.world_mut(),
+    )
+    .unwrap_err();
+    assert_eq!(rejected.code, INVALID_PARAMS);
+    app.update();
+    assert_eq!(control(&mut app, "status")["phase"], "draining");
+    app.update();
+    let inactive = control(&mut app, "status");
+    assert_eq!(inactive["phase"], "inactive");
+    assert_eq!(inactive["busy"], false);
+    assert_eq!(inactive["pressed_buttons"], json!([]));
+    assert_eq!(inactive["window"], serde_json::Value::Null);
+    assert_eq!(inactive["pointer_id"], id);
+    assert_eq!(control(&mut app, "release"), inactive);
+    super::super::cursor::move_mouse_handler(
+        In(Some(json!({"position":[20.0,30.0]}))),
+        app.world_mut(),
+    )
+    .unwrap();
+    app.update();
+    let idle = control(&mut app, "status");
+    assert_eq!(idle["phase"], "active");
+    assert_eq!(idle["busy"], false);
+    for _ in 0..3 {
+        assert_eq!(control(&mut app, "status"), idle);
+    }
+    assert!(
+        !app.world()
+            .resource::<crate::BrpExtrasActivity>()
+            .state()
+            .is_active()
+    );
+}
+
+#[test]
+fn control_preserves_failure_until_successful_reactivation() {
+    let (mut app, window, _) = fixture();
+    super::super::click::click_mouse_handler(In(Some(json!({"button":"Middle"}))), app.world_mut())
+        .unwrap();
+    let failed_generation = control(&mut app, "status")["generation"].clone();
+    app.world_mut().despawn(window);
+    app.update();
+    app.update();
+    let failed = control(&mut app, "status");
+    assert_eq!(failed["phase"], "inactive");
+    assert_eq!(failed["busy"], false);
+    assert_eq!(failed["last_error"]["generation"], failed_generation);
+    assert_eq!(failed["last_error"]["method"], "brp_extras/click_mouse");
+    assert_eq!(failed["last_error"]["window"], window.to_bits());
+    assert_eq!(failed["last_error"]["code"], INVALID_PARAMS);
+    assert!(failed["last_error"]["message"].is_string());
+    assert_eq!(control(&mut app, "release"), failed);
+    let replacement = app.world_mut().spawn(Window::default()).id();
+    super::super::cursor::move_mouse_handler(
+        In(Some(
+            json!({"position":[0.0,0.0],"window":replacement.to_bits()}),
+        )),
+        app.world_mut(),
+    )
+    .unwrap();
+    assert_eq!(
+        control(&mut app, "status")["last_error"],
+        serde_json::Value::Null
+    );
+}
+
+#[test]
+fn non_object_control_and_non_string_actions_cannot_cancel_active_input() {
+    let (mut app, _, _) = fixture();
+    super::super::click::click_mouse_handler(In(Some(json!({"button":"Left"}))), app.world_mut())
+        .unwrap();
+    let before = control(&mut app, "status");
+    for params in [json!(["release"]), json!({"action":{"release":null}})] {
+        let error =
+            super::super::control::pointer_control_handler(In(Some(params)), app.world_mut())
+                .unwrap_err();
+        assert_eq!(error.code, INVALID_PARAMS);
+        assert_eq!(control(&mut app, "status"), before);
+    }
+}

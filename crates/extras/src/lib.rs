@@ -125,6 +125,29 @@
 //! Automatic gestures share a FIFO with Picking cycle barriers and real-time waits. They wait
 //! for existing timed holds and keep later input queued until completion. Acceptance does not
 //! prove a UI hit or successful widget action. Cancellation emits Cancel rather than Release.
+//! Raw MouseMotion/MouseButtonInput/MouseWheel and native cursor consumers are not driven by
+//! these methods. Official Mouse-only Hovered/DirectlyHovered consumers need host adaptation.
+//! Pointer input does not require OS foreground focus and does not change Window.focused;
+//! application logic and host Picking configuration can still constrain results.
+//!
+//! ### `brp_extras/pointer_control`
+//!
+//! An instant App method, discoverable through `rpc.discover`. Use the existing MCP
+//! `brp_execute` tool; this method adds neither a static MCP tool nor a default agent tool.
+//! Requests are exactly `{"action":"status"}` or `{"action":"release"}`; missing, unknown or
+//! additional fields return INVALID_PARAMS without changing state. Status requires no Picking.
+//! Both actions return phase (inactive/active/draining), busy, pointer_id (stable UUID or null),
+//! window (entity bits or null), generation, queued_actions, pressed_buttons (Left/Right/Middle)
+//! and last_error (null or generation/method/window/code/message for a queued failure).
+//! An idle active pointer has busy=false. Status does not create work or clear last_error.
+//! Release cancels outside the FIFO, invalidates the generation and returns draining while
+//! cleanup is pending. It is idempotent during cleanup and when inactive. Ordinary input is
+//! rejected during draining; poll status until inactive before handing control back.
+//! A successful new activation clears last_error. Always release in automation cleanup.
+//!
+//! MCP examples:
+//! `{"method":"brp_extras/pointer_control","params":{"action":"release"},"port":15712}`
+//! then `{"method":"brp_extras/pointer_control","params":{"action":"status"},"port":15712}`.
 //!
 //! ## Keyboard
 //!

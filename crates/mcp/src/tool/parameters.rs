@@ -671,6 +671,24 @@ pub(super) fn build_parameters_from<T: JsonSchema>() -> ParameterBuilder {
     parameter_builder
 }
 
+pub(super) fn build_pointer_button_parameters<T: JsonSchema>() -> ParameterBuilder {
+    let mut builder = build_parameters_from::<T>();
+    // The general builder flattens enum constraints. Keep the actual supported pointer buttons.
+    let schema = schemars::schema_for!(T).to_value();
+    if let Some(button) = schema
+        .get("properties")
+        .and_then(|properties| properties.get("button"))
+    {
+        builder.properties.insert(
+            "button".to_owned(),
+            resolve_schema_value(button, schema.get("$defs").and_then(Value::as_object)).clone(),
+        );
+    } else {
+        tracing::error!("Pointer button parameter type has no button schema");
+    }
+    builder
+}
+
 #[cfg(test)]
 mod tests {
     use std::error::Error;

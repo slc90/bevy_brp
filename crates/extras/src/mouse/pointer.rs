@@ -101,6 +101,44 @@ pub(super) struct BrpPointerState {
     last_method: String,
 }
 
+#[derive(Serialize)]
+pub(super) struct Snapshot {
+    phase: Phase,
+    busy: bool,
+    pointer_id: Option<String>,
+    window: Option<u64>,
+    generation: u64,
+    queued_actions: usize,
+    pressed_buttons: Vec<bevy::input::mouse::MouseButton>,
+    last_error: Option<PointerError>,
+}
+
+impl BrpPointerState {
+    pub(super) fn snapshot(&self) -> Snapshot {
+        use bevy::input::mouse::MouseButton;
+        Snapshot {
+            phase: self.phase,
+            busy: self.activity.is_some(),
+            pointer_id: self.id.and_then(|id| match id {
+                PointerId::Custom(id) => Some(id.to_string()),
+                _ => None,
+            }),
+            window: self.window.map(Entity::to_bits),
+            generation: self.generation,
+            queued_actions: self.queue.len(),
+            pressed_buttons: [
+                (PointerButton::Primary, MouseButton::Left),
+                (PointerButton::Secondary, MouseButton::Right),
+                (PointerButton::Middle, MouseButton::Middle),
+            ]
+            .into_iter()
+            .filter_map(|(pointer, mouse)| self.pressed.contains(&pointer).then_some(mouse))
+            .collect(),
+            last_error: self.last_error.clone(),
+        }
+    }
+}
+
 pub(super) fn install(app: &mut App) {
     app.init_resource::<BrpPointerState>()
         .add_systems(
@@ -618,8 +656,7 @@ fn advance_queue(world: &mut World, state: &mut BrpPointerState, now: Instant) {
     }
 }
 
-#[cfg(test)]
-fn release(world: &mut World) {
+pub(super) fn release(world: &mut World) {
     world.resource_scope(|world, mut state: Mut<BrpPointerState>| begin_drain(world, &mut state));
 }
 

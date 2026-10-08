@@ -12,6 +12,7 @@
 mod button;
 mod click;
 mod constants;
+mod control;
 mod cursor;
 mod drag;
 mod gestures;
@@ -26,6 +27,7 @@ use cursor::SimulatedCursorPosition;
 pub(crate) use self::button::send_mouse_button_handler;
 pub(crate) use self::click::click_mouse_handler;
 pub(crate) use self::click::double_click_mouse_handler;
+pub(crate) use self::control::pointer_control_handler;
 pub(crate) use self::cursor::move_mouse_handler;
 pub(crate) use self::drag::drag_mouse_handler;
 pub(crate) use self::gestures::double_tap_gesture_handler;

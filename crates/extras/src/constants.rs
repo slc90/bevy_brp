@@ -19,6 +19,7 @@ pub(crate) const METHOD_DRAG_MOUSE: &str = "drag_mouse";
 pub(crate) const METHOD_GET_DIAGNOSTICS: &str = "get_diagnostics";
 pub(crate) const METHOD_MOVE_MOUSE: &str = "move_mouse";
 pub(crate) const METHOD_PINCH_GESTURE: &str = "pinch_gesture";
+pub(crate) const METHOD_POINTER_CONTROL: &str = "pointer_control";
 pub(crate) const METHOD_ROTATION_GESTURE: &str = "rotation_gesture";
 pub(crate) const METHOD_SCREENSHOT: &str = "screenshot";
 pub(crate) const METHOD_SCROLL_MOUSE: &str = "scroll_mouse";

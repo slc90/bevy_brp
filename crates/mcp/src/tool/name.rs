@@ -781,15 +781,17 @@ impl ToolName {
             }
             Self::BrpExtrasMoveMouse => Some(parameters::build_parameters_from::<MoveMouseParams>),
             Self::BrpExtrasSendMouseButton => {
-                Some(parameters::build_parameters_from::<SendMouseButtonParams>)
+                Some(parameters::build_pointer_button_parameters::<SendMouseButtonParams>)
             }
             Self::BrpExtrasClickMouse => {
-                Some(parameters::build_parameters_from::<ClickMouseParams>)
+                Some(parameters::build_pointer_button_parameters::<ClickMouseParams>)
             }
             Self::BrpExtrasDoubleClickMouse => {
-                Some(parameters::build_parameters_from::<DoubleClickMouseParams>)
+                Some(parameters::build_pointer_button_parameters::<DoubleClickMouseParams>)
             }
-            Self::BrpExtrasDragMouse => Some(parameters::build_parameters_from::<DragMouseParams>),
+            Self::BrpExtrasDragMouse => {
+                Some(parameters::build_pointer_button_parameters::<DragMouseParams>)
+            }
             Self::BrpExtrasScrollMouse => {
                 Some(parameters::build_parameters_from::<ScrollMouseParams>)
             }

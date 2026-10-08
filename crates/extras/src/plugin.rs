@@ -25,6 +25,7 @@ use super::constants::METHOD_DRAG_MOUSE;
 use super::constants::METHOD_GET_DIAGNOSTICS;
 use super::constants::METHOD_MOVE_MOUSE;
 use super::constants::METHOD_PINCH_GESTURE;
+use super::constants::METHOD_POINTER_CONTROL;
 use super::constants::METHOD_ROTATION_GESTURE;
 use super::constants::METHOD_SCREENSHOT;
 use super::constants::METHOD_SCROLL_MOUSE;
@@ -442,6 +443,10 @@ fn register_extras_methods(world: &mut World) {
             RemoteMethodSystemId::Instant(world.register_system(mouse::move_mouse_handler)),
         ),
         (
+            format!("{EXTRAS_COMMAND_PREFIX}{METHOD_POINTER_CONTROL}"),
+            RemoteMethodSystemId::Instant(world.register_system(mouse::pointer_control_handler)),
+        ),
+        (
             format!("{EXTRAS_COMMAND_PREFIX}{METHOD_PINCH_GESTURE}"),
             RemoteMethodSystemId::Instant(world.register_system(mouse::pinch_gesture_handler)),
         ),
@@ -551,6 +556,7 @@ mod tests {
             METHOD_DRAG_MOUSE,
             METHOD_MOVE_MOUSE,
             METHOD_PINCH_GESTURE,
+            METHOD_POINTER_CONTROL,
             METHOD_ROTATION_GESTURE,
             METHOD_SCREENSHOT,
             METHOD_SCROLL_MOUSE,

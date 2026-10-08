@@ -23,6 +23,8 @@
 
 Extras 的 `mouse` 模块以 App 内稳定的 Custom Pointer 和统一 `First` 输入生产者承接 move、button、click、double-click、drag、scroll；在 Picking backend 前暂时停用物理 Mouse 的命中位置，新物理输入使 Custom generation 失效。取消在交互派发后补齐原 press/drag 目标的框架 Cancel，并等待下一 Picking 周期确认退场。Extras 显式依赖 `bevy_picking` 与 UUID，但不安装 Picking 核心、交互插件或 backend，宿主承担装配责任；无 Picking 的宿主仍能安装 Extras 和使用其他能力。自动手势共用 FIFO，以真实经过时间和 Picking 周期分别保证等待与命中时序，结束消费后释放 activity；timed hold 期间允许同窗口移动和滚轮，自动手势等待已有 hold 结束并阻挡后续输入。窗口或 Pointer 实体失效同样取消旧 generation。
 
+`brp_extras/pointer_control` 只注册为 App instant method，经既有 `brp_execute` 调用并由 `rpc.discover` 发现，不增加静态 MCP tool 或默认动态 agent tool。status 返回生命周期、工作状态、稳定 UUID、目标窗口、generation、待输出动作、按键及异步错误快照；release 绕过 FIFO 启动取消，调用方查询至 inactive 后交接。状态查询不增加 activity，空闲 active Pointer 允许继续 hover 而不维持忙状态。
+
 ## 测试宿主
 
 | 路径 | Package 与 Cargo target | 验证用途 |

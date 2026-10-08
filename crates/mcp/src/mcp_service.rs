@@ -202,4 +202,36 @@ mod tests {
             assert!(tool["description"].as_str().unwrap().contains("window"));
         }
     }
+
+    #[test]
+    fn pointer_tools_publish_only_supported_button_choices() {
+        let listing = serde_json::to_value(McpService::new().list_mcp_tools()).unwrap();
+        for name in [
+            "brp_extras_click_mouse",
+            "brp_extras_double_click_mouse",
+            "brp_extras_drag_mouse",
+            "brp_extras_send_mouse_button",
+        ] {
+            let tool = listing["tools"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|tool| tool["name"] == name)
+                .unwrap();
+            let choices: Vec<_> = tool["inputSchema"]["properties"]["button"]["oneOf"]
+                .as_array()
+                .expect("published button choices")
+                .iter()
+                .map(|variant| variant["const"].clone())
+                .collect();
+            assert_eq!(
+                choices,
+                vec![
+                    serde_json::json!("Left"),
+                    serde_json::json!("Right"),
+                    serde_json::json!("Middle")
+                ]
+            );
+        }
+    }
 }

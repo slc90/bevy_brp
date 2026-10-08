@@ -9,5 +9,7 @@ Examples:
 {"x": 0.0, "y": -100.0, "unit": "Pixel"}  // Scroll up 100 pixels
 ```
 
-Queues Custom Pointer scroll at the last independent BRP logical position for the target window (origin initially). Line/Pixel units are preserved. Does not write raw MouseWheel or move the OS cursor. Window defaults to the last live BRP target, then PrimaryWindow; invalid explicit/destroyed targets fail. Acceptance does not prove a UI result.
+Queues Custom Pointer scroll at the last independent BRP logical position for the target window (origin initially). Line/Pixel units are preserved. Does not write raw MouseWheel or move the OS cursor. Window defaults to the last BRP target, then PrimaryWindow; invalid explicit/destroyed targets fail. Acceptance does not prove a UI result.
 Prerequisites: BrpExtrasPlugin, enabled PickingPlugin and InteractionPlugin, and a host-provided picking backend. Native Window move/resize is unsupported.
+
+Automation cleanup: use brp_execute with method=brp_extras/pointer_control and params={"action":"release"}, then poll {"action":"status"} until phase=inactive. Input acceptance, busy=false and UI success are separate checks. Raw/native cursor consumers and official Mouse-only hover consumers require host migration; there is no raw fallback. OS foreground focus is not required by this input source; host Picking and app logic still apply.

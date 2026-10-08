@@ -21,3 +21,14 @@ also fails, the original method error remains in error_info with nested discover
 
 For MCP invocation, use brp_execute for missing-method guidance, timeout handling, and BRP error
 details. Direct HTTP JSON-RPC is a developer-only alternative outside MCP.
+
+After ordinary Custom Pointer automation, call
+{"method":"brp_extras/pointer_control","params":{"action":"release"},"port":15712}
+and poll {"method":"brp_extras/pointer_control","params":{"action":"status"},"port":15712}
+until result.phase is inactive. Release is idempotent; draining means cancellation cleanup is still
+pending and new ordinary pointer input is rejected. Status returns phase, busy, pointer_id (stable
+UUID or null), window (entity bits or null), generation, queued_actions, pressed_buttons
+(Left/Right/Middle) and last_error (null or generation/method/window/code/message). busy=false
+means no queue/timer/cleanup work, not verified UI success. Status and idempotent release retain
+last_error; a new successful activation clears it. Only action=status/release is accepted, with no
+extra fields. This App method needs no additional static MCP tool or default agent-tool entry.
