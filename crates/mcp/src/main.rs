@@ -5,6 +5,9 @@
 //!
 //! This server enables remote debugging, inspection, and manipulation of
 //! Bevy applications at runtime through a standardized MCP interface.
+//!
+//! Protocol negotiation follows rmcp: `initialize` negotiates a session protocol
+//! up to `2025-11-25`; `2026-07-28` clients use per-request `_meta` instead.
 
 use std::error::Error;
 

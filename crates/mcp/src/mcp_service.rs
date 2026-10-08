@@ -7,7 +7,7 @@ use rmcp::model::CallToolResponse;
 use rmcp::model::ListToolsResult;
 use rmcp::model::PaginatedRequestParams;
 use rmcp::model::ServerCapabilities;
-use rmcp::model::ServerInfo;
+use rmcp::model::ServerConfig;
 use rmcp::service::RequestContext;
 
 use super::tool::ToolDef;
@@ -48,8 +48,8 @@ impl McpService {
 }
 
 impl ServerHandler for McpService {
-    fn get_info(&self) -> ServerInfo {
-        let mut info = rmcp::model::ServerInfo::default();
+    fn get_info(&self) -> ServerConfig {
+        let mut info = ServerConfig::default();
         info.capabilities = ServerCapabilities::builder().enable_tools().build();
         info
     }
