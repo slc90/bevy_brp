@@ -16,11 +16,11 @@ pub struct DoubleClickMouseParams {
     /// Mouse button to double click (Left, Right, Middle)
     pub button: MouseButtonWrapper,
 
-    /// Delay in milliseconds between clicks (default: 250ms)
+    /// Real-time delay after the first release (default: 250ms); Bevy decides the click count
     #[serde(skip_serializing_if = "Option::is_none")]
     pub delay_ms: Option<u32>,
 
-    /// Optional window entity ID to target (defaults to primary window)
+    /// Optional window entity ID to target (defaults to last BRP target, then primary window)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub window: Option<u64>,
 
@@ -39,6 +39,6 @@ pub struct DoubleClickMouseResult {
     pub result: Option<Value>,
 
     /// Message template for formatting responses
-    #[to_message(message_template = "Double click executed successfully")]
+    #[to_message(message_template = "Double click accepted")]
     pub message_template: String,
 }

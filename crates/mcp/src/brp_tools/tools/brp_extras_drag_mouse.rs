@@ -22,10 +22,10 @@ pub struct DragMouseParams {
     /// Ending position as [x, y]
     pub end: (f32, f32),
 
-    /// Number of frames over which to interpolate the drag
+    /// Interpolation steps (minimum 1); establishing the start hit and releasing add Picking cycles
     pub frames: u32,
 
-    /// Optional window entity ID to target (defaults to primary window)
+    /// Optional window entity ID to target (defaults to last BRP target, then primary window)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub window: Option<u64>,
 
@@ -44,6 +44,6 @@ pub struct DragMouseResult {
     pub result: Option<Value>,
 
     /// Message template for formatting responses
-    #[to_message(message_template = "Drag operation started successfully")]
+    #[to_message(message_template = "Drag operation accepted")]
     pub message_template: String,
 }

@@ -16,7 +16,7 @@ pub struct ClickMouseParams {
     /// Mouse button to click (Left, Right, Middle)
     pub button: MouseButtonWrapper,
 
-    /// Optional window entity ID to target (defaults to primary window)
+    /// Optional window entity ID to target (defaults to last BRP target, then primary window)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub window: Option<u64>,
 
@@ -35,6 +35,6 @@ pub struct ClickMouseResult {
     pub result: Option<Value>,
 
     /// Message template for formatting responses
-    #[to_message(message_template = "Mouse button clicked successfully")]
+    #[to_message(message_template = "Mouse click accepted")]
     pub message_template: String,
 }

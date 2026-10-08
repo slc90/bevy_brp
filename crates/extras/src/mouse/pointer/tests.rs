@@ -11,6 +11,10 @@ struct Trace {
     clicks: Vec<Pointer<bevy::picking::events::Click>>,
     scrolls: Vec<Pointer<bevy::picking::events::Scroll>>,
     raw_count: usize,
+    drag_starts: Vec<Pointer<bevy::picking::events::DragStart>>,
+    drag_ends: Vec<Pointer<bevy::picking::events::DragEnd>>,
+    drag_drops: Vec<Pointer<bevy::picking::events::DragDrop>>,
+    cancels: Vec<Pointer<Cancel>>,
 }
 
 fn capture(
@@ -23,10 +27,18 @@ fn capture(
     mut wheel: MessageReader<bevy::input::mouse::MouseWheel>,
     mut cursor: MessageReader<bevy::window::CursorMoved>,
     mut windows: MessageReader<WindowEvent>,
+    mut drag_starts: MessageReader<Pointer<bevy::picking::events::DragStart>>,
+    mut drag_ends: MessageReader<Pointer<bevy::picking::events::DragEnd>>,
+    mut drag_drops: MessageReader<Pointer<bevy::picking::events::DragDrop>>,
+    mut cancels: MessageReader<Pointer<Cancel>>,
 ) {
     trace.inputs.extend(inputs.read().cloned());
     trace.clicks.extend(clicks.read().cloned());
     trace.scrolls.extend(scrolls.read().cloned());
+    trace.drag_starts.extend(drag_starts.read().cloned());
+    trace.drag_ends.extend(drag_ends.read().cloned());
+    trace.drag_drops.extend(drag_drops.read().cloned());
+    trace.cancels.extend(cancels.read().cloned());
     trace.raw_count += button.read().count()
         + motion.read().count()
         + wheel.read().count()
@@ -77,20 +89,28 @@ fn fixture() -> (App, Entity, Entity) {
 #[derive(Resource)]
 struct Target(Entity);
 
+#[derive(Resource)]
+struct SecondTarget(Entity);
+
 fn hits(
     pointers: Query<(&PointerId, &PointerLocation)>,
     target: Res<Target>,
+    second: Option<Res<SecondTarget>>,
     mut output: MessageWriter<PointerHits>,
 ) {
     for (id, location) in &pointers {
-        if location
-            .location
-            .as_ref()
-            .is_some_and(|location| location.position.x < 100.0)
-        {
+        if let Some(location) = &location.location {
+            let target = if location.position.x < 100.0 {
+                Some(target.0)
+            } else {
+                second.as_ref().map(|target| target.0)
+            };
+            let Some(target) = target else {
+                continue;
+            };
             output.write(PointerHits::new(
                 *id,
-                vec![(target.0, HitData::new(target.0, 0.0, None, None))],
+                vec![(target, HitData::new(target, 0.0, None, None))],
                 1.0,
             ));
         }
@@ -936,4 +956,356 @@ fn destroyed_timed_hold_reports_the_operation_that_owned_the_button() {
         .unwrap();
     assert_eq!(error.method, "brp_extras/send_mouse_button");
     assert_eq!(error.window, Some(window.to_bits()));
+}
+
+fn finish_work(app: &mut App) {
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while app
+        .world()
+        .resource::<crate::BrpExtrasActivity>()
+        .state()
+        .is_active()
+    {
+        assert!(Instant::now() < deadline, "Pointer work failed to converge");
+        app.update();
+        std::thread::sleep(Duration::from_millis(2));
+    }
+}
+
+#[test]
+fn first_click_establishes_hit_and_releases_on_later_picking_cycles() {
+    let (mut app, window, target) = fixture();
+    super::super::click::click_mouse_handler(In(Some(json!({"button":"Left"}))), app.world_mut())
+        .unwrap();
+    finish_work(&mut app);
+    let trace = app.world().resource::<Trace>();
+    assert_eq!(trace.clicks.len(), 1);
+    assert_eq!(trace.clicks[0].entity, target);
+    assert_eq!(
+        trace.clicks[0].pointer_location,
+        location(window, Vec2::ZERO)
+    );
+    assert_eq!(trace.inputs.len(), 3);
+    assert!(matches!(trace.inputs[0].action, PointerAction::Move { .. }));
+    assert!(matches!(
+        trace.inputs[1].action,
+        PointerAction::Press(PointerButton::Primary)
+    ));
+    assert!(matches!(
+        trace.inputs[2].action,
+        PointerAction::Release(PointerButton::Primary)
+    ));
+    assert_eq!(trace.raw_count, 0);
+}
+
+#[test]
+fn double_click_count_comes_from_the_engine_interval() {
+    for (interval_ms, delay_ms, expected) in [(1000, 0, vec![1, 2]), (50, 75, vec![1, 1])] {
+        let (mut app, _, target) = fixture();
+        app.world_mut()
+            .resource_mut::<PickingSettings>()
+            .multi_click_interval = Duration::from_millis(interval_ms);
+        super::super::click::double_click_mouse_handler(
+            In(Some(json!({"button":"Left","delay_ms":delay_ms}))),
+            app.world_mut(),
+        )
+        .unwrap();
+        finish_work(&mut app);
+        let trace = app.world().resource::<Trace>();
+        assert_eq!(
+            trace
+                .clicks
+                .iter()
+                .map(|event| event.count)
+                .collect::<Vec<_>>(),
+            expected
+        );
+        assert!(trace.clicks.iter().all(|event| event.entity == target));
+        assert_eq!(trace.raw_count, 0);
+        assert!(
+            trace
+                .inputs
+                .iter()
+                .all(|input| input.pointer_id.is_custom())
+        );
+    }
+}
+
+#[test]
+fn minimum_drag_visits_start_before_press_and_end_before_release() {
+    let (mut app, window, target) = fixture();
+    super::super::drag::drag_mouse_handler(
+        In(Some(
+            json!({"button":"Left","start":[5.0,6.0],"end":[70.0,80.0],"frames":1}),
+        )),
+        app.world_mut(),
+    )
+    .unwrap();
+    finish_work(&mut app);
+    let trace = app.world().resource::<Trace>();
+    assert_eq!(trace.inputs.len(), 4);
+    assert!(matches!(trace.inputs[0].action, PointerAction::Move { .. }));
+    assert_eq!(
+        trace.inputs[0].location,
+        location(window, Vec2::new(5.0, 6.0))
+    );
+    assert!(matches!(trace.inputs[1].action, PointerAction::Press(_)));
+    assert_eq!(
+        trace.inputs[2].location,
+        location(window, Vec2::new(70.0, 80.0))
+    );
+    assert!(matches!(trace.inputs[3].action, PointerAction::Release(_)));
+    assert_eq!(trace.drag_starts.len(), 1);
+    assert_eq!(trace.drag_starts[0].entity, target);
+    assert_eq!(trace.drag_ends.len(), 1);
+    assert_eq!(trace.raw_count, 0);
+}
+
+#[test]
+fn queued_click_move_click_does_not_collapse_two_targets_into_one_cycle() {
+    let (mut app, _, target) = fixture();
+    super::super::click::click_mouse_handler(In(Some(json!({"button":"Left"}))), app.world_mut())
+        .unwrap();
+    super::super::cursor::move_mouse_handler(
+        In(Some(json!({"position":[200.0,10.0]}))),
+        app.world_mut(),
+    )
+    .unwrap();
+    super::super::click::click_mouse_handler(In(Some(json!({"button":"Left"}))), app.world_mut())
+        .unwrap();
+    finish_work(&mut app);
+    let trace = app.world().resource::<Trace>();
+    assert_eq!(
+        trace
+            .clicks
+            .iter()
+            .filter(|event| event.entity == target)
+            .count(),
+        1
+    );
+    assert_eq!(trace.raw_count, 0);
+}
+
+#[test]
+fn cancel_during_auto_click_discards_following_moves_and_timers_without_click() {
+    let (mut app, _, _) = fixture();
+    super::super::click::click_mouse_handler(In(Some(json!({"button":"Left"}))), app.world_mut())
+        .unwrap();
+    super::super::cursor::move_mouse_handler(
+        In(Some(json!({"position":[40.0,50.0]}))),
+        app.world_mut(),
+    )
+    .unwrap();
+    app.update();
+    app.update();
+    release(app.world_mut());
+    finish_work(&mut app);
+    let trace = app.world().resource::<Trace>();
+    assert_eq!(trace.clicks.len(), 0);
+    assert!(
+        !trace
+            .inputs
+            .iter()
+            .any(|input| matches!(input.action, PointerAction::Release(_)))
+    );
+    assert!(
+        !trace
+            .inputs
+            .iter()
+            .any(|input| input.location.position == Vec2::new(40.0, 50.0))
+    );
+    assert_eq!(trace.raw_count, 0);
+}
+
+#[test]
+fn automatic_drag_waits_for_timed_hold_and_later_move_stays_behind_it() {
+    let (mut app, _, _) = fixture();
+    super::super::button::send_mouse_button_handler(
+        In(Some(json!({"button":"Middle","duration_ms":30}))),
+        app.world_mut(),
+    )
+    .unwrap();
+    super::super::drag::drag_mouse_handler(
+        In(Some(
+            json!({"button":"Left","start":[10.0,0.0],"end":[50.0,0.0],"frames":1}),
+        )),
+        app.world_mut(),
+    )
+    .unwrap();
+    super::super::cursor::move_mouse_handler(
+        In(Some(json!({"position":[80.0,0.0]}))),
+        app.world_mut(),
+    )
+    .unwrap();
+    app.update();
+    app.update();
+    app.update();
+    assert_eq!(app.world().resource::<Trace>().inputs.len(), 2);
+    finish_work(&mut app);
+    let trace = app.world().resource::<Trace>();
+    let release_middle = trace
+        .inputs
+        .iter()
+        .position(|input| matches!(input.action, PointerAction::Release(PointerButton::Middle)))
+        .unwrap();
+    let press_left = trace
+        .inputs
+        .iter()
+        .position(|input| matches!(input.action, PointerAction::Press(PointerButton::Primary)))
+        .unwrap();
+    assert!(release_middle < press_left);
+    assert_eq!(
+        trace.inputs.last().unwrap().location.position,
+        Vec2::new(80.0, 0.0)
+    );
+    assert_eq!(trace.raw_count, 0);
+}
+
+#[test]
+fn drag_to_second_target_produces_engine_drop_and_one_exact_endpoint_step() {
+    let (mut app, _, original) = fixture();
+    let destination = app.world_mut().spawn_empty().id();
+    app.insert_resource(SecondTarget(destination));
+    super::super::drag::drag_mouse_handler(
+        In(Some(
+            json!({"button":"Left","start":[10.0,0.0],"end":[200.0,0.0],"frames":3}),
+        )),
+        app.world_mut(),
+    )
+    .unwrap();
+    finish_work(&mut app);
+    let trace = app.world().resource::<Trace>();
+    assert_eq!(trace.drag_starts[0].entity, original);
+    assert_eq!(trace.drag_ends[0].entity, original);
+    assert_eq!(trace.drag_drops.len(), 1);
+    assert_eq!(trace.drag_drops[0].entity, destination);
+    assert_eq!(
+        trace
+            .inputs
+            .iter()
+            .filter(|input| matches!(input.action, PointerAction::Move { .. })
+                && input.location.position == Vec2::new(200.0, 0.0))
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn cancelled_drag_after_leaving_hit_never_sends_success_end_or_drop() {
+    let (mut app, _, original) = fixture();
+    super::super::drag::drag_mouse_handler(
+        In(Some(
+            json!({"button":"Left","start":[0.0,0.0],"end":[400.0,0.0],"frames":3}),
+        )),
+        app.world_mut(),
+    )
+    .unwrap();
+    app.update();
+    app.update();
+    app.update();
+    release(app.world_mut());
+    finish_work(&mut app);
+    let trace = app.world().resource::<Trace>();
+    assert_eq!(trace.drag_starts.len(), 1);
+    assert_eq!(
+        trace
+            .cancels
+            .iter()
+            .filter(|event| event.entity == original)
+            .count(),
+        1
+    );
+    assert_eq!(trace.drag_ends.len(), 0);
+    assert_eq!(trace.drag_drops.len(), 0);
+    assert_eq!(trace.clicks.len(), 0);
+}
+
+#[test]
+fn zero_distance_drag_finishes_with_no_pressed_state() {
+    let (mut app, _, _) = fixture();
+    super::super::drag::drag_mouse_handler(
+        In(Some(
+            json!({"button":"Right","start":[0.0,0.0],"end":[0.0,0.0],"frames":1}),
+        )),
+        app.world_mut(),
+    )
+    .unwrap();
+    finish_work(&mut app);
+    let state = app.world().resource::<BrpPointerState>();
+    assert!(state.pressed.is_empty());
+    assert!(
+        !app.world()
+            .get::<PointerPress>(state.entity.unwrap())
+            .unwrap()
+            .is_any_pressed()
+    );
+    assert_eq!(app.world().resource::<Trace>().raw_count, 0);
+}
+
+#[test]
+fn destroying_custom_entity_cancels_work_instead_of_waiting_forever_for_location() {
+    let (mut app, _, _) = fixture();
+    super::super::click::click_mouse_handler(In(Some(json!({"button":"Left"}))), app.world_mut())
+        .unwrap();
+    let entity = app.world().resource::<BrpPointerState>().entity.unwrap();
+    app.world_mut().despawn(entity);
+    for _ in 0..3 {
+        app.update();
+    }
+    assert_eq!(
+        app.world().resource::<BrpPointerState>().phase,
+        Phase::Inactive
+    );
+    assert!(
+        !app.world()
+            .resource::<crate::BrpExtrasActivity>()
+            .state()
+            .is_active()
+    );
+}
+
+#[test]
+fn lost_pointer_component_cancels_press_and_next_generation_reuses_only_identity() {
+    let (mut app, _, target) = fixture();
+    super::super::click::click_mouse_handler(In(Some(json!({"button":"Left"}))), app.world_mut())
+        .unwrap();
+    app.update();
+    app.update();
+    let state = app.world().resource::<BrpPointerState>();
+    let (entity, id) = (state.entity.unwrap(), state.id);
+    app.world_mut()
+        .entity_mut(entity)
+        .remove::<PointerLocation>();
+    app.update();
+    app.update();
+    let state = app.world().resource::<BrpPointerState>();
+    assert_eq!(state.phase, Phase::Inactive);
+    assert_eq!(
+        state.last_error.as_ref().unwrap().method,
+        "brp_extras/click_mouse"
+    );
+    assert_eq!(
+        app.world()
+            .resource::<Trace>()
+            .cancels
+            .iter()
+            .filter(|event| event.entity == target)
+            .count(),
+        1
+    );
+    assert!(app.world().resource::<Trace>().clicks.is_empty());
+    let engine = app
+        .world()
+        .resource::<bevy::picking::events::PointerState>();
+    let button = engine.get(id.unwrap(), PointerButton::Primary).unwrap();
+    assert!(button.pressing.is_empty());
+    assert!(button.dragging.is_empty());
+    super::super::click::click_mouse_handler(In(Some(json!({"button":"Left"}))), app.world_mut())
+        .unwrap();
+    finish_work(&mut app);
+    let state = app.world().resource::<BrpPointerState>();
+    assert_eq!(state.id, id);
+    assert_ne!(state.entity, Some(entity));
+    let trace = app.world().resource::<Trace>();
+    assert_eq!(trace.clicks.len(), 1);
 }

@@ -1,103 +1,55 @@
-//! Mouse button press with configurable hold duration
+//! Timed Custom Pointer button input.
 
 use bevy::ecs::system::In;
-use bevy::input::ButtonState;
 use bevy::input::mouse::MouseButton;
-use bevy::input::mouse::MouseButtonInput;
 use bevy::prelude::*;
-use bevy::window::WindowEvent;
-use bevy_remote::BrpError;
 use bevy_remote::BrpResult;
 use bevy_remote::error_codes::INVALID_PARAMS;
-use serde::Deserialize;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::constants::DEFAULT_MOUSE_DURATION_MS;
-use super::constants::MAX_MOUSE_DURATION_MS;
-use super::support;
+use super::constants::{DEFAULT_MOUSE_DURATION_MS, MAX_MOUSE_DURATION_MS};
+use super::cursor::SimulatedCursorPosition;
 use super::support::EmptyParamsPolicy;
-use crate::activity::BrpExtrasActivityGuard;
+use super::{pointer, support};
 use crate::constants::METHOD_SEND_MOUSE_BUTTON;
 
-// ============================================================================
-// Types
-// ============================================================================
-
-/// Request structure for `send_mouse_button`
 #[derive(Deserialize)]
 struct SendMouseButtonRequest {
-    /// Mouse button to press
     button: MouseButton,
-    /// Duration in milliseconds to hold button (default: 100ms, max: 60000ms)
     #[serde(default)]
     duration_ms: Option<u32>,
-    /// Target window entity (None = primary window)
     #[serde(default)]
     window: Option<u64>,
 }
 
-/// Response structure for `send_mouse_button`
 #[derive(Serialize)]
 struct SendMouseButtonResponse {
-    /// Button that was pressed
     button: MouseButton,
-    /// Duration in milliseconds the button was held
     duration_ms: u32,
 }
 
-// ============================================================================
-// Components
-// ============================================================================
-
-/// Component for timed mouse button releases
-///
-/// Attached to entities to track button press duration. When the timer expires,
-/// the button release event is sent and the entity is despawned.
-#[derive(Component)]
-pub(super) struct TimedButtonRelease {
-    /// 保持 Extras 活跃直到 release event 已产生。
-    pub(super) _activity: BrpExtrasActivityGuard,
-    /// Which button to release
-    pub button: MouseButton,
-    /// Which window the button was pressed in (None = primary)
-    pub window: Option<Entity>,
-    /// Timer tracking remaining duration
-    pub timer: Timer,
-}
-
-// ============================================================================
-// Handlers
-// ============================================================================
-
-/// Handler for `send_mouse_button` BRP method
-///
-/// Sends a mouse button press with configurable hold duration before automatic release
 pub(crate) fn send_mouse_button_handler(
     In(params): In<Option<Value>>,
     world: &mut World,
 ) -> BrpResult {
     let request: SendMouseButtonRequest =
         support::parse_request(params, EmptyParamsPolicy::Reject)?;
-
-    // Validate duration
     let duration_ms = request.duration_ms.unwrap_or(DEFAULT_MOUSE_DURATION_MS);
     if duration_ms > MAX_MOUSE_DURATION_MS {
-        return Err(BrpError {
-            code: INVALID_PARAMS,
-            message: format!(
-                "Duration exceeds maximum: {duration_ms}ms > {MAX_MOUSE_DURATION_MS}ms"
-            ),
-            data: None,
-        });
+        return Err(pointer::error(
+            METHOD_SEND_MOUSE_BUTTON,
+            INVALID_PARAMS,
+            "Duration exceeds maximum 60000ms",
+            None,
+        ));
     }
-
     let window = support::resolve_window(world, request.window, METHOD_SEND_MOUSE_BUTTON)?;
     let button = support::pointer_button(request.button, METHOD_SEND_MOUSE_BUTTON)?;
     let position = world
-        .resource::<super::cursor::SimulatedCursorPosition>()
+        .resource::<SimulatedCursorPosition>()
         .get_position(window);
-    super::pointer::enqueue_hold(
+    pointer::enqueue_hold(
         world,
         window,
         position,
@@ -105,10 +57,7 @@ pub(crate) fn send_mouse_button_handler(
         duration_ms,
         METHOD_SEND_MOUSE_BUTTON,
     )?;
-    world
-        .resource_mut::<super::cursor::SimulatedCursorPosition>()
-        .last_window = Some(window);
-
+    world.resource_mut::<SimulatedCursorPosition>().last_window = Some(window);
     support::serialize_response(
         SendMouseButtonResponse {
             button: request.button,
@@ -116,37 +65,4 @@ pub(crate) fn send_mouse_button_handler(
         },
         METHOD_SEND_MOUSE_BUTTON,
     )
-}
-
-// ============================================================================
-// Systems
-// ============================================================================
-
-/// System to process timed button releases
-///
-/// Ticks timers on `TimedButtonRelease` components. When a timer finishes,
-/// sends the button release event and despawns the entity.
-pub(super) fn process_timed_button_releases(
-    mut commands: Commands,
-    time: Res<Time>,
-    mut query: Query<(Entity, &mut TimedButtonRelease)>,
-    mut button_events: MessageWriter<MouseButtonInput>,
-    mut window_events: MessageWriter<WindowEvent>,
-) {
-    for (entity, mut release) in &mut query {
-        release.timer.tick(time.delta());
-
-        if release.timer.is_finished() {
-            let event = MouseButtonInput {
-                button: release.button,
-                state: ButtonState::Released,
-                window: support::resolve_window_entity(release.window),
-            };
-            window_events.write(WindowEvent::from(event));
-            button_events.write(event);
-
-            // Despawn the entity
-            commands.entity(entity).despawn();
-        }
-    }
 }

@@ -1,4 +1,4 @@
-Performs a smooth drag operation from start to end position via bevy_brp_extras. Interpolates cursor movement over specified number of frames while holding button pressed.
+Queues an ordinary widget drag through Custom Pointer Picking input: establish the start hit, press, interpolate to the endpoint, then release after the endpoint is consumed. frames is the number of interpolation steps (minimum 1); setup and release add Picking cycles. The response confirms acceptance, not UI success.
 
 Button options: Left, Right, Middle
 
@@ -12,4 +12,6 @@ Examples:
 }  // Drag over 30 frames for smooth animation
 ```
 
-Prerequisites: bevy_brp_extras dependency and BrpExtrasPlugin registered.
+Coordinates are logical window pixels. Window defaults to the last BRP target, then primary. Waits for existing timed holds; later input waits until completion. Does not write raw mouse input or the OS cursor. Native Window move/resize regions are unsupported and must be avoided.
+
+Prerequisites: BrpExtrasPlugin, enabled PickingPlugin and InteractionPlugin, and a host picking backend.

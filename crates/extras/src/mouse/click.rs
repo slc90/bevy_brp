@@ -1,107 +1,54 @@
-//! Mouse click and double-click operations
-
-use std::time::Duration;
+//! Click gestures sharing the Custom Pointer FIFO.
 
 use bevy::ecs::system::In;
-use bevy::input::ButtonState;
 use bevy::input::mouse::MouseButton;
-use bevy::input::mouse::MouseButtonInput;
 use bevy::prelude::*;
-use bevy::window::WindowEvent;
 use bevy_remote::BrpResult;
-use serde::Deserialize;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::button::TimedButtonRelease;
 use super::constants::DEFAULT_DOUBLE_CLICK_DELAY_MS;
-use super::constants::DEFAULT_MOUSE_DURATION_MS;
-use super::support;
+use super::cursor::SimulatedCursorPosition;
 use super::support::EmptyParamsPolicy;
-use crate::activity;
-use crate::activity::BrpExtrasActivityGuard;
-use crate::constants::METHOD_CLICK_MOUSE;
-use crate::constants::METHOD_DOUBLE_CLICK_MOUSE;
-use crate::window_event;
+use super::{pointer, support};
+use crate::constants::{METHOD_CLICK_MOUSE, METHOD_DOUBLE_CLICK_MOUSE};
 
-// ============================================================================
-// Types
-// ============================================================================
-
-/// Request structure for `click_mouse`
 #[derive(Deserialize)]
 struct ClickMouseRequest {
-    /// Mouse button to click
     button: MouseButton,
-    /// Target window entity (None = primary window)
     #[serde(default)]
     window: Option<u64>,
 }
 
-/// Response structure for `click_mouse`
 #[derive(Serialize)]
 struct ClickMouseResponse {
-    /// Button that was clicked
     button: MouseButton,
 }
 
-/// Request structure for `double_click_mouse`
 #[derive(Deserialize)]
 struct DoubleClickMouseRequest {
-    /// Mouse button to double click
     button: MouseButton,
-    /// Delay between clicks in milliseconds (default: 250ms)
     #[serde(default)]
     delay_ms: Option<u32>,
-    /// Target window entity (None = primary window)
     #[serde(default)]
     window: Option<u64>,
 }
 
-/// Response structure for `double_click_mouse`
 #[derive(Serialize)]
 struct DoubleClickMouseResponse {
-    /// Button that was double-clicked
     button: MouseButton,
-    /// Delay between clicks in milliseconds
     delay_ms: u32,
 }
 
-// ============================================================================
-// Components
-// ============================================================================
-
-/// Component for scheduled clicks (used in double-click implementation)
-///
-/// Delays the second click in a double-click operation to ensure proper
-/// temporal separation between the two clicks.
-#[derive(Component)]
-pub(super) struct ScheduledClick {
-    /// 在第二次 click 的 timed release 接手前保持活动责任。
-    pub activity: Option<BrpExtrasActivityGuard>,
-    /// Which button to click
-    pub button: MouseButton,
-    /// Which window to target (None = primary)
-    pub window: Option<Entity>,
-    /// Timer for delay before sending the click
-    pub delay_timer: Timer,
-    /// Duration to hold the button pressed
-    pub click_duration: u32,
-}
-
-// ============================================================================
-// Handlers
-// ============================================================================
-
-/// Handler for `click_mouse` BRP method
-///
-/// Performs a simple click (press and release) with default timing
 pub(crate) fn click_mouse_handler(In(params): In<Option<Value>>, world: &mut World) -> BrpResult {
     let request: ClickMouseRequest = support::parse_request(params, EmptyParamsPolicy::Reject)?;
     let window = support::resolve_window(world, request.window, METHOD_CLICK_MOUSE)?;
-
-    support::send_timed_button_press(world, request.button, window, DEFAULT_MOUSE_DURATION_MS);
-
+    let button = support::pointer_button(request.button, METHOD_CLICK_MOUSE)?;
+    let position = world
+        .resource::<SimulatedCursorPosition>()
+        .get_position(window);
+    pointer::enqueue_click(world, window, position, button, None, METHOD_CLICK_MOUSE)?;
+    world.resource_mut::<SimulatedCursorPosition>().last_window = Some(window);
     support::serialize_response(
         ClickMouseResponse {
             button: request.button,
@@ -110,7 +57,6 @@ pub(crate) fn click_mouse_handler(In(params): In<Option<Value>>, world: &mut Wor
     )
 }
 
-/// Handler for `double_click_mouse` BRP method
 pub(crate) fn double_click_mouse_handler(
     In(params): In<Option<Value>>,
     world: &mut World,
@@ -119,35 +65,19 @@ pub(crate) fn double_click_mouse_handler(
         support::parse_request(params, EmptyParamsPolicy::Reject)?;
     let delay_ms = request.delay_ms.unwrap_or(DEFAULT_DOUBLE_CLICK_DELAY_MS);
     let window = support::resolve_window(world, request.window, METHOD_DOUBLE_CLICK_MOUSE)?;
-
-    // First click: press + immediate release
-    window_event::write_input_event(
+    let button = support::pointer_button(request.button, METHOD_DOUBLE_CLICK_MOUSE)?;
+    let position = world
+        .resource::<SimulatedCursorPosition>()
+        .get_position(window);
+    pointer::enqueue_click(
         world,
-        MouseButtonInput {
-            button: request.button,
-            state: ButtonState::Pressed,
-            window,
-        },
-    );
-    window_event::write_input_event(
-        world,
-        MouseButtonInput {
-            button: request.button,
-            state: ButtonState::Released,
-            window,
-        },
-    );
-
-    // Schedule second click to happen after delay
-    let activity = activity::begin(world);
-    world.spawn(ScheduledClick {
-        activity: Some(activity),
-        button: request.button,
-        window: Some(window),
-        delay_timer: Timer::new(Duration::from_millis(delay_ms.into()), TimerMode::Once),
-        click_duration: DEFAULT_MOUSE_DURATION_MS,
-    });
-
+        window,
+        position,
+        button,
+        Some(delay_ms),
+        METHOD_DOUBLE_CLICK_MOUSE,
+    )?;
+    world.resource_mut::<SimulatedCursorPosition>().last_window = Some(window);
     support::serialize_response(
         DoubleClickMouseResponse {
             button: request.button,
@@ -155,54 +85,4 @@ pub(crate) fn double_click_mouse_handler(
         },
         METHOD_DOUBLE_CLICK_MOUSE,
     )
-}
-
-// ============================================================================
-// Systems
-// ============================================================================
-
-/// System to process scheduled clicks (for double-click timing)
-///
-/// When the delay timer finishes:
-/// - Sends the second press event
-/// - Spawns a `TimedButtonRelease` for the release
-/// - Despawns the scheduled click entity
-pub(super) fn process_scheduled_clicks(
-    mut commands: Commands,
-    time: Res<Time>,
-    mut query: Query<(Entity, &mut ScheduledClick)>,
-    mut button_events: MessageWriter<MouseButtonInput>,
-    mut window_events: MessageWriter<WindowEvent>,
-) {
-    for (entity, mut scheduled) in &mut query {
-        scheduled.delay_timer.tick(time.delta());
-        if scheduled.delay_timer.is_finished() {
-            let Some(activity) = scheduled.activity.take() else {
-                error!(entity = %entity, "ScheduledClick 缺少 activity guard");
-                commands.entity(entity).despawn();
-                continue;
-            };
-            // Send press event
-            let event = MouseButtonInput {
-                button: scheduled.button,
-                state: ButtonState::Pressed,
-                window: support::resolve_window_entity(scheduled.window),
-            };
-            window_events.write(WindowEvent::from(event));
-            button_events.write(event);
-
-            // Spawn timed release
-            commands.spawn(TimedButtonRelease {
-                _activity: activity,
-                button: scheduled.button,
-                window: scheduled.window,
-                timer: Timer::new(
-                    Duration::from_millis(scheduled.click_duration.into()),
-                    TimerMode::Once,
-                ),
-            });
-
-            commands.entity(entity).despawn();
-        }
-    }
 }

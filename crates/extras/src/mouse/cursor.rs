@@ -73,20 +73,6 @@ impl SimulatedCursorPosition {
     pub(super) fn get_position(&self, window: Entity) -> Vec2 {
         self.positions.get(&window).copied().unwrap_or(Vec2::ZERO)
     }
-
-    /// Update cursor position and return the delta from previous position
-    ///
-    /// # Arguments
-    /// * `window` - `Window` entity to update
-    /// * `new_pos` - New cursor position
-    ///
-    /// # Returns
-    /// Delta from previous position (or from origin if no previous position)
-    pub(super) fn update_position(&mut self, window: Entity, new_pos: Vec2) -> Vec2 {
-        let old_pos = self.get_position(window);
-        self.positions.insert(window, new_pos);
-        new_pos - old_pos
-    }
 }
 
 // ============================================================================

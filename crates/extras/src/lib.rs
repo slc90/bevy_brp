@@ -114,7 +114,7 @@
 //!
 //! ## App-owned pointer source
 //!
-//! `move_mouse`, `send_mouse_button` and `scroll_mouse` use one stable Custom pointer per App.
+//! Move, button, click, double-click, drag and scroll use one stable Custom pointer per App.
 //! The host must install enabled
 //! PickingPlugin, InteractionPlugin and an appropriate picking backend. Extras does not
 //! install picking plugins or a UI backend. Coordinates are logical window pixels and movement
@@ -122,7 +122,9 @@
 //! scroll cancels the custom generation and hands control back to the physical pointer.
 //! Left/Right/Middle map to Primary/Secondary/Middle; other mouse buttons are rejected.
 //! Timed holds use real elapsed time and allow same-window move/scroll before release.
-//! Click and drag methods retain their existing input path until their migration is complete.
+//! Automatic gestures share a FIFO with Picking cycle barriers and real-time waits. They wait
+//! for existing timed holds and keep later input queued until completion. Acceptance does not
+//! prove a UI hit or successful widget action. Cancellation emits Cancel rather than Release.
 //!
 //! ## Keyboard
 //!
@@ -148,17 +150,19 @@
 //! ## Mouse
 //!
 //! All mouse methods accept an optional `window` parameter (entity ID) to target
-//! a specific window. Defaults to the primary window.
+//! a specific window. Defaults to the last BRP window, then the primary window.
 //!
-//! Button values: `"Left"`, `"Right"`, `"Middle"`, `"Back"`, `"Forward"`
+//! Button values: `"Left"`, `"Right"`, `"Middle"`.
 //!
 //! ### `brp_extras/click_mouse`
-//! Performs a click (press and immediate release).
+//! Queues a click at the BRP position after establishing a Picking hit. Holds for 100ms of
+//! real elapsed time; Press and Release are consumed in separate Picking cycles.
 //! - `button` (string, required)
 //! - `window` (u64, optional)
 //!
 //! ### `brp_extras/double_click_mouse`
-//! Performs two rapid clicks with configurable delay.
+//! Queues two complete 100ms clicks, with a delay after the first release. Bevy's
+//! `multi_click_interval` decides the count; a long delay can produce two single clicks.
 //! - `button` (string, required)
 //! - `delay_ms` (u32, optional, default: 250): delay between clicks
 //! - `window` (u64, optional)
@@ -179,11 +183,12 @@
 //! - `window` (u64, optional)
 //!
 //! ### `brp_extras/drag_mouse`
-//! Performs a smooth drag with linear interpolation over a number of frames.
+//! Queues an ordinary widget drag: establish the start hit, press, interpolate, then release
+//! after the endpoint is consumed. Native Window move/resize regions are unsupported.
 //! - `button` (string, required)
 //! - `start` ([f32; 2], required): starting position
 //! - `end` ([f32; 2], required): ending position
-//! - `frames` (u32, required): number of frames to interpolate over
+//! - `frames` (u32, required, minimum: 1): interpolation steps; setup and release add cycles
 //! - `window` (u64, optional)
 //!
 //! ### `brp_extras/scroll_mouse`

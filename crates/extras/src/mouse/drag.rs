@@ -1,133 +1,61 @@
-//! Mouse drag operations with interpolation
+//! Ordinary widget drag gestures through Custom Pointer Picking input.
 
 use bevy::ecs::system::In;
-use bevy::input::ButtonState;
 use bevy::input::mouse::MouseButton;
-use bevy::input::mouse::MouseButtonInput;
-use bevy::input::mouse::MouseMotion;
-use bevy::math::Vec2;
 use bevy::prelude::*;
-use bevy::window::CursorMoved;
-use bevy::window::WindowEvent;
-use bevy_remote::BrpError;
 use bevy_remote::BrpResult;
 use bevy_remote::error_codes::INVALID_PARAMS;
-use serde::Deserialize;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::constants::MIN_DRAG_FRAMES;
 use super::cursor::SimulatedCursorPosition;
-use super::support;
 use super::support::EmptyParamsPolicy;
-use crate::activity;
-use crate::activity::BrpExtrasActivityGuard;
+use super::{pointer, support};
 use crate::constants::METHOD_DRAG_MOUSE;
 
-// ============================================================================
-// Types
-// ============================================================================
-
-/// Drag operation state machine
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum DragState {
-    /// Button pressed, cursor moved to start position
-    Pressed,
-    /// Actively dragging, interpolating between start and end
-    Dragging,
-    /// Button released, operation complete
-    Released,
-}
-
-/// Request structure for `drag_mouse`
 #[derive(Deserialize)]
 struct DragMouseRequest {
-    /// Button to hold during drag
     button: MouseButton,
-    /// Starting position
     start: Vec2,
-    /// Ending position
     end: Vec2,
-    /// Number of frames to interpolate over
     frames: u32,
-    /// Target window entity (None = primary window)
     #[serde(default)]
     window: Option<u64>,
 }
 
-/// Response structure for `drag_mouse`
 #[derive(Serialize)]
 struct DragMouseResponse {
-    /// Button that was used for dragging
     button: MouseButton,
-    /// Starting position
     start: Vec2,
-    /// Ending position
     end: Vec2,
-    /// Number of frames for interpolation
     frames: u32,
 }
 
-// ============================================================================
-// Components
-// ============================================================================
-
-/// Component for drag operations
-///
-/// Manages multi-frame drag operations with linear interpolation between
-/// start and end positions. Runs a state machine: Pressed -> Dragging -> Released.
-#[derive(Component)]
-pub(super) struct DragOperation {
-    /// 保持 Extras 活跃直到终点位置和 release event 已产生。
-    pub _activity: BrpExtrasActivityGuard,
-    /// Which button is pressed during drag
-    pub button: MouseButton,
-    /// Which window to target (None = primary)
-    pub window: Option<Entity>,
-    /// Starting position
-    pub start: Vec2,
-    /// Ending position
-    pub end: Vec2,
-    /// Total number of frames for the drag
-    pub total_frames: u32,
-    /// Current frame index
-    pub current_frame: u32,
-    /// Current state of the drag operation
-    pub drag_state: DragState,
-}
-
-// ============================================================================
-// Handlers
-// ============================================================================
-
-/// Handler for `drag_mouse` BRP method
 pub(crate) fn drag_mouse_handler(In(params): In<Option<Value>>, world: &mut World) -> BrpResult {
     let request: DragMouseRequest = support::parse_request(params, EmptyParamsPolicy::Reject)?;
-
-    // Validate frames
     if request.frames < MIN_DRAG_FRAMES {
-        return Err(BrpError {
-            code: INVALID_PARAMS,
-            message: "Frames must be greater than 0".to_string(),
-            data: None,
-        });
+        return Err(pointer::error(
+            METHOD_DRAG_MOUSE,
+            INVALID_PARAMS,
+            "Frames must be greater than 0",
+            None,
+        ));
     }
-
     let window = support::resolve_window(world, request.window, METHOD_DRAG_MOUSE)?;
-
-    // Spawn drag operation component
-    let activity = activity::begin(world);
-    world.spawn(DragOperation {
-        _activity: activity,
-        button: request.button,
-        window: Some(window),
-        start: request.start,
-        end: request.end,
-        total_frames: request.frames,
-        current_frame: 0,
-        drag_state: DragState::Pressed,
-    });
-
+    let button = support::pointer_button(request.button, METHOD_DRAG_MOUSE)?;
+    pointer::enqueue_drag(
+        world,
+        window,
+        request.start,
+        request.end,
+        button,
+        request.frames,
+        METHOD_DRAG_MOUSE,
+    )?;
+    let mut positions = world.resource_mut::<SimulatedCursorPosition>();
+    positions.positions.insert(window, request.end);
+    positions.last_window = Some(window);
     support::serialize_response(
         DragMouseResponse {
             button: request.button,
@@ -137,116 +65,4 @@ pub(crate) fn drag_mouse_handler(In(params): In<Option<Value>>, world: &mut Worl
         },
         METHOD_DRAG_MOUSE,
     )
-}
-
-// ============================================================================
-// Systems
-// ============================================================================
-
-/// System to process drag operations
-///
-/// Runs a state machine for each `DragOperation`:
-/// - Pressed: Send button press, move to start, transition to Dragging
-/// - Dragging: Interpolate position, send motion events, advance frame
-/// - Released: Send button release, despawn entity
-pub(super) fn process_drag_operations(
-    mut commands: Commands,
-    mut query: Query<(Entity, &mut DragOperation)>,
-    mut cursor_res: ResMut<SimulatedCursorPosition>,
-    mut motion_events: MessageWriter<MouseMotion>,
-    mut cursor_events: MessageWriter<CursorMoved>,
-    mut button_events: MessageWriter<MouseButtonInput>,
-    mut window_events: MessageWriter<WindowEvent>,
-    mut windows: Query<&mut Window>,
-) {
-    for (entity, mut drag) in &mut query {
-        let window = support::resolve_window_entity(drag.window);
-
-        match drag.drag_state {
-            DragState::Pressed => {
-                // Send button press
-                let btn_event = MouseButtonInput {
-                    button: drag.button,
-                    state: ButtonState::Pressed,
-                    window,
-                };
-                window_events.write(WindowEvent::from(btn_event));
-                button_events.write(btn_event);
-
-                // Move cursor to start position
-                let delta = cursor_res.update_position(window, drag.start);
-
-                // Send motion events
-                let motion = MouseMotion { delta };
-                window_events.write(WindowEvent::from(motion));
-                motion_events.write(motion);
-                let cursor = CursorMoved {
-                    window,
-                    position: drag.start,
-                    delta: Some(delta),
-                };
-                window_events.write(WindowEvent::from(cursor.clone()));
-                cursor_events.write(cursor);
-
-                // Update `Window` component so `cursor_position()` works when unfocused
-                if let Ok(mut win) = windows.get_mut(window) {
-                    win.set_cursor_position(Some(drag.start));
-                }
-
-                // Transition to dragging
-                drag.drag_state = DragState::Dragging;
-            }
-            DragState::Dragging => {
-                // Calculate interpolation factor
-                #[allow(
-                    clippy::cast_precision_loss,
-                    reason = "drag frame counts are small; f32 loses integer precision only above \
-                              2^24"
-                )]
-                let t = drag.current_frame as f32 / drag.total_frames as f32;
-                let new_position = drag.start.lerp(drag.end, t);
-
-                // Update position
-                let delta = cursor_res.update_position(window, new_position);
-
-                // Send motion events
-                let motion = MouseMotion { delta };
-                window_events.write(WindowEvent::from(motion));
-                motion_events.write(motion);
-                let cursor = CursorMoved {
-                    window,
-                    position: new_position,
-                    delta: Some(delta),
-                };
-                window_events.write(WindowEvent::from(cursor.clone()));
-                cursor_events.write(cursor);
-
-                // Update `Window` component so `cursor_position()` works when unfocused
-                if let Ok(mut win) = windows.get_mut(window) {
-                    win.set_cursor_position(Some(new_position));
-                }
-
-                // Advance frame
-                drag.current_frame += 1;
-
-                // Check if done (use > to ensure we interpolate to t=1.0)
-                if drag.current_frame > drag.total_frames {
-                    drag.drag_state = DragState::Released;
-                }
-            }
-            DragState::Released => {
-                // Send button release
-                let btn_event = MouseButtonInput {
-                    button: drag.button,
-                    state: ButtonState::Released,
-                    window,
-                };
-                window_events.write(WindowEvent::from(btn_event));
-                button_events.write(btn_event);
-
-                // Despawn entity
-                commands.entity(entity).despawn();
-            }
-        }
-    }
 }

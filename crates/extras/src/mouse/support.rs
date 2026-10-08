@@ -1,8 +1,6 @@
 //! Shared helper functions for mouse input simulation
 
-use bevy::input::ButtonState;
 use bevy::input::mouse::MouseButton;
-use bevy::input::mouse::MouseButtonInput;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use bevy_remote::BrpError;
@@ -13,11 +11,8 @@ use serde::Serialize;
 use serde_json::Map;
 use serde_json::Value;
 
-use super::button::TimedButtonRelease;
 use super::cursor::SimulatedCursorPosition;
-use crate::activity;
 use crate::constants::MISSING_REQUEST_PARAMETERS_MESSAGE;
-use crate::window_event;
 
 /// Whether `parse_request` should accept `None` params by treating them as an empty object.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -83,58 +78,6 @@ pub(super) fn serialize_response<T: Serialize>(response: T, handler_name: &str) 
             data: None,
         }
     })
-}
-
-/// Get window entity with fallback to placeholder
-///
-/// Standardizes window entity unwrapping across all systems.
-///
-/// # Arguments
-/// * `window` - Optional window entity
-///
-/// # Returns
-/// `Window` entity or `Entity::PLACEHOLDER` if None
-pub(super) fn resolve_window_entity(window: Option<Entity>) -> Entity {
-    window.unwrap_or(Entity::PLACEHOLDER)
-}
-
-/// Send mouse button press with automatic timed release
-///
-/// Handles the common pattern of sending a button press event followed by
-/// spawning a timed release component. Used by click and `send_mouse_button` handlers.
-///
-/// # Arguments
-/// * `world` - Mutable world reference
-/// * `button` - Mouse button to press
-/// * `window` - Target window entity
-/// * `duration_ms` - Duration in milliseconds before automatic release
-pub(super) fn send_timed_button_press(
-    world: &mut World,
-    button: MouseButton,
-    window: Entity,
-    duration_ms: u32,
-) {
-    let activity = activity::begin(world);
-    // Send button press event to both individual and `WindowEvent` channels
-    window_event::write_input_event(
-        world,
-        MouseButtonInput {
-            button,
-            state: ButtonState::Pressed,
-            window,
-        },
-    );
-
-    // Spawn timed release component
-    world.spawn(TimedButtonRelease {
-        _activity: activity,
-        button,
-        window: Some(window),
-        timer: Timer::new(
-            std::time::Duration::from_millis(duration_ms.into()),
-            TimerMode::Once,
-        ),
-    });
 }
 
 /// Resolve window entity from optional u64 ID

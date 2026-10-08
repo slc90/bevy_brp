@@ -1,4 +1,4 @@
-Performs a double click with specified mouse button via bevy_brp_extras. Executes two rapid clicks with configurable delay between them.
+Queues two complete Custom Pointer clicks, each held for 100ms of real elapsed time. delay_ms (default 250) waits after the first release. Bevy multi_click_interval determines the click count; a long delay can produce two single clicks. The response confirms acceptance, not UI success.
 
 Button options: Left, Right, Middle
 
@@ -9,4 +9,6 @@ Examples:
 {"button": "Right", "delay_ms": 200}   // Slow double click (200ms delay)
 ```
 
-Prerequisites: bevy_brp_extras dependency and BrpExtrasPlugin registered.
+Window defaults to the last BRP target, then primary. The FIFO keeps later input behind the entire gesture. Does not write raw mouse input or the OS cursor. Avoid Native Window move/resize regions.
+
+Prerequisites: BrpExtrasPlugin, enabled PickingPlugin and InteractionPlugin, and a host picking backend.
