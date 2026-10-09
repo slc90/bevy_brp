@@ -25,14 +25,14 @@ use bevy::camera::Viewport;
 use bevy::camera::primitives::Aabb;
 use bevy::camera::visibility::NoCpuCulling;
 use bevy::camera::visibility::RenderLayers;
-use bevy::core_pipeline::tonemapping::DebandDither;
-use bevy::core_pipeline::tonemapping::Tonemapping;
 use bevy::math::Rot2;
 use bevy::prelude::*;
 use bevy::render::render_resource::Extent3d;
 use bevy::render::render_resource::TextureDimension;
 use bevy::render::render_resource::TextureFormat;
 use bevy::render::render_resource::TextureUsages;
+use bevy::render::view::DebandDither;
+use bevy::render::view::Tonemapping;
 use bevy::ui::ComputedNode;
 use bevy::window::PrimaryWindow;
 

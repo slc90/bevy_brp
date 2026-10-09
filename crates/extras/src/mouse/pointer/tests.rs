@@ -8,29 +8,29 @@ use serde_json::json;
 #[derive(Resource, Default)]
 struct Trace {
     inputs: Vec<PointerInput>,
-    clicks: Vec<Pointer<bevy::picking::events::Click>>,
-    scrolls: Vec<Pointer<bevy::picking::events::Scroll>>,
+    clicks: Vec<bevy::picking::events::PointerClick>,
+    scrolls: Vec<bevy::picking::events::PointerScroll>,
     raw_count: usize,
-    drag_starts: Vec<Pointer<bevy::picking::events::DragStart>>,
-    drag_ends: Vec<Pointer<bevy::picking::events::DragEnd>>,
-    drag_drops: Vec<Pointer<bevy::picking::events::DragDrop>>,
-    cancels: Vec<Pointer<Cancel>>,
+    drag_starts: Vec<bevy::picking::events::PointerDragStart>,
+    drag_ends: Vec<bevy::picking::events::PointerDragEnd>,
+    drag_drops: Vec<bevy::picking::events::PointerDragDrop>,
+    cancels: Vec<PointerCancel>,
 }
 
 fn capture(
     mut trace: ResMut<Trace>,
     mut inputs: MessageReader<PointerInput>,
-    mut clicks: MessageReader<Pointer<bevy::picking::events::Click>>,
-    mut scrolls: MessageReader<Pointer<bevy::picking::events::Scroll>>,
+    mut clicks: MessageReader<bevy::picking::events::PointerClick>,
+    mut scrolls: MessageReader<bevy::picking::events::PointerScroll>,
     mut button: MessageReader<bevy::input::mouse::MouseButtonInput>,
     mut motion: MessageReader<bevy::input::mouse::MouseMotion>,
     mut wheel: MessageReader<bevy::input::mouse::MouseWheel>,
     mut cursor: MessageReader<bevy::window::CursorMoved>,
     mut windows: MessageReader<WindowEvent>,
-    mut drag_starts: MessageReader<Pointer<bevy::picking::events::DragStart>>,
-    mut drag_ends: MessageReader<Pointer<bevy::picking::events::DragEnd>>,
-    mut drag_drops: MessageReader<Pointer<bevy::picking::events::DragDrop>>,
-    mut cancels: MessageReader<Pointer<Cancel>>,
+    mut drag_starts: MessageReader<bevy::picking::events::PointerDragStart>,
+    mut drag_ends: MessageReader<bevy::picking::events::PointerDragEnd>,
+    mut drag_drops: MessageReader<bevy::picking::events::PointerDragDrop>,
+    mut cancels: MessageReader<PointerCancel>,
 ) {
     trace.inputs.extend(inputs.read().cloned());
     trace.clicks.extend(clicks.read().cloned());
@@ -235,7 +235,7 @@ fn cancel_notifies_original_press_target_once_without_click_and_keeps_out_locati
     app.update();
     release(app.world_mut());
     app.update();
-    let messages = app.world().resource::<Messages<Pointer<Cancel>>>();
+    let messages = app.world().resource::<Messages<PointerCancel>>();
     let cancels: Vec<_> = messages.get_cursor().read(messages).cloned().collect();
     assert_eq!(
         cancels
@@ -246,7 +246,7 @@ fn cancel_notifies_original_press_target_once_without_click_and_keeps_out_locati
     );
     let messages = app
         .world()
-        .resource::<Messages<Pointer<bevy::picking::events::Out>>>();
+        .resource::<Messages<bevy::picking::events::PointerOut>>();
     assert!(
         messages
             .get_cursor()
@@ -255,12 +255,12 @@ fn cancel_notifies_original_press_target_once_without_click_and_keeps_out_locati
     );
     let messages = app
         .world()
-        .resource::<Messages<Pointer<bevy::picking::events::Click>>>();
+        .resource::<Messages<bevy::picking::events::PointerClick>>();
     assert_eq!(messages.get_cursor().read(messages).count(), 0);
     let entity = app.world().resource::<BrpPointerState>().entity.unwrap();
     assert!(
         !app.world()
-            .get::<PointerPress>(entity)
+            .get::<PointerPressState>(entity)
             .unwrap()
             .is_any_pressed()
     );
@@ -389,7 +389,7 @@ fn cancellation_after_leaving_hit_notifies_drag_owner_on_both_surfaces() {
     app.init_resource::<Observed>();
     app.world_mut()
         .entity_mut(target)
-        .observe(|_: On<Pointer<Cancel>>, mut observed: ResMut<Observed>| observed.0 += 1);
+        .observe(|_: On<PointerCancel>, mut observed: ResMut<Observed>| observed.0 += 1);
     for (position, action) in [
         (Vec2::ZERO, PointerAction::Move { delta: Vec2::ZERO }),
         (Vec2::ZERO, PointerAction::Press(PointerButton::Primary)),
@@ -416,7 +416,7 @@ fn cancellation_after_leaving_hit_notifies_drag_owner_on_both_surfaces() {
     );
     app.update();
     assert_eq!(app.world().resource::<Observed>().0, 1);
-    let messages = app.world().resource::<Messages<Pointer<Cancel>>>();
+    let messages = app.world().resource::<Messages<PointerCancel>>();
     assert_eq!(
         messages
             .get_cursor()
@@ -440,7 +440,7 @@ fn normal_release_retires_cancel_responsibility() {
     }
     release(app.world_mut());
     app.update();
-    let messages = app.world().resource::<Messages<Pointer<Cancel>>>();
+    let messages = app.world().resource::<Messages<PointerCancel>>();
     assert!(
         !messages
             .get_cursor()
@@ -471,12 +471,12 @@ fn takeover_sends_physical_out_and_cursor_left_prevents_stale_restore() {
     app.update();
     let messages = app
         .world()
-        .resource::<Messages<Pointer<bevy::picking::events::Out>>>();
+        .resource::<Messages<bevy::picking::events::PointerOut>>();
     assert!(
         messages
             .get_cursor()
             .read(messages)
-            .any(|event| event.entity == target && event.pointer_id == PointerId::Mouse)
+            .any(|event| event.entity == target && event.pointer.id == PointerId::Mouse)
     );
     app.world_mut()
         .write_message(WindowEvent::CursorLeft(bevy::window::CursorLeft { window }));
@@ -603,9 +603,9 @@ fn basic_handlers_drive_custom_picking_without_raw_or_native_cursor_writes() {
     let trace = app.world().resource::<Trace>();
     assert_eq!(trace.clicks.len(), 1);
     assert_eq!(trace.clicks[0].entity, target);
-    assert_eq!(trace.clicks[0].pointer_id, custom);
+    assert_eq!(trace.clicks[0].pointer.id, custom);
     assert_eq!(trace.scrolls.len(), 1);
-    assert_eq!(trace.scrolls[0].pointer_id, custom);
+    assert_eq!(trace.scrolls[0].pointer.id, custom);
     assert_eq!(
         trace.scrolls[0].unit,
         bevy::input::mouse::MouseScrollUnit::Line
@@ -613,7 +613,7 @@ fn basic_handlers_drive_custom_picking_without_raw_or_native_cursor_writes() {
     assert_eq!(trace.raw_count, 0);
     assert!(
         !app.world()
-            .get::<PointerPress>(app.world().resource::<BrpPointerState>().entity.unwrap())
+            .get::<PointerPressState>(app.world().resource::<BrpPointerState>().entity.unwrap())
             .unwrap()
             .is_any_pressed()
     );
@@ -742,7 +742,7 @@ fn timed_hold_allows_moves_and_scroll_and_cancel_invalidates_its_timer() {
     );
     assert!(
         app.world()
-            .get::<PointerPress>(entity)
+            .get::<PointerPressState>(entity)
             .unwrap()
             .is_middle_pressed()
     );
@@ -751,7 +751,7 @@ fn timed_hold_allows_moves_and_scroll_and_cancel_invalidates_its_timer() {
     app.update();
     assert!(
         !app.world()
-            .get::<PointerPress>(entity)
+            .get::<PointerPressState>(entity)
             .unwrap()
             .is_any_pressed()
     );
@@ -815,7 +815,7 @@ fn first_scroll_and_three_buttons_establish_location_before_picking_actions() {
             bevy::input::mouse::MouseScrollUnit::Pixel
         );
         assert_eq!(
-            trace.scrolls[0].pointer_location,
+            trace.scrolls[0].pointer.location(),
             location(window, Vec2::ZERO)
         );
         assert_eq!(trace.clicks.len(), 1);
@@ -886,7 +886,7 @@ fn positive_timed_hold_uses_elapsed_real_time_when_virtual_time_is_paused() {
     let entity = app.world().resource::<BrpPointerState>().entity.unwrap();
     assert!(
         app.world()
-            .get::<PointerPress>(entity)
+            .get::<PointerPressState>(entity)
             .unwrap()
             .is_secondary_pressed()
     );
@@ -900,7 +900,7 @@ fn positive_timed_hold_uses_elapsed_real_time_when_virtual_time_is_paused() {
     app.update();
     assert!(
         !app.world()
-            .get::<PointerPress>(entity)
+            .get::<PointerPressState>(entity)
             .unwrap()
             .is_any_pressed()
     );
@@ -982,7 +982,7 @@ fn first_click_establishes_hit_and_releases_on_later_picking_cycles() {
     assert_eq!(trace.clicks.len(), 1);
     assert_eq!(trace.clicks[0].entity, target);
     assert_eq!(
-        trace.clicks[0].pointer_location,
+        trace.clicks[0].pointer.location(),
         location(window, Vec2::ZERO)
     );
     assert_eq!(trace.inputs.len(), 3);
@@ -1235,7 +1235,7 @@ fn zero_distance_drag_finishes_with_no_pressed_state() {
     assert!(state.pressed.is_empty());
     assert!(
         !app.world()
-            .get::<PointerPress>(state.entity.unwrap())
+            .get::<PointerPressState>(state.entity.unwrap())
             .unwrap()
             .is_any_pressed()
     );

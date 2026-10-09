@@ -118,3 +118,22 @@ cargo build --workspace --locked
 各入口均完成正常关闭与清理；运行后另行确认本轮 MCP/App 进程和测试端口、Render 15703 均已释放。
 所有上述结果仅证明旧 `0.19.1` 对照可用，不证明 `0.20.0` 已验收。Native Window 操作、
 Widgetry 具体控件、硬件多 DPI 和其他平台未测，未运行全量 Clippy；这些范围不计作通过。
+
+## Bevy 0.20 升级：阶段 02 的编译适配
+
+workspace 的 Bevy、bevy_mesh、bevy_remote、bevy_winit 已统一为 `0.20.0`，内部 package
+版本仍为 `0.3.1`。锁文件 SHA256 为
+`da1443fef4c09d666fe4fcd63024fbd247b0bba68009a0dc8165a161974dd930`；
+本轮仅重新解析 Bevy 及其传递依赖，image、uuid、rmcp 的既有精确约束保持不变。
+
+源码已适配独立 Pointer 事件、PointerPressState、shape 和 render::view 的路径，以及
+CalculatedClip 的多仿射矩形。UI 截图先以节点四边形与全部 clip 半平面求交，再计算有面积
+区域的矩形 bounds；padding 后再次限制到同一可见域。空 clip、不受限轴、旋转 clip 和
+多个祖先 clip 的定向测试通过。本阶段不替代后续截图像素或 Pointer 桌面验收。
+
+`target/bevy020-stage02/` 保存依赖差异和命令输出。fmt、workspace all-targets check、
+test --no-run、examples build、workspace test、Clippy 均通过；Extras 无默认 feature、
+diagnostics、ui，runtime 独立消费及 MCP 无默认 feature、mcp-debug 检查也通过。
+自动化测试为 270 passed、0 failed、9 ignored doctest，Pointer 定向测试为 34 passed。
+保留同名 fixture 产物与旧 Interaction fixture 的弃用 warning。真实 Pointer、截图及
+runtime/MCP `0.20.0` 协议回归将在后续阶段采集，本阶段不计为已通过。

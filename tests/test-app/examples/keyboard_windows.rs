@@ -101,7 +101,7 @@ fn setup(mut commands: Commands, primary: Single<Entity, With<PrimaryWindow>>) {
                 InputView(window),
             ))
             .observe(
-                move |_event: On<Pointer<Click>>, mut windows: Query<&mut WindowInputEvidence>| {
+                move |_event: On<PointerClick>, mut windows: Query<&mut WindowInputEvidence>| {
                     if let Ok(mut state) = windows.get_mut(window) {
                         state.pointer_clicks += 1;
                     }

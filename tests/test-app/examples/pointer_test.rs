@@ -236,8 +236,8 @@ fn on_activate(event: On<Activate>, owners: Query<&Owner>, mut evidence: Query<&
     }
 }
 
-fn on_click(event: On<Pointer<Click>>, owners: Query<&Owner>, mut evidence: Query<&mut Evidence>) {
-    if matches!(event.pointer_id, PointerId::Custom(_))
+fn on_click(event: On<PointerClick>, owners: Query<&Owner>, mut evidence: Query<&mut Evidence>) {
+    if matches!(event.pointer.id, PointerId::Custom(_))
         && let Ok(owner) = owners.get(event.entity)
         && let Ok(mut state) = evidence.get_mut(owner.0)
     {
@@ -245,12 +245,8 @@ fn on_click(event: On<Pointer<Click>>, owners: Query<&Owner>, mut evidence: Quer
     }
 }
 
-fn on_cancel(
-    event: On<Pointer<Cancel>>,
-    owners: Query<&Owner>,
-    mut evidence: Query<&mut Evidence>,
-) {
-    if matches!(event.pointer_id, PointerId::Custom(_))
+fn on_cancel(event: On<PointerCancel>, owners: Query<&Owner>, mut evidence: Query<&mut Evidence>) {
+    if matches!(event.pointer.id, PointerId::Custom(_))
         && let Ok(owner) = owners.get(event.entity)
         && let Ok(mut state) = evidence.get_mut(owner.0)
     {
@@ -258,8 +254,8 @@ fn on_cancel(
     }
 }
 
-fn on_out(event: On<Pointer<Out>>, owners: Query<&Owner>, mut evidence: Query<&mut Evidence>) {
-    if matches!(event.pointer_id, PointerId::Custom(_))
+fn on_out(event: On<PointerOut>, owners: Query<&Owner>, mut evidence: Query<&mut Evidence>) {
+    if matches!(event.pointer.id, PointerId::Custom(_))
         && let Ok(owner) = owners.get(event.entity)
         && let Ok(mut state) = evidence.get_mut(owner.0)
     {
@@ -268,11 +264,11 @@ fn on_out(event: On<Pointer<Out>>, owners: Query<&Owner>, mut evidence: Query<&m
 }
 
 fn on_drag_start(
-    event: On<Pointer<DragStart>>,
+    event: On<PointerDragStart>,
     owners: Query<&Owner>,
     mut evidence: Query<&mut Evidence>,
 ) {
-    if matches!(event.pointer_id, PointerId::Custom(_))
+    if matches!(event.pointer.id, PointerId::Custom(_))
         && let Ok(owner) = owners.get(event.entity)
         && let Ok(mut state) = evidence.get_mut(owner.0)
     {
@@ -281,11 +277,11 @@ fn on_drag_start(
 }
 
 fn on_drag(
-    event: On<Pointer<Drag>>,
+    event: On<PointerDrag>,
     mut nodes: Query<(&Owner, &mut Node)>,
     mut evidence: Query<&mut Evidence>,
 ) {
-    if matches!(event.pointer_id, PointerId::Custom(_))
+    if matches!(event.pointer.id, PointerId::Custom(_))
         && let Ok((owner, mut node)) = nodes.get_mut(event.entity)
         && let Ok(mut state) = evidence.get_mut(owner.0)
     {
@@ -295,11 +291,11 @@ fn on_drag(
 }
 
 fn on_drag_end(
-    event: On<Pointer<DragEnd>>,
+    event: On<PointerDragEnd>,
     owners: Query<&Owner>,
     mut evidence: Query<&mut Evidence>,
 ) {
-    if matches!(event.pointer_id, PointerId::Custom(_))
+    if matches!(event.pointer.id, PointerId::Custom(_))
         && let Ok(owner) = owners.get(event.entity)
         && let Ok(mut state) = evidence.get_mut(owner.0)
     {
@@ -307,12 +303,8 @@ fn on_drag_end(
     }
 }
 
-fn on_drop(
-    event: On<Pointer<DragDrop>>,
-    owners: Query<&Owner>,
-    mut evidence: Query<&mut Evidence>,
-) {
-    if matches!(event.pointer_id, PointerId::Custom(_))
+fn on_drop(event: On<PointerDragDrop>, owners: Query<&Owner>, mut evidence: Query<&mut Evidence>) {
+    if matches!(event.pointer.id, PointerId::Custom(_))
         && let Ok(owner) = owners.get(event.entity)
         && let Ok(mut state) = evidence.get_mut(owner.0)
     {
@@ -321,11 +313,11 @@ fn on_drop(
 }
 
 fn on_scroll(
-    event: On<Pointer<Scroll>>,
+    event: On<PointerScroll>,
     mut views: Query<(&Owner, &mut ScrollPosition)>,
     mut evidence: Query<&mut Evidence>,
 ) {
-    if matches!(event.pointer_id, PointerId::Custom(_))
+    if matches!(event.pointer.id, PointerId::Custom(_))
         && let Ok((owner, mut position)) = views.get_mut(event.entity)
         && let Ok(mut state) = evidence.get_mut(owner.0)
     {
@@ -489,7 +481,7 @@ mod tests {
         app.insert_resource(Target(target));
         app.world_mut()
             .entity_mut(target)
-            .observe(|_: On<Pointer<Cancel>>, mut counts: ResMut<Counts>| {
+            .observe(|_: On<PointerCancel>, mut counts: ResMut<Counts>| {
                 counts.cancels += 1;
             })
             .observe(|_: On<Activate>, mut counts: ResMut<Counts>| {

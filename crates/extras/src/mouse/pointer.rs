@@ -6,11 +6,13 @@ use std::time::{Duration, Instant};
 use bevy::camera::RenderTarget;
 use bevy::ecs::message::MessageCursor;
 use bevy::picking::backend::HitData;
-use bevy::picking::events::{Cancel, DragEnd, DragStart, Pointer, Press, Release};
+use bevy::picking::events::{
+    Pointer, PointerCancel, PointerDragEnd, PointerDragStart, PointerPress, PointerRelease,
+};
 use bevy::picking::hover::{HoverMap, PreviousHoverMap};
 use bevy::picking::pointer::{
     Location, PointerAction, PointerButton, PointerId, PointerInput, PointerLocation, PointerMap,
-    PointerPress,
+    PointerPressState,
 };
 use bevy::picking::{PickingSettings, PickingSystems};
 use bevy::prelude::*;
@@ -92,11 +94,11 @@ pub(super) struct BrpPointerState {
     left_windows: HashSet<Entity>,
     input_reader: MessageCursor<PointerInput>,
     window_reader: MessageCursor<WindowEvent>,
-    press_reader: MessageCursor<Pointer<Press>>,
-    release_reader: MessageCursor<Pointer<Release>>,
-    drag_reader: MessageCursor<Pointer<DragStart>>,
-    drag_end_reader: MessageCursor<Pointer<DragEnd>>,
-    cancel_reader: MessageCursor<Pointer<Cancel>>,
+    press_reader: MessageCursor<PointerPress>,
+    release_reader: MessageCursor<PointerRelease>,
+    drag_reader: MessageCursor<PointerDragStart>,
+    drag_end_reader: MessageCursor<PointerDragEnd>,
+    cancel_reader: MessageCursor<PointerCancel>,
     responsibilities: Vec<CancelResponsibility>,
     last_method: String,
 }
@@ -194,7 +196,7 @@ fn capability(world: &World, method: &str, window: Entity) -> Result<(), BrpErro
         || !world.contains_resource::<PointerMap>()
         || !world.contains_resource::<HoverMap>()
         || !world.contains_resource::<PreviousHoverMap>()
-        || !world.contains_resource::<Messages<Pointer<Press>>>()
+        || !world.contains_resource::<Messages<PointerPress>>()
         || !world.contains_resource::<Messages<PointerInput>>()
     {
         return Err(error(
@@ -294,7 +296,7 @@ fn enqueue_inner(
             ));
         }
         if state.phase == Phase::Inactive {
-            let mut physical = world.query::<(&PointerId, &PointerLocation, &PointerPress)>();
+            let mut physical = world.query::<(&PointerId, &PointerLocation, &PointerPressState)>();
             for (id, location, press) in physical.iter(world) {
                 if *id == PointerId::Mouse {
                     if press.is_any_pressed() {
@@ -688,7 +690,7 @@ fn valid_location(world: &World, location: &Location, left_windows: &HashSet<Ent
 fn valid_pointer(world: &World, entity: Entity, id: PointerId) -> bool {
     world.get::<PointerId>(entity) == Some(&id)
         && world.get::<PointerLocation>(entity).is_some()
-        && world.get::<PointerPress>(entity).is_some()
+        && world.get::<PointerPressState>(entity).is_some()
         && world
             .get::<bevy::picking::pointer::PointerInteraction>(entity)
             .is_some()
@@ -875,7 +877,7 @@ fn prepare_physical_out(world: &mut World) {
 }
 
 fn finish_cycle(world: &mut World) {
-    if !world.contains_resource::<Messages<Pointer<Press>>>() {
+    if !world.contains_resource::<Messages<PointerPress>>() {
         return;
     }
     world.resource_scope(|world, mut state: Mut<BrpPointerState>| {
@@ -889,8 +891,8 @@ fn finish_cycle(world: &mut World) {
         };
         let presses: Vec<_> = state
             .press_reader
-            .read(world.resource::<Messages<Pointer<Press>>>())
-            .filter(|event| event.pointer_id == id)
+            .read(world.resource::<Messages<PointerPress>>())
+            .filter(|event| event.pointer.id == id)
             .cloned()
             .collect();
         for event in presses {
@@ -899,13 +901,13 @@ fn finish_cycle(world: &mut World) {
                 target: event.entity,
                 button: event.button,
                 hit: event.hit.clone(),
-                location: event.pointer_location,
+                location: event.pointer.location(),
             });
         }
         let drags: Vec<_> = state
             .drag_reader
-            .read(world.resource::<Messages<Pointer<DragStart>>>())
-            .filter(|event| event.pointer_id == id)
+            .read(world.resource::<Messages<PointerDragStart>>())
+            .filter(|event| event.pointer.id == id)
             .cloned()
             .collect();
         for event in drags {
@@ -914,25 +916,25 @@ fn finish_cycle(world: &mut World) {
                 target: event.entity,
                 button: event.button,
                 hit: event.hit.clone(),
-                location: event.pointer_location,
+                location: event.pointer.location(),
             });
         }
         let releases: Vec<_> = state
             .release_reader
-            .read(world.resource::<Messages<Pointer<Release>>>())
-            .filter(|event| event.pointer_id == id)
+            .read(world.resource::<Messages<PointerRelease>>())
+            .filter(|event| event.pointer.id == id)
             .map(|event| event.button)
             .collect();
         let ends: Vec<_> = state
             .drag_end_reader
-            .read(world.resource::<Messages<Pointer<DragEnd>>>())
-            .filter(|event| event.pointer_id == id)
+            .read(world.resource::<Messages<PointerDragEnd>>())
+            .filter(|event| event.pointer.id == id)
             .map(|event| event.button)
             .collect();
         state.responsibilities.retain(|responsibility| {
             !releases.contains(&responsibility.button) && !ends.contains(&responsibility.button)
         });
-        // Releases outside every hit do not produce Pointer<Release>, but still end ownership.
+        // Releases outside every hit do not produce PointerRelease, but still end ownership.
         if state.phase == Phase::Active {
             let pressed = state.pressed.clone();
             state
@@ -941,8 +943,8 @@ fn finish_cycle(world: &mut World) {
         }
         let notified: HashSet<_> = state
             .cancel_reader
-            .read(world.resource::<Messages<Pointer<Cancel>>>())
-            .filter(|event| event.pointer_id == id)
+            .read(world.resource::<Messages<PointerCancel>>())
+            .filter(|event| event.pointer.id == id)
             .map(|event| event.entity)
             .collect();
         match state.drain {
@@ -953,14 +955,11 @@ fn finish_cycle(world: &mut World) {
                         && world.get_entity(responsibility.target).is_ok()
                         && notified.insert(responsibility.target)
                     {
-                        let cancel = Pointer::new(
-                            id,
-                            responsibility.location,
-                            Cancel {
-                                hit: responsibility.hit,
-                            },
-                            responsibility.target,
-                        );
+                        let cancel = PointerCancel {
+                            entity: responsibility.target,
+                            pointer: Pointer::new(id, responsibility.location),
+                            hit: responsibility.hit,
+                        };
                         world.write_message(cancel.clone());
                         world.trigger(cancel);
                     }
@@ -968,8 +967,8 @@ fn finish_cycle(world: &mut World) {
                 if let Some(entity) = state.entity
                     && world.get::<PointerId>(entity) == Some(&id)
                 {
-                    if let Some(mut press) = world.get_mut::<PointerPress>(entity) {
-                        *press = PointerPress::default();
+                    if let Some(mut press) = world.get_mut::<PointerPressState>(entity) {
+                        *press = PointerPressState::default();
                     }
                     if let Some(mut location) = world.get_mut::<PointerLocation>(entity) {
                         location.location = None;

@@ -119,8 +119,8 @@ use bevy::ui::RepeatedGridTrack;
 use bevy::ui::UiTargetCamera;
 use bevy::ui::ZIndex;
 use bevy::ui::gradients::ColorStop;
-use bevy::ui::widget::Button;
 use bevy::ui::widget::Label;
+use bevy::ui_widgets::Button;
 use bevy::window::CursorIcon;
 use bevy::window::MonitorSelection;
 use bevy::window::PrimaryWindow;
@@ -2062,9 +2062,10 @@ fn spawn_text_container(parent: &mut RelatedSpawnerCommands<ChildOf>, port: &Res
             BackgroundColor(TEXT_CONTAINER_BACKGROUND), /* Blue background for the entire text
                                                          * area */
             BoxShadowSamples(BOX_SHADOW_SAMPLES),
-            CalculatedClip {
-                clip: bevy::math::Rect::from_corners(Vec2::ZERO, CALCULATED_CLIP_MAX),
-            },
+            CalculatedClip::default().with_rect(
+                bevy::math::Rect::from_corners(Vec2::ZERO, CALCULATED_CLIP_MAX),
+                &UiGlobalTransform::default(),
+            ),
             Name::new(CALCULATED_CLIP_TEST_ENTITY_NAME),
         ))
         .with_children(|parent| {

@@ -1,7 +1,7 @@
 //! Bevy UI entity bounds and target resolution.
 
 use bevy::camera::visibility::InheritedVisibility;
-use bevy::math::Rect;
+use bevy::math::{Affine2, DVec2, Rect};
 use bevy::prelude::*;
 use bevy::ui::CalculatedClip;
 use bevy::ui::ComputedNode;
@@ -133,52 +133,66 @@ fn transformed_rect(
 
     let half_size = size / 2.0;
     let affine = ui_global_transform.affine();
+    if !affine.matrix2.is_finite() || !affine.translation.is_finite() {
+        return Err(ui_error(entity, "has a non-finite UI transform"));
+    }
     let corners = [
         affine.transform_point2(Vec2::new(-half_size.x, -half_size.y)),
-        affine.transform_point2(Vec2::new(-half_size.x, half_size.y)),
         affine.transform_point2(Vec2::new(half_size.x, -half_size.y)),
         affine.transform_point2(half_size),
+        affine.transform_point2(Vec2::new(-half_size.x, half_size.y)),
     ];
     if corners.iter().any(|corner| !corner.is_finite()) {
         return Err(ui_error(entity, "produced non-finite transformed bounds"));
-    }
-
-    let mut min = Vec2::splat(f32::INFINITY);
-    let mut max = Vec2::splat(f32::NEG_INFINITY);
-    for corner in corners {
-        min = min.min(corner);
-        max = max.max(corner);
-    }
-
-    let local_target = Rect::from_corners(
-        Vec2::ZERO,
-        computed_ui_render_target_info.physical_size().as_vec2(),
-    );
-    if calculated_clip.is_some_and(|clip| !clip.clip.min.is_finite() || !clip.clip.max.is_finite())
-    {
-        return Err(ui_error(entity, "has non-finite clip coordinates"));
-    }
-    let local_clip = calculated_clip.map_or(local_target, |clip| local_target.intersect(clip.clip));
-    let local_rect = Rect::from_corners(min, max).intersect(local_clip);
-    if local_rect.is_empty() {
-        return Err(ui_error(entity, "is outside its UI viewport or clip"));
     }
 
     let viewport = camera
         .camera
         .physical_viewport_rect()
         .ok_or_else(|| invalid_ui_camera_error(entity, camera.entity))?;
-    let viewport_offset = viewport.min.as_vec2();
-    let rect = containing_rect(local_rect.translate(viewport_offset))?;
-    let translated_clip = containing_rect(local_clip.translate(viewport_offset))?;
-    let padding = UVec2::splat(padding);
-    let padded = URect::from_corners(
-        rect.min.saturating_sub(padding),
-        rect.max.saturating_add(padding),
+    let viewport_offset = viewport.min.as_dvec2();
+    let hard_max = computed_ui_render_target_info
+        .physical_size()
+        .as_dvec2()
+        .min(viewport.size().as_dvec2())
+        .min(camera.target_size.as_dvec2() - viewport_offset);
+    if !hard_max.cmpgt(DVec2::ZERO).all() {
+        return Err(ui_error(entity, "is outside its UI viewport or clip"));
+    }
+    let mut constraints = rectangle_planes(DVec2::ZERO, hard_max);
+    if let Some(clip) = calculated_clip {
+        let Some(rects) = clip.rects() else {
+            return Err(ui_error(entity, "is fully clipped"));
+        };
+        for clip in rects {
+            append_clip_planes(
+                entity,
+                clip.rect,
+                clip.world_to_clip_local,
+                &mut constraints,
+            )?;
+        }
+    }
+
+    // Clip the actual quad before taking bounds; rotated clip AABBs overestimate visibility.
+    let visible = clip_polygon(
+        entity,
+        corners
+            .into_iter()
+            .map(|corner| corner.as_dvec2())
+            .collect(),
+        &constraints,
+    )?;
+    let (min, max) = polygon_bounds(entity, &visible)?;
+    let padding = DVec2::splat(f64::from(padding));
+    let padded = rectangle_polygon(
+        (min - padding).max(DVec2::ZERO),
+        (max + padding).min(hard_max),
     );
+    let permitted = clip_polygon(entity, padded, &constraints)?;
+    let (min, max) = polygon_bounds(entity, &permitted)?;
     let target = URect::from_corners(UVec2::ZERO, camera.target_size);
-    let rect = padded
-        .intersect(translated_clip)
+    let rect = containing_rect(min + viewport_offset, max + viewport_offset)?
         .intersect(viewport)
         .intersect(target);
     if rect.is_empty() {
@@ -188,8 +202,151 @@ fn transformed_rect(
     Ok(rect)
 }
 
-fn containing_rect(rect: Rect) -> BrpResult<URect> {
-    if !rect.min.is_finite() || !rect.max.is_finite() {
+struct HalfPlane {
+    normal: DVec2,
+    offset: f64,
+}
+
+fn rectangle_planes(min: DVec2, max: DVec2) -> Vec<HalfPlane> {
+    vec![
+        HalfPlane {
+            normal: DVec2::X,
+            offset: -min.x,
+        },
+        HalfPlane {
+            normal: -DVec2::X,
+            offset: max.x,
+        },
+        HalfPlane {
+            normal: DVec2::Y,
+            offset: -min.y,
+        },
+        HalfPlane {
+            normal: -DVec2::Y,
+            offset: max.y,
+        },
+    ]
+}
+
+fn rectangle_polygon(min: DVec2, max: DVec2) -> Vec<DVec2> {
+    vec![min, DVec2::new(max.x, min.y), max, DVec2::new(min.x, max.y)]
+}
+
+fn append_clip_planes(
+    entity: Entity,
+    rect: Rect,
+    transform: Affine2,
+    constraints: &mut Vec<HalfPlane>,
+) -> BrpResult<()> {
+    if !transform.matrix2.is_finite()
+        || !transform.translation.is_finite()
+        || transform
+            .matrix2
+            .x_axis
+            .as_dvec2()
+            .perp_dot(transform.matrix2.y_axis.as_dvec2())
+            == 0.0
+    {
+        return Err(ui_error(entity, "has an invalid clip transform"));
+    }
+    for axis in 0..2 {
+        let min = f64::from(rect.min[axis]);
+        let max = f64::from(rect.max[axis]);
+        if min.is_nan()
+            || max.is_nan()
+            || min >= max
+            || min == f64::INFINITY
+            || max == f64::NEG_INFINITY
+        {
+            return Err(ui_error(entity, "has invalid clip coordinates"));
+        }
+        let normal = DVec2::new(
+            f64::from(transform.matrix2.x_axis[axis]),
+            f64::from(transform.matrix2.y_axis[axis]),
+        );
+        let translation = f64::from(transform.translation[axis]);
+        // A legal infinite side contributes no constraint and never becomes a transformed corner.
+        if min.is_finite() {
+            constraints.push(HalfPlane {
+                normal,
+                offset: translation - min,
+            });
+        }
+        if max.is_finite() {
+            constraints.push(HalfPlane {
+                normal: -normal,
+                offset: max - translation,
+            });
+        }
+    }
+    Ok(())
+}
+
+fn clip_polygon(
+    entity: Entity,
+    mut polygon: Vec<DVec2>,
+    constraints: &[HalfPlane],
+) -> BrpResult<Vec<DVec2>> {
+    for plane in constraints {
+        let Some(&last) = polygon.last() else { break };
+        let mut previous = last;
+        let mut previous_distance = plane.normal.dot(previous) + plane.offset;
+        let mut output = Vec::with_capacity(polygon.len() + 1);
+        for &current in &polygon {
+            let distance = plane.normal.dot(current) + plane.offset;
+            if !distance.is_finite() || !previous_distance.is_finite() {
+                return Err(ui_error(entity, "produced non-finite clip distances"));
+            }
+            if (distance >= 0.0) != (previous_distance >= 0.0) {
+                let t = previous_distance / (previous_distance - distance);
+                let intersection = previous + t * (current - previous);
+                if !intersection.is_finite() || !t.is_finite() {
+                    return Err(ui_error(entity, "produced a non-finite clip intersection"));
+                }
+                if output.last() != Some(&intersection) {
+                    output.push(intersection);
+                }
+            }
+            if distance >= 0.0 && output.last() != Some(&current) {
+                output.push(current);
+            }
+            previous = current;
+            previous_distance = distance;
+        }
+        if output.len() > 1 && output.first() == output.last() {
+            output.truncate(output.len() - 1);
+        }
+        polygon = output;
+    }
+    Ok(polygon)
+}
+
+fn polygon_bounds(entity: Entity, polygon: &[DVec2]) -> BrpResult<(DVec2, DVec2)> {
+    let Some(&origin) = polygon.first() else {
+        return Err(ui_error(entity, "is outside its UI viewport or clip"));
+    };
+    let mut min = origin;
+    let mut max = origin;
+    let mut area = 0.0;
+    let mut previous = origin;
+    for &point in polygon {
+        min = min.min(point);
+        max = max.max(point);
+        area += (previous - origin).perp_dot(point - origin);
+        previous = point;
+    }
+    if !area.is_finite() || area == 0.0 || !min.is_finite() || !max.is_finite() {
+        return Err(ui_error(entity, "has empty or invalid clipped bounds"));
+    }
+    Ok((min, max))
+}
+
+fn containing_rect(min: DVec2, max: DVec2) -> BrpResult<URect> {
+    if !min.is_finite()
+        || !max.is_finite()
+        || min.cmplt(DVec2::ZERO).any()
+        || max.cmpgt(DVec2::splat(f64::from(u32::MAX))).any()
+    {
         return Err(BrpError {
             code: INVALID_PARAMS,
             message: "UI screenshot bounds contain non-finite coordinates".to_string(),
@@ -197,8 +354,8 @@ fn containing_rect(rect: Rect) -> BrpResult<URect> {
         });
     }
     Ok(URect::from_corners(
-        rect.min.floor().as_uvec2(),
-        rect.max.ceil().as_uvec2(),
+        min.floor().as_uvec2(),
+        max.ceil().as_uvec2(),
     ))
 }
 
@@ -260,6 +417,12 @@ mod tests {
         app: App,
         camera: Entity,
         window: Entity,
+    }
+
+    fn single_clip(rect: Rect) -> CalculatedClip {
+        let mut clip = CalculatedClip::default();
+        clip.push_rect(rect, Affine2::IDENTITY);
+        clip
     }
 
     fn ui_app() -> App {
@@ -423,9 +586,7 @@ mod tests {
             .app
             .world_mut()
             .entity_mut(entity)
-            .insert(CalculatedClip {
-                clip: Rect::new(25.25, 18.25, 35.25, 24.25),
-            });
+            .insert(single_clip(Rect::new(25.25, 18.25, 35.25, 24.25)));
 
         let resolved = resolved(&mut test_ui, entity, None, 20)?;
 
@@ -527,7 +688,8 @@ mod tests {
     }
 
     #[test]
-    fn non_finite_clip_corners_are_invalid_parameters_errors() -> Result<(), Box<dyn Error>> {
+    fn nan_or_wrong_direction_infinity_are_invalid_parameters_errors() -> Result<(), Box<dyn Error>>
+    {
         let mut test_ui = test_ui(UVec2::splat(100), None);
         let entity = spawn_node(
             &mut test_ui,
@@ -541,7 +703,7 @@ mod tests {
             },
             Rect {
                 min: Vec2::ZERO,
-                max: Vec2::new(60.0, f32::INFINITY),
+                max: Vec2::new(60.0, f32::NEG_INFINITY),
             },
         ];
 
@@ -550,11 +712,11 @@ mod tests {
                 .app
                 .world_mut()
                 .entity_mut(entity)
-                .insert(CalculatedClip { clip });
+                .insert(single_clip(clip));
             let error = resolution_error(resolve(test_ui.app.world_mut(), entity, None, 0))?;
 
             assert_eq!(error.code, INVALID_PARAMS);
-            assert!(error.message.contains("non-finite clip coordinates"));
+            assert!(error.message.contains("invalid clip coordinates"));
         }
         Ok(())
     }
@@ -648,5 +810,97 @@ mod tests {
         let error = resolution_error(resolve(test_ui.app.world_mut(), live, None, 0))?;
         assert!(error.message.contains("unsupported target"));
         Ok(())
+    }
+
+    #[test]
+    fn empty_inherited_clips_preserve_bounds_but_fully_clipped_rejects() {
+        let mut test_ui = test_ui(UVec2::splat(100), None);
+        let entity = spawn_node(
+            &mut test_ui,
+            Vec2::splat(10.0),
+            Affine2::from_translation(Vec2::splat(50.0)),
+        );
+        test_ui
+            .app
+            .world_mut()
+            .entity_mut(entity)
+            .insert(CalculatedClip::default());
+        assert_eq!(
+            resolved(&mut test_ui, entity, None, 0).unwrap().rect,
+            URect::new(45, 45, 55, 55)
+        );
+        test_ui
+            .app
+            .world_mut()
+            .entity_mut(entity)
+            .insert(CalculatedClip::FullyClipped);
+        assert_eq!(
+            resolution_error(resolve(test_ui.app.world(), entity, None, 0))
+                .unwrap()
+                .code,
+            INVALID_PARAMS
+        );
+    }
+
+    #[test]
+    fn legal_unbounded_axis_preserves_the_other_axis_and_padding() {
+        let mut test_ui = test_ui(UVec2::splat(100), None);
+        let entity = spawn_node(
+            &mut test_ui,
+            Vec2::splat(20.0),
+            Affine2::from_translation(Vec2::splat(50.0)),
+        );
+        let mut clip = CalculatedClip::default();
+        clip.push_rect(
+            Rect {
+                min: Vec2::new(f32::NEG_INFINITY, 45.0),
+                max: Vec2::new(f32::INFINITY, 55.0),
+            },
+            Affine2::IDENTITY,
+        );
+        test_ui.app.world_mut().entity_mut(entity).insert(clip);
+        assert_eq!(
+            resolved(&mut test_ui, entity, None, 5).unwrap().rect,
+            URect::new(35, 45, 65, 55)
+        );
+    }
+
+    #[test]
+    fn rotated_clip_uses_its_local_half_planes() {
+        let mut test_ui = test_ui(UVec2::splat(100), None);
+        let entity = spawn_node(
+            &mut test_ui,
+            Vec2::splat(40.0),
+            Affine2::from_translation(Vec2::splat(50.0)),
+        );
+        let mut clip = CalculatedClip::default();
+        clip.push_rect(
+            Rect::new(-10.0, -10.0, 10.0, 10.0),
+            Affine2::from_angle(std::f32::consts::FRAC_PI_4)
+                * Affine2::from_translation(Vec2::splat(-50.0)),
+        );
+        test_ui.app.world_mut().entity_mut(entity).insert(clip);
+        assert_eq!(
+            resolved(&mut test_ui, entity, None, 0).unwrap().rect,
+            URect::new(35, 35, 65, 65)
+        );
+    }
+
+    #[test]
+    fn all_inherited_clips_intersect_before_padding() {
+        let mut test_ui = test_ui(UVec2::splat(100), None);
+        let entity = spawn_node(
+            &mut test_ui,
+            Vec2::splat(40.0),
+            Affine2::from_translation(Vec2::splat(50.0)),
+        );
+        let mut clip = CalculatedClip::default();
+        clip.push_rect(Rect::new(30.0, 40.0, 55.0, 60.0), Affine2::IDENTITY);
+        clip.push_rect(Rect::new(45.0, 30.0, 70.0, 55.0), Affine2::IDENTITY);
+        test_ui.app.world_mut().entity_mut(entity).insert(clip);
+        assert_eq!(
+            resolved(&mut test_ui, entity, None, u32::MAX).unwrap().rect,
+            URect::new(45, 40, 55, 55)
+        );
     }
 }

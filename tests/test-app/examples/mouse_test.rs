@@ -20,9 +20,9 @@ use bevy::input::gestures::RotationGesture;
 use bevy::input::mouse::MouseButtonInput;
 use bevy::input::mouse::MouseMotion;
 use bevy::input::mouse::MouseWheel;
-use bevy::math::primitives::Cuboid;
 use bevy::picking::prelude::*;
 use bevy::prelude::*;
+use bevy::shape::Cuboid;
 use bevy::ui::UiTargetCamera;
 use bevy::window::CursorMoved;
 use bevy::window::PrimaryWindow;
@@ -632,7 +632,7 @@ fn setup_scene(
 // ============================================================================
 
 fn on_primary_cuboid_click(
-    trigger: On<Pointer<Click>>,
+    trigger: On<PointerClick>,
     mut tracker: ResMut<MouseStateTracker>,
     mut commands: Commands,
     cuboids: Query<Entity, With<PrimaryCuboid>>,
@@ -663,7 +663,7 @@ fn on_primary_cuboid_click(
 }
 
 fn on_secondary_cuboid_click(
-    trigger: On<Pointer<Click>>,
+    trigger: On<PointerClick>,
     mut tracker: ResMut<MouseStateTracker>,
     mut commands: Commands,
     cuboids: Query<Entity, With<SecondaryCuboid>>,
@@ -694,7 +694,7 @@ fn on_secondary_cuboid_click(
 }
 
 fn on_primary_background_click(
-    trigger: On<Pointer<Click>>,
+    trigger: On<PointerClick>,
     mut tracker: ResMut<MouseStateTracker>,
     mut commands: Commands,
     cuboids: Query<Entity, With<PrimaryCuboid>>,
@@ -709,7 +709,7 @@ fn on_primary_background_click(
 }
 
 fn on_secondary_background_click(
-    trigger: On<Pointer<Click>>,
+    trigger: On<PointerClick>,
     mut tracker: ResMut<MouseStateTracker>,
     mut commands: Commands,
     cuboids: Query<Entity, With<SecondaryCuboid>>,

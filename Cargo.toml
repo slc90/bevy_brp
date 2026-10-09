@@ -20,12 +20,12 @@ version = "0.3.1"
 
 [workspace.dependencies]
 # Bevy with no default features - each crate specifies what it needs
-bevy            = { version = "0.19.1", default-features = false }
+bevy            = { version = "0.20.0", default-features = false }
 bevy_brp_extras = { version = "0.3.1", path = "crates/extras" }
 bevy_brp_runtime = { version = "0.3.1", path = "crates/runtime" }
-bevy_mesh       = { version = "0.19.1" }
-bevy_remote     = { version = "0.19.1", default-features = false }
-bevy_winit      = { version = "0.19.1" }
+bevy_mesh       = { version = "0.20.0" }
+bevy_remote     = { version = "0.20.0", default-features = false }
+bevy_winit      = { version = "0.20.0" }
 
 # Core dependencies (shared between extras and mcp)
 anyhow = "1.0"
