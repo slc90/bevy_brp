@@ -39,30 +39,30 @@ cargo build -p bevy_brp_mcp --locked
 
 Configure the MCP client to launch `target/debug/bevy_brp_mcp.exe` over stdio, using an absolute path to the built executable. The normal build provides App discovery, BRP, watch, input, screenshot, and App log tools. For server trace controls, explicitly build with `cargo build -p bevy_brp_mcp --locked --features mcp-debug` and launch that executable. The diagnostic build adds two trace tools; application log tools remain available in the normal build. See [MCP usage and result contracts](docs/mcp.md).
 
-Production package versions remain `0.3.1`; this upgrade does not create a release or tag. The existing **`v0.3.1` tag targets Bevy 0.19.1** and remains unchanged. The Bevy 0.20.0 functional code is fixed at **`ad87f2334c11d99b80ba8a04931c28aa51ad8b09`**; final validation also includes the documentation changes in this working tree. See [final validation and limitations](docs/testing.md#bevy-020-升级阶段-06-最终验收与交接). Packages are consumed from Git or a local checkout; they are not published to crates.io.
+Production packages are version **`0.4.0`**, consumed from the **`v0.4.0` Git tag** for **Bevy 0.20.0**. Bevy's Plugin/ECS types are incompatible with 0.19. The existing **`v0.3.1` tag targets Bevy 0.19.1** and remains unchanged. See [upgrade validation and limitations](docs/testing.md#bevy-020-升级阶段-06-最终验收与交接) and [0.4.0 version validation](docs/testing.md#040-版本发布验证). Packages are consumed from Git or a local checkout; they are not published to crates.io.
 
-Use the same full revision for runtime, Extras and MCP. Include Extras if your App imports it directly. After this revision is available in the remote repository, the Bevy 0.20 dependencies are:
+Use the same tag for runtime, Extras and MCP. Include Extras if your App imports it directly:
 
 ```toml
 [dependencies]
 bevy = "=0.20.0"
-bevy_brp_runtime = { git = "https://github.com/slc90/bevy_brp.git", rev = "ad87f2334c11d99b80ba8a04931c28aa51ad8b09" }
-bevy_brp_extras = { git = "https://github.com/slc90/bevy_brp.git", rev = "ad87f2334c11d99b80ba8a04931c28aa51ad8b09" }
+bevy_brp_runtime = { git = "https://github.com/slc90/bevy_brp.git", tag = "v0.4.0" }
+bevy_brp_extras = { git = "https://github.com/slc90/bevy_brp.git", tag = "v0.4.0" }
 ```
 
-Install MCP from that same revision once it is available remotely:
+Install MCP from the same tag:
 
 ```powershell
-cargo install --git https://github.com/slc90/bevy_brp.git --rev ad87f2334c11d99b80ba8a04931c28aa51ad8b09 --locked bevy_brp_mcp
+cargo install --git https://github.com/slc90/bevy_brp.git --tag v0.4.0 --locked bevy_brp_mcp
 ```
 
-The upgrade's commits are local until separately pushed. The verified installation uses a local checkout and a temporary root:
+For a local checkout of `v0.4.0`, install from its manifest. To keep an existing installation, select a separate root:
 
 ```powershell
-cargo install --path crates/mcp --locked --offline --debug --root target/bevy020-stage06/mcp-install --target-dir target
+cargo install --path crates/mcp --locked --root target/mcp-install-0.4.0
 ```
 
-Add `--features mcp-debug` only when selecting the diagnostic server. Launch the executable from the selected installation's `bin` directory. The temporary debug install and isolated path consumers have been tested; remote Git download and release installation have not. Consumers such as Widgetry must update Bevy, runtime/Extras revision, MCP installation command, tool-version metadata and Cargo.lock together; this repository does not modify that consumer.
+Add `--features mcp-debug` only when selecting the diagnostic server. Launch the executable from the selected installation's `bin` directory. The validation record distinguishes local debug installation from remote Git download and release installation. Consumers such as Widgetry must update Bevy, runtime/Extras tag or revision, MCP installation command, tool-version metadata and Cargo.lock together; this repository does not modify that consumer.
 
 For rollback, restore the complete Bevy 0.19.1 checkout and Cargo.lock at `v0.3.1`, and use its matching App libraries and MCP (`cargo install --git https://github.com/slc90/bevy_brp.git --tag v0.3.1 --locked bevy_brp_mcp`). Keep the old installation until the new combination is accepted.
 

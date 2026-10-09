@@ -61,7 +61,7 @@ Application errors remain available as MCP tool errors. The diagnostic build add
 
 ## Ordinary mouse input and control
 
-Version 0.3.1 requires matching App libraries and MCP from the same `v0.3.1` Git tag or full commit; see the [fixed consumption instructions](../README.md#connect-an-mcp-client). Ordinary mouse methods produce Custom Pointer input only. Their successful responses confirm acceptance; wait for input work and verify the App's actual UI separately. Hosts supply enabled Picking/interaction plugins and a backend. Raw/native mouse consumers and official Mouse-only hover consumers need migration.
+Version 0.4.0 targets Bevy 0.20.0 and requires matching App libraries and MCP from the same `v0.4.0` Git tag or full commit; see the [fixed consumption instructions](../README.md#connect-an-mcp-client). The older `v0.3.1` tag targets Bevy 0.19.1. Ordinary mouse methods produce Custom Pointer input only. Their successful responses confirm acceptance; wait for input work and verify the App's actual UI separately. Hosts supply enabled Picking/interaction plugins and a backend. Raw/native mouse consumers and official Mouse-only hover consumers need migration.
 
 | Tool suffix (`brp_extras_…`) | Parameter boundary |
 | --- | --- |

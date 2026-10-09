@@ -328,3 +328,37 @@ Bevy 0.19.1；没有创建或移动 tag、发布 package、push 或修改 bevy_w
 release 安装、其他平台、真实硬件多 DPI、native 窗口标题栏移动/缩放或 Widgetry 控件。
 功能 revision 尚未 push，远程 Git 消费示例须在该 revision 可获取后使用。外部消费者
 后续须统一升级 Bevy、App 库与 MCP revision，不能将 0.20 Plugin 混入 0.19 App。
+
+## 0.4.0 版本发布验证
+
+2026-10-09 在阶段 06 文档提交 `e07bf0cb` 之后，将四个生产 package 及 workspace
+内部 dependency requirement 统一改为 0.4.0，Bevy 保持 0.20.0。Cargo.lock 只有四个
+生产 package 的 version 变化，外部依赖和测试宿主版本没有改变；本轮 lock SHA256 为
+`1216abec1241b14c262fc8c175ab9b1d1b69fa3a76022d9a5841fcf4ff0c7b1c`。
+本节记录的是提交前的版本 diff；前面阶段 06 的未提交、未打 tag 和未 push 描述是
+当时的采证状态，旧记录未改写为本次版本发布的结果。
+
+证据保留在 `target/release-0.4.0/`，`results.json` 记录命令、退出码与耗时，
+`source.patch` 记录采证时 HEAD 上的 diff。fmt、workspace all-targets check、
+Clippy、完整 test、workspace build、examples build，以及 Extras 无默认 feature/
+diagnostics/ui、runtime、MCP 普通/mcp-debug 独立检查均退出 0。测试仍为
+279 passed、0 failed、9 ignored，既有 fixture warning 和 ignored doctest 保留。
+
+重新构建 0.4.0 普通和诊断 MCP，完整 47/49 工具 schema 与阶段 06 完全相同。
+`public-mcp-regression.ps1 -Port 15970` 验证动态 catalog、执行、错误结构与 watch
+拒绝边界，随后确认宿主/MCP 与端口退出；catalog 采证端口为 15972 和 15974。
+本次只改变版本和消费文档，Pointer/Keyboard/GPU 截图的全套桌面证据仍见阶段 06，
+没有将它们宣称为改版本后的新跑次。
+
+独立 runtime 和无默认 feature 的 Extras-only 消费者使用本轮源码的 path dependency
+及各自 lockfile 重新构建。MCP 通过 local path、offline、debug 安装到独立 root
+`target/release-0.4.0/mcp-install`；原安装不覆盖。实际安装版 SHA256 为
+`7f1b72b7185dea10897cc5e1f471e41a5ae37962990fda1d2faee08fea207105`。
+两个消费者的 47 工具、agent catalog、BRP discovery、shutdown 都通过；runtime 的
+自定义 Main=15966 与 Render=15703 可调用，乘法 6×7=42 及 Resource 读回通过。
+App/MCP 退出码为 0、端口释放，见 `installed-consumers/summary.json`。远程 Git
+下载、release 安装及阶段 06 列出的硬件/平台项仍未由这些 local debug 结果证明。
+
+0.4.0 的 Git 消费标识为 `v0.4.0`，runtime、直接导入的 Extras 与 MCP 使用同一 tag。
+旧 `v0.3.1` 保留为 Bevy 0.19.1 回退组合；本次不发布 crates.io package，也不修改
+外部 Widgetry 或本机原 MCP 安装。
