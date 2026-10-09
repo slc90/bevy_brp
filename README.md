@@ -6,6 +6,8 @@ This repository connects an MCP client to Bevy applications through the Bevy Rem
 
 Add the App-side libraries from this checkout:
 
+This checkout targets **Bevy 0.20.0**. Bevy 0.19 and 0.20 Plugin/ECS types cannot be mixed.
+
 ```toml
 [dependencies]
 bevy_brp_runtime = { path = "../bevy_brp/crates/runtime" }
@@ -37,27 +39,36 @@ cargo build -p bevy_brp_mcp --locked
 
 Configure the MCP client to launch `target/debug/bevy_brp_mcp.exe` over stdio, using an absolute path to the built executable. The normal build provides App discovery, BRP, watch, input, screenshot, and App log tools. For server trace controls, explicitly build with `cargo build -p bevy_brp_mcp --locked --features mcp-debug` and launch that executable. The diagnostic build adds two trace tools; application log tools remain available in the normal build. See [MCP usage and result contracts](docs/mcp.md).
 
-This checkout's production packages are version `0.3.1`, available through the `v0.3.1` Git tag. This version upgrades rmcp to 3.5.1 and removes the MCP server's `ServerInfo` deprecation warnings. It retains the ordinary mouse compatibility change introduced in `0.3.0`. Packages are consumed from Git; they are not published to crates.io.
+Production package versions remain `0.3.1`; this upgrade does not create a release or tag. The existing **`v0.3.1` tag targets Bevy 0.19.1** and remains unchanged. The Bevy 0.20.0 functional code is fixed at **`ad87f2334c11d99b80ba8a04931c28aa51ad8b09`**; final validation also includes the documentation changes in this working tree. See [final validation and limitations](docs/testing.md#bevy-020-升级阶段-06-最终验收与交接). Packages are consumed from Git or a local checkout; they are not published to crates.io.
 
-Use the same tag for the runtime, Extras and MCP. Include Extras if your App imports it directly:
+Use the same full revision for runtime, Extras and MCP. Include Extras if your App imports it directly. After this revision is available in the remote repository, the Bevy 0.20 dependencies are:
 
 ```toml
 [dependencies]
-bevy_brp_runtime = { git = "https://github.com/slc90/bevy_brp.git", tag = "v0.3.1" }
-bevy_brp_extras = { git = "https://github.com/slc90/bevy_brp.git", tag = "v0.3.1" }
+bevy = "=0.20.0"
+bevy_brp_runtime = { git = "https://github.com/slc90/bevy_brp.git", rev = "ad87f2334c11d99b80ba8a04931c28aa51ad8b09" }
+bevy_brp_extras = { git = "https://github.com/slc90/bevy_brp.git", rev = "ad87f2334c11d99b80ba8a04931c28aa51ad8b09" }
 ```
 
-Install MCP from the same Git tag:
+Install MCP from that same revision once it is available remotely:
 
 ```powershell
-cargo install --git https://github.com/slc90/bevy_brp.git --tag v0.3.1 --locked bevy_brp_mcp
+cargo install --git https://github.com/slc90/bevy_brp.git --rev ad87f2334c11d99b80ba8a04931c28aa51ad8b09 --locked bevy_brp_mcp
 ```
 
-For a local checkout of `v0.3.1`, use `cargo install --path crates/mcp --locked`. Add `--features mcp-debug` only when selecting the diagnostic server. The client should launch the executable from the installation's `bin` directory. Never pair the new App libraries with the old MCP installation. Consumers such as Widgetry must update their runtime/Extras Git tag or revision, MCP installation command, tool-version metadata and Cargo.lock together; this repository does not modify that consumer.
+The upgrade's commits are local until separately pushed. The verified installation uses a local checkout and a temporary root:
+
+```powershell
+cargo install --path crates/mcp --locked --offline --debug --root target/bevy020-stage06/mcp-install --target-dir target
+```
+
+Add `--features mcp-debug` only when selecting the diagnostic server. Launch the executable from the selected installation's `bin` directory. The temporary debug install and isolated path consumers have been tested; remote Git download and release installation have not. Consumers such as Widgetry must update Bevy, runtime/Extras revision, MCP installation command, tool-version metadata and Cargo.lock together; this repository does not modify that consumer.
+
+For rollback, restore the complete Bevy 0.19.1 checkout and Cargo.lock at `v0.3.1`, and use its matching App libraries and MCP (`cargo install --git https://github.com/slc90/bevy_brp.git --tag v0.3.1 --locked bevy_brp_mcp`). Keep the old installation until the new combination is accepted.
 
 ## Ordinary mouse compatibility in 0.3.0
 
-Move, button, click, double-click, drag and scroll now follow `BRP → PointerInput → Bevy Picking → Pointer<T>` through one stable App-owned Custom Pointer. They do not inject raw mouse/cursor events or move the OS cursor. Raw `MouseMotion`, `MouseButtonInput`, `MouseWheel`, `WindowEvent` mouse variants and native cursor consumers no longer receive these ordinary BRP inputs. Hosts must provide enabled Picking and interaction plugins plus a suitable backend. Official Mouse-only `Hovered`/`DirectlyHovered` consumers require host adaptation; BRP does not change their writer or add Widgetry dependencies.
+Move, button, click, double-click, drag and scroll now follow `BRP → PointerInput → Bevy Picking → independent Pointer events` (Bevy 0.20) through one stable App-owned Custom Pointer. They do not inject raw mouse/cursor events or move the OS cursor. Raw `MouseMotion`, `MouseButtonInput`, `MouseWheel`, `WindowEvent` mouse variants and native cursor consumers no longer receive these ordinary BRP inputs. Hosts must provide enabled Picking and interaction plugins plus a suitable backend. Official Mouse-only `Hovered`/`DirectlyHovered` consumers require host adaptation; BRP does not change their writer or add Widgetry dependencies.
 
 Only Left/Right/Middle are supported; Back/Forward are rejected. Coordinates are logical window pixels with independent per-window BRP history starting at the origin. An omitted window uses the last BRP target, then PrimaryWindow; explicit invalid or destroyed windows fail. Automatic gestures use a FIFO, real-time waits and Picking cycle barriers. A successful tool response means acceptance, `status.busy=false` means the input work has finished, and successful UI behavior must be checked separately. Always release the Pointer in automation cleanup and poll until inactive; see the [control requests and parameter boundaries](docs/mcp.md#ordinary-mouse-input-and-control) and [layered validation evidence](docs/testing.md).
 

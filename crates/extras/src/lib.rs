@@ -2,6 +2,13 @@
 //!
 //! This crate provides additional Bevy Remote Protocol (BRP) methods that can be added
 //! to your Bevy application for enhanced remote control capabilities.
+//! This checkout targets Bevy 0.20.0; its Plugin and ECS types cannot be mixed with Bevy 0.19
+//! types. Use the same revision for Extras, runtime (when used), and MCP.
+//! Hosts must provide Bevy's input and window message channels. `DefaultPlugins` supplies them;
+//! a `MinimalPlugins` host can add [`bevy::input::InputPlugin`] and [`bevy::window::WindowPlugin`].
+//! For a windowless runner, configure `WindowPlugin` with no primary window and
+//! [`bevy::window::ExitCondition::DontExit`]. Picking input additionally requires the host's
+//! Picking plugins and a suitable backend.
 //!
 //! # BRP methods and agent tools
 //!

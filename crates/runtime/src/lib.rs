@@ -2,6 +2,9 @@
 //!
 //! Add [`BrpRuntimePlugin`] after Bevy's windowing plugins to install BRP Extras methods together
 //! with an HTTP transport that wakes the main event loop whenever remote work arrives.
+//!
+//! This checkout targets Bevy 0.20.0. Its Plugin and ECS types cannot be mixed with Bevy 0.19
+//! types. Consume runtime, directly imported Extras, and MCP from the same revision.
 
 mod http;
 mod progress;

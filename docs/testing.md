@@ -222,3 +222,109 @@ Watching 请求，随后调用计数停止增长、更新回落、activity 为�
 本轮 event_test PID、MCP 和双端口，保留最初的 watch 错误及各清理错误记录。正常路径
 另行复跑通过，未触发强制清理，证据见 protocol-cleanup-grace 与 protocol-fault-cleanup-grace。
 独立消费者、安装版 MCP、最终桌面与历史回放仍由阶段 06 复验；不以此替代外部 Widgetry。
+
+## Bevy 0.20 升级：阶段 06 最终验收与交接
+
+2026-10-09 在 Windows 10 19045、PowerShell 7.6.6、Python 3.14.3、Rust/Cargo 1.99.0
+和 NVIDIA GeForce RTX 4070 Ti SUPER（Vulkan，595.79）上完成最终回归。功能代码固定为
+`ad87f2334c11d99b80ba8a04931c28aa51ad8b09`，Bevy 为 0.20.0；采证时 working tree
+包含 README 与 Extras/runtime crate rustdoc 的文档修改，随后补充本节和宿主前提说明。
+没有修改功能代码、manifest 或 lockfile；不能将本节所在的未提交文档冒充已经提交的 revision。
+workspace Cargo.lock SHA256 为
+`da1443fef4c09d666fe4fcd63024fbd247b0bba68009a0dc8165a161974dd930`。
+
+证据位于本地忽略目录 `target/bevy020-stage06/`。`environment.json`、
+`source-at-validation.patch` 记录首轮环境与采证 diff；`cargo-results.json`、
+`desktop-results.json` 保存实际命令、退出码和耗时，桌面记录另含运行时 MCP SHA256。
+各链的 `summary.json`、交互记录、App/MCP 日志和 PNG 保留对应 PID、port、binary 标识
+及清理结果。中断的 `keyboard/` 保留，最终成功结果使用新的 `keyboard-resumed/`。
+
+### 编译与 feature
+
+最终功能状态的 fmt、workspace all-targets check、all-targets Clippy、完整 test、test
+--no-run、workspace build 和 examples build 全部退出 0；完整测试为 279 passed、
+0 failed、9 ignored。Extras 无默认 feature、独立 diagnostics、独立 ui、runtime，
+MCP 无默认 feature和 mcp-debug 的独立 check 均退出 0。Pointer example build/test、
+Keyboard example build 和 runtime_custom_port example build 也通过。
+
+最终 rustdoc 修改后复跑 fmt、workspace all-targets check、test --no-run、Extras/runtime
+doctest、cargo doc --no-deps 与 diff --check，均退出 0，见 `final-results.json`。
+仅补充说明文字，没有改变行为或 feature；既有桌面证据继续对应同一功能 revision。
+
+既有同名 example 输出冲突 warning 保留；extras_plugin 使用的 Interaction alias 在
+0.20 被弃用，fixture 的两条 warning 保留，不影响测试结果。9 个 ignored doctest
+未增加。历史两项 Windows dep-info freshness 测试本轮通过，没有沿用旧失败结论。
+
+### 桌面、图像与协议链
+
+| 链与证据子目录 | 实际端口 | 结果与边界 |
+| --- | --- | --- |
+| `pointer/` | 15950 | 实际 Button、多击、拖放、Line/Pixel 滚动、取消、UUID、窗口销毁和 idle activity 通过。 |
+| `keyboard-resumed/` | 15952 | secondary 路由、默认 PrimaryWindow、无效/销毁窗口、长 typing/hold 期间关闭窗口、Ctrl/Shift 清理通过。 |
+| `screenshots/` | 15954 | 五张 crop 的精确尺寸、颜色和 marker，以及 hidden/partial UI、camera、重名和 bounds 错误通过。 |
+| `protocol/` | 15956、15703 | Main/Render、反射 CRUD/type-guide、observer、watch、SSE、取消、实际 30 秒 deadline、分别占用双端口的失败清理通过。 |
+| public MCP、普通 diagnostics | 15958、15960 | 普通 47 工具、trace 工具不可调用、App 日志与 trace 读取边界及清理通过。 |
+| runtime-port | 15752、15702、15703 | 自定义 Main port、默认 Main 未监听、Render discovery、shutdown 通过。 |
+| debug diagnostics、`replay/` | 15962、15964 | 诊断 49 工具、握手、Sprite Transform 0→42、watch、输入接受、精确截图错误、日志 marker、两次 clean shutdown 和 NatesList 像素通过。 |
+| `catalog-ordinary/`、`catalog-diagnostic/` | 15961、15965 | 与阶段 01 的完整 schema 对照通过，仅 rpc_discover 描述中的 Bevy 版本变化。 |
+
+Pointer、Keyboard 的两窗口图像、五张 screenshot crop 和历史回放 NatesList 图像均已
+实际查看。Pointer OS cursor 前后均为 `(63, 766)`，foreground PID 保持 17160，两个
+宿主窗口未获焦点；motion/buttons/wheels/cursor/window_events 五个 raw 通道零增长。
+空闲 0.5 秒 updates 为 234→238，activity 为零。Keyboard 图像分别显示
+`PrimaryWindow: pOK`、`SecondaryWindow: aAZ!`，不外推 Widgetry 编辑或 focus 行为。
+截图中 NatesList 为 64×48 蓝底/黄/品红 marker，旋转 UI 为 32×56 青色，嵌套 clip
+为 40×40 绿中心/黑角落；2D/3D AABB 为 12×60 红色、12×48 绿色及黄色 marker。
+
+满 mailbox 的提交前/后 wake 顺序由 runtime unit test 验证；真实协议链验证并发
+unknown→valid 请求继续推进、双端点和取消后的休眠恢复，不能将它写成真实 HTTP 压满
+mailbox 的压力测试。正常链均完成 shutdown、watch 停止、App/MCP 和端口清理。
+历史回放恢复共享 trace 长度 636870 bytes；旧 before 样本未覆盖。
+
+### 独立消费与临时安装
+
+`consumer/` 和 `extras-only/` 各自声明独立 workspace，Cargo metadata 确认只有自身
+一个成员、Bevy 精确为 0.20.0，并使用独立 lockfile；不依赖测试宿主的 feature 合并。
+使用同一源码的 path dependency，offline --locked debug build，共用 target 编译缓存。
+`consumer-metadata.json` 保存实际 feature、workspace root 及 manifest/lockfile 标识。
+
+runtime 消费者在 DefaultPlugins 后安装 `BrpRuntimePlugin::with_port(15966)`，导入
+activity/agent-tool 公共入口；安装版 MCP 的 47 工具和动态 catalog 可用，实际
+`consumer/multiply(6, 7)` 得到 42，Resource 读回为 42，Render=15703 可调用。
+Extras-only 使用 `default-features=false`、`MinimalPlugins`、InputPlugin 和无窗口的
+WindowPlugin（DontExit），以 `BrpExtrasPlugin::with_port(15968)` 提供普通 BRP 与
+agent catalog；不依赖 runtime，也不安装 Picking backend、Winit 或 GPU 插件。
+首次临时宿主遗漏输入消息导致 panic；补充 WindowPlugin 后默认无窗口退出又使进程提前
+结束，最终显式 DontExit 后通过。两次失败证据保留，未通过放宽断言或修改生产行为处理。
+
+临时 MCP 的实际安装命令为：
+
+```powershell
+cargo install --path crates/mcp --locked --offline --debug --root target/bevy020-stage06/mcp-install --target-dir target
+```
+
+真实验证使用 `mcp-install/bin/bevy_brp_mcp.exe`，SHA256 为
+`311c3cd21bdbde55a9a2e20ee07cdb74505028ec04daad556a0b9b987b83e0a8`，
+没有用 workspace 中另一个 binary 替代。两个消费者均从该 MCP 调用 shutdown，App/MCP
+退出码为 0，Main/Render 端口释放；最终证据为 `installed-consumer-pass/summary.json`。
+`consumer-results.json` 保留首次失败，补齐宿主后的命令/退出码见
+`consumer-resume-results.json`，不把初次失败记录覆盖成成功。
+桌面普通构建 SHA256 为
+`32bff357a2db413e8264b61d63eaa70a26ec36970ed3757bb41ec4fe20ab75c9`，
+诊断构建为 `c4ce69a60e618faa827d9cc1dd1063aad2ce79030ec19e227e155abcf939c34b`；
+两种构建都重新构建并采集 catalog。安装版的独立 feature 构建与 workspace feature
+合并构建分别记录标识，不要求二进制 hash 相同。
+
+### 交接与未测范围
+
+README 提供上述完整 revision 的 runtime/Extras/MCP 消费说明及旧版回退路径。
+现有 `v0.3.1` 的 commit 仍为 `ae9fdaec25cb1f02b501f6e07199a27df144501e`，对应
+Bevy 0.19.1；没有创建或移动 tag、发布 package、push 或修改 bevy_widgetry。
+本机原 MCP SHA256 保持
+`1e89bef7bec10d5aa0da79ef5615488cd9436a947f51adbf5c261bebcd7d9c9a`。
+回退须恢复整个旧 revision/Cargo.lock 及其匹配的 App 库和 MCP，不能只回退 manifest。
+
+本轮验证的是本地 path、offline debug 安装与 Windows 桌面；未验证远程 Git 下载、
+release 安装、其他平台、真实硬件多 DPI、native 窗口标题栏移动/缩放或 Widgetry 控件。
+功能 revision 尚未 push，远程 Git 消费示例须在该 revision 可获取后使用。外部消费者
+后续须统一升级 Bevy、App 库与 MCP revision，不能将 0.20 Plugin 混入 0.19 App。
