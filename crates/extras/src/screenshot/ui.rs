@@ -903,4 +903,228 @@ mod tests {
             URect::new(45, 40, 55, 55)
         );
     }
+
+    fn diamond_clip(center: Vec2) -> (Rect, Affine2) {
+        // x+y and y-x bound a diamond with radius 20 using exactly representable values.
+        let transform = Affine2::from_mat2_translation(
+            bevy::math::Mat2::from_cols(Vec2::new(1.0, -1.0), Vec2::ONE),
+            Vec2::new(-center.x - center.y, center.x - center.y),
+        );
+        (Rect::new(-20.0, -20.0, 20.0, 20.0), transform)
+    }
+
+    #[test]
+    fn multiple_rotated_clips_use_their_true_intersection() {
+        let mut ui = test_ui(UVec2::splat(100), None);
+        let entity = spawn_node(
+            &mut ui,
+            Vec2::splat(100.0),
+            Affine2::from_translation(Vec2::splat(50.0)),
+        );
+        let mut clip = CalculatedClip::default();
+        for center in [Vec2::splat(50.0), Vec2::new(60.0, 50.0)] {
+            let (rect, transform) = diamond_clip(center);
+            clip.push_rect(rect, transform);
+        }
+        ui.app.world_mut().entity_mut(entity).insert(clip);
+        assert_eq!(
+            resolved(&mut ui, entity, None, 0).unwrap().rect,
+            URect::new(40, 35, 70, 65)
+        );
+        assert_eq!(
+            resolved(&mut ui, entity, None, u32::MAX).unwrap().rect,
+            URect::new(40, 35, 70, 65)
+        );
+    }
+
+    #[test]
+    fn overlapping_aabbs_do_not_make_disjoint_rotated_regions_visible() {
+        let mut ui = test_ui(UVec2::splat(100), None);
+        let entity = spawn_node(
+            &mut ui,
+            Vec2::splat(6.0),
+            Affine2::from_translation(Vec2::splat(67.0)),
+        );
+        let (rect, transform) = diamond_clip(Vec2::splat(50.0));
+        let mut clip = CalculatedClip::default();
+        clip.push_rect(rect, transform);
+        ui.app.world_mut().entity_mut(entity).insert(clip);
+        assert_eq!(
+            resolution_error(resolve(ui.app.world(), entity, None, u32::MAX))
+                .unwrap()
+                .code,
+            INVALID_PARAMS
+        );
+    }
+
+    #[test]
+    fn crossing_strips_and_subpixel_area_are_visible_but_tangent_edges_are_not() {
+        let mut ui = test_ui(UVec2::splat(100), None);
+        let entity = spawn_node(
+            &mut ui,
+            Vec2::new(80.0, 4.0),
+            Affine2::from_translation(Vec2::splat(50.0)),
+        );
+        for (clip, expected) in [
+            (
+                Rect::new(48.0, 10.0, 52.0, 90.0),
+                URect::new(48, 48, 52, 52),
+            ),
+            (
+                Rect::new(49.875, 49.875, 50.125, 50.125),
+                URect::new(49, 49, 51, 51),
+            ),
+        ] {
+            ui.app
+                .world_mut()
+                .entity_mut(entity)
+                .insert(single_clip(clip));
+            assert_eq!(resolved(&mut ui, entity, None, 0).unwrap().rect, expected);
+        }
+        for clip in [
+            Rect::new(90.0, 40.0, 95.0, 60.0),
+            Rect::new(90.0, 52.0, 95.0, 60.0),
+        ] {
+            ui.app
+                .world_mut()
+                .entity_mut(entity)
+                .insert(single_clip(clip));
+            assert!(resolve(ui.app.world(), entity, None, 100).is_err());
+        }
+    }
+
+    #[test]
+    fn mirrored_nonuniform_nodes_preserve_winding_independent_bounds() {
+        let mut ui = test_ui(UVec2::splat(100), None);
+        let entity = spawn_node(
+            &mut ui,
+            Vec2::new(10.0, 20.0),
+            Affine2::from_scale_angle_translation(Vec2::new(-2.0, 0.5), 0.0, Vec2::splat(50.0)),
+        );
+        assert_eq!(
+            resolved(&mut ui, entity, None, 0).unwrap().rect,
+            URect::new(40, 45, 60, 55)
+        );
+        ui.app
+            .world_mut()
+            .entity_mut(entity)
+            .insert(UiGlobalTransform::from(Affine2::from_scale(Vec2::new(
+                0.0, 1.0,
+            ))));
+        assert!(resolve(ui.app.world(), entity, None, 0).is_err());
+    }
+
+    #[test]
+    fn invalid_clip_transforms_and_directed_ranges_never_expand_capture() {
+        let mut ui = test_ui(UVec2::splat(100), None);
+        let entity = spawn_node(
+            &mut ui,
+            Vec2::splat(20.0),
+            Affine2::from_translation(Vec2::splat(50.0)),
+        );
+        for transform in [
+            Affine2::from_scale(Vec2::new(0.0, 1.0)),
+            Affine2::from_translation(Vec2::new(f32::NAN, 0.0)),
+            Affine2::from_scale(Vec2::splat(f32::INFINITY)),
+        ] {
+            let mut clip = CalculatedClip::default();
+            clip.push_rect(Rect::new(40.0, 40.0, 60.0, 60.0), transform);
+            ui.app.world_mut().entity_mut(entity).insert(clip);
+            assert!(resolve(ui.app.world(), entity, None, u32::MAX).is_err());
+        }
+        for rect in [
+            Rect {
+                min: Vec2::splat(60.0),
+                max: Vec2::splat(40.0),
+            },
+            Rect {
+                min: Vec2::new(f32::NAN, 40.0),
+                max: Vec2::splat(60.0),
+            },
+            Rect::new(50.0, 40.0, 50.0, 60.0),
+        ] {
+            ui.app
+                .world_mut()
+                .entity_mut(entity)
+                .insert(single_clip(rect));
+            assert!(resolve(ui.app.world(), entity, None, u32::MAX).is_err());
+        }
+    }
+
+    #[test]
+    fn rotated_unbounded_axis_never_transforms_infinite_corners() {
+        let mut ui = test_ui(UVec2::splat(100), None);
+        let entity = spawn_node(
+            &mut ui,
+            Vec2::splat(20.0),
+            Affine2::from_translation(Vec2::splat(50.0)),
+        );
+        let (_, transform) = diamond_clip(Vec2::splat(50.0));
+        let mut clip = CalculatedClip::default();
+        clip.push_rect(
+            Rect {
+                min: Vec2::new(-10.0, f32::NEG_INFINITY),
+                max: Vec2::new(10.0, f32::INFINITY),
+            },
+            transform,
+        );
+        ui.app.world_mut().entity_mut(entity).insert(clip);
+        assert_eq!(
+            resolved(&mut ui, entity, None, 10).unwrap().rect,
+            URect::new(30, 30, 70, 70)
+        );
+    }
+
+    #[test]
+    fn engine_calculated_override_fixed_and_hidden_clips_drive_resolution() {
+        let mut ui = test_ui(UVec2::splat(100), None);
+        let parent = spawn_node(
+            &mut ui,
+            Vec2::splat(10.0),
+            Affine2::from_translation(Vec2::splat(50.0)),
+        );
+        ui.app.world_mut().get_mut::<Node>(parent).unwrap().overflow = Overflow::clip();
+        let child = spawn_node(
+            &mut ui,
+            Vec2::splat(20.0),
+            Affine2::from_translation(Vec2::splat(50.0)),
+        );
+        ui.app.world_mut().entity_mut(parent).add_child(child);
+        ui.app
+            .add_systems(Last, bevy::ui::update::update_clipping_system);
+        ui.app.update();
+        assert_eq!(
+            resolved(&mut ui, child, None, 0).unwrap().rect,
+            URect::new(45, 45, 55, 55)
+        );
+        ui.app
+            .world_mut()
+            .entity_mut(child)
+            .insert(bevy::ui::OverrideClip);
+        ui.app.update();
+        assert_eq!(
+            resolved(&mut ui, child, None, 0).unwrap().rect,
+            URect::new(40, 40, 60, 60)
+        );
+        ui.app
+            .world_mut()
+            .entity_mut(child)
+            .remove::<bevy::ui::OverrideClip>()
+            .insert(bevy::ui::FixedNode);
+        ui.app.update();
+        assert_eq!(
+            resolved(&mut ui, child, None, 0).unwrap().rect,
+            URect::new(40, 40, 60, 60)
+        );
+        ui.app.world_mut().get_mut::<Node>(child).unwrap().display = Display::None;
+        ui.app.update();
+        assert!(
+            ui.app
+                .world()
+                .get::<CalculatedClip>(child)
+                .unwrap()
+                .is_fully_clipped()
+        );
+        assert!(resolve(ui.app.world(), child, None, 0).is_err());
+    }
 }

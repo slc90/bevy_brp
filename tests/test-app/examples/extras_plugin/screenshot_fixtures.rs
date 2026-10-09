@@ -6,6 +6,7 @@
 //!
 //! - `NatesList`: (40, 32, 64, 48)
 //! - `ScreenshotRotatedClippedUi`: (132, 40, 32, 56)
+//! - `ScreenshotNestedClippedUi`: (40, 112, 40, 40), green center and black corners
 //! - `Screenshot2dAabb`: (106, 98, 12, 60)
 //! - `Screenshot3dReference`: (16, 12, 224, 168)
 //! - `Screenshot3dAabb`: (162, 90, 12, 48)
@@ -24,6 +25,7 @@ use bevy::camera::ScalingMode;
 use bevy::camera::Viewport;
 use bevy::camera::primitives::Aabb;
 use bevy::camera::visibility::NoCpuCulling;
+use bevy::camera::visibility::NoFrustumCulling;
 use bevy::camera::visibility::RenderLayers;
 use bevy::math::Rot2;
 use bevy::prelude::*;
@@ -249,6 +251,33 @@ fn spawn_ui_fixtures(commands: &mut Commands, camera: Entity) {
         Visibility::Hidden,
         Name::new(HIDDEN_UI_NAME),
     ));
+
+    // Two inherited clips: a rotated outer square and an axis-aligned inner square.
+    // The final crop includes black corners outside the composited green octagon.
+    commands
+        .spawn((
+            Node {
+                overflow: Overflow::clip(),
+                ..absolute_node(Vec2::new(24.0, 100.0), Vec2::splat(40.0))
+            },
+            UiTransform::from_rotation(Rot2::FRAC_PI_4),
+            UiTargetCamera(camera),
+        ))
+        .with_children(|outer| {
+            outer
+                .spawn((
+                    Node {
+                        overflow: Overflow::clip(),
+                        ..absolute_node(Vec2::ZERO, Vec2::splat(40.0))
+                    },
+                    UiTransform::from_rotation(Rot2::FRAC_PI_4.inverse()),
+                ))
+                .with_child((
+                    absolute_node(Vec2::splat(-30.0), Vec2::splat(100.0)),
+                    BackgroundColor(Color::srgb_u8(0, 255, 0)),
+                    Name::new("ScreenshotNestedClippedUi"),
+                ));
+        });
 }
 
 fn spawn_two_d_fixtures(commands: &mut Commands) {
@@ -270,7 +299,7 @@ fn spawn_two_d_fixtures(commands: &mut Commands) {
         Transform::from_translation(TWO_D_ENTITY_POSITION)
             .with_rotation(rotation)
             .with_scale(TWO_D_ENTITY_SCALE),
-        NoCpuCulling,
+        NoFrustumCulling,
         RenderLayers::layer(TWO_D_RENDER_LAYER),
         Name::new(TWO_D_AABB_NAME),
     ));

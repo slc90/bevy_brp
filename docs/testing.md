@@ -153,3 +153,31 @@ Picking 装配确认 First 输入生产、receive 后物理抑制、backend 后 
 OS cursor 前后 `(144, 721)`，foreground PID 未变，两窗口未获焦点，raw 五通道零增长。
 空闲 0.5 秒 updates 为 232 → 236、activity 为零；App/MCP/15932 正常清理。
 本轮逻辑 DPI 覆盖来自自动化窗口尺度测试，未验证真实硬件多 DPI 或 Native Window。
+
+## Bevy 0.20 升级：阶段 04 的 UI 截图回归
+
+UI 几何定向测试 20 passed，新增多重旋转、AABB 假交集、交叉条带、亚像素面积、线/点
+相切、镜像/非均匀缩放、奇异/非有限变换和旋转无界轴。OverrideClip、FixedNode 和
+Display::None 用例运行引擎 update_clipping_system 后消费实际 CalculatedClip。
+旧 `URect::new(35, 38, 46, 45)`、viewport 偏移、物理尺寸和 live target 边界保持。
+Extras 测试、workspace all-targets check、test --no-run、examples build、Clippy 及
+Extras 无默认 feature/ui 独立检查通过，完整输出在 `target/bevy020-stage04/`。
+
+新增可重复图像入口（需要 Pillow；输出目录须不存在）：
+
+```powershell
+cargo build --workspace --example extras_plugin --locked
+python tests/screenshot-regression.py --port 15934 --output target/screenshot-evidence
+```
+
+本轮 `screenshots-final/` 通过，五张实际图像已查看。NatesList 保持 64×48 蓝底和黄/品红
+marker；旋转 UI 为 32×56 青色；两层引擎 clip 的嵌套 UI 为 40×40，绿色中心、黑色角落；
+2D/3D AABB 分别为 12×60 红色和 12×48 绿色，黄色 marker 正确。live get 确认嵌套
+CalculatedClip 含两项。hidden/partial UI、无 bounds、重名和错误 camera 被拒绝，不发布 PNG。
+截图是合成 target 的矩形 crop，不是节点独占像素或 alpha mask。
+
+首次 shader 尚未完成时图像可能是清屏色，入口在有界时间内重捕获并核对同一精确像素，
+不放宽颜色或几何断言。额外暴露的既有 fixture 问题是 2D Sprite 使用 NoCpuCulling 导致
+不进入逐 view 的 VisibleEntities；局部改为 NoFrustumCulling 后红色主体恢复，crop 未变。
+早期失败输出保留用于诊断，最终通过输出有 binary SHA256、采集时 HEAD（源码修改当时
+在 working tree）、进程和端口清理记录。没有修改截图 transport 或 pending capture contract。

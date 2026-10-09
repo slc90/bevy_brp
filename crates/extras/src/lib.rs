@@ -86,8 +86,12 @@
 //! AABB capture projects the selected entity's [`Aabb`](bevy::camera::primitives::Aabb) through
 //! the selected camera. With the default `ui` feature, complete Bevy UI computed components take
 //! precedence over an incidental AABB and supply transformed, clipped physical bounds plus their
-//! computed target camera. Partial UI computed state is rejected. Disabling default features
-//! retains AABB capture without compiling this crate's UI bounds resolver, imports, or capability.
+//! computed target camera. Partial UI computed state is rejected.
+//! UI bounds intersect the transformed node with every inherited clip before padding and pixel
+//! rounding. Rotated clips still return a rectangular crop of the composited target: its corners
+//! may contain background or other entities. The PNG has no entity-specific alpha mask.
+//! Disabling default features retains AABB capture without compiling this crate's UI bounds
+//! resolver, imports, or capability.
 //! This does not guarantee removal of UI crates from the dependency graph because upstream Bevy
 //! 0.20 `bevy_remote` brings that family transitively through `bevy_dev_tools`. Both modes crop the
 //! complete composited target, so overlapping content and post-processing remain visible. With
