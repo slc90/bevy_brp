@@ -71,3 +71,50 @@ python tests/keyboard-window-regression.py --port 15816 --output target/keyboard
 `tests/test-duplicate-a` 与 `tests/test-duplicate-b` 保留跨 package 同名 target 的发现/消歧场景；`tests/test-app` 的同名 bin/example 保护 target kind 选择，`extras_plugin/screenshot_fixtures.rs` 提供截图边界和确定性图像。它们是供 MCP 启动的宿主，不因 `cargo test --workspace` 运行而自动完成协议验证。runtime 的 mailbox/deadline 与持续动作推进、extras 的 agent tool 注册、输入和截图边界仍由各 package 的测试覆盖。
 
 本入口重放方案 01 中已证实的场景。历史回放的输入只检查排队结果；最终 UI 文本与普通 Pointer 行为分别由上述 keyboard / pointer 专门入口验收。其他手势、资源 CRUD、entity 创建/销毁/重设父级、事件与 type guide 的完整真实调用仍未覆盖。MCP 自诊断在该重放中检查调用成功，未将 trace 文件内容或 token 用量设为 contract。原始 before 数据与当时的两个 Windows build-freshness 测试失败记录在[基线记录](../plans/refactor/01-baseline.md)；当前测试结果须重新运行判定，不能沿用旧结论。
+
+## Bevy 0.20 升级：阶段 01 的旧版基线
+
+2026-10-09 在干净的 `349cc44838ebe820749f6a046b69db9cb101e82a` 上采集。与方案指定的
+`ae9fdaec25cb1f02b501f6e07199a27df144501e` 相比仅新增升级方案文档，工程源码一致。
+生产 package 为 `0.3.1`，Bevy 为 `0.19.1`；本阶段没有修改依赖或 lockfile。
+Cargo.lock 的 SHA256 为 `09d06215847df76d77e09f844b1a274e9d3ac482e981432ced62e1e5bc108c83`。
+环境为 Windows `x86_64-pc-windows-msvc`、Rust/Cargo 1.99.0、PowerShell 7.6.6、Python 3.14.3；
+活动工具链已安装 rustfmt 和 Clippy。
+
+以下命令退出码均为 0，完整输出与依赖树保存在本地忽略目录 `target/bevy020-stage01/`：
+
+```powershell
+cargo check --workspace --all-targets --locked
+cargo test --workspace --locked --no-run
+cargo build --workspace --examples --locked
+cargo test --workspace --locked --no-fail-fast
+cargo check -p bevy_brp_extras --locked --no-default-features
+cargo check -p bevy_brp_extras --locked --no-default-features --features diagnostics
+cargo check -p bevy_brp_extras --locked --no-default-features --features ui
+cargo check -p bevy_brp_runtime --locked
+cargo check -p bevy_brp_mcp --locked --no-default-features
+cargo build --workspace --locked
+```
+
+自动化测试为 266 passed、0 failed，保留 9 个既有 ignored doctest 和同名 fixture 产物 warning。
+本轮未发现旧版测试失败；早期记录中的失败不替代本轮结果。
+
+普通 MCP 完整工具 schema 为 47 项，诊断构建为 49 项，分别保存于
+`catalog-ordinary/` 与 `catalog-diagnostic/`；前者还保存 `rpc.discover` 和过滤到输入、UI、
+渲染、Transform 的 live `registry.schema`。摘要记录实际 MCP binary SHA256，两个模式均重新构建。
+图形/协议基线同样来自本轮运行：
+
+- Pointer：`pointer/`，端口 15922；真实按钮、多击、拖放、Line/Pixel 滚动、取消、UUID 复用和
+  窗口销毁通过。OS cursor 前后均为 `(446, 584)`，foreground PID 不变，两窗口未获焦点，
+  五类 raw mouse/cursor 计数零增长。0.5 秒 idle 查询间 updates 为 234 → 238，activity 为零；
+  两窗口截图已查看。
+- Keyboard：`keyboard/`，端口 15924；多窗口路由、默认窗口、非法/销毁窗口以及长操作的修饰键
+  清理通过，两窗口截图已查看。
+- Runtime：`runtime-port.log`；代码配置 Main=15752 可发现 40 个 method，默认 Main 未监听，
+  正常 shutdown 退出码为 0。
+- 诊断回放：`replay/`，端口 15928；握手、Transform 修改、watch、输入排队、日志 marker、
+  两次 shutdown 和 `NatesList` 的 64×48 尺寸/关键像素检查通过，实际图像已查看。
+
+各入口均完成正常关闭与清理；运行后另行确认本轮 MCP/App 进程和测试端口、Render 15703 均已释放。
+所有上述结果仅证明旧 `0.19.1` 对照可用，不证明 `0.20.0` 已验收。Native Window 操作、
+Widgetry 具体控件、硬件多 DPI 和其他平台未测，未运行全量 Clippy；这些范围不计作通过。
