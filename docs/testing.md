@@ -137,3 +137,19 @@ diagnostics、ui，runtime 独立消费及 MCP 无默认 feature、mcp-debug 检
 自动化测试为 270 passed、0 failed、9 ignored doctest，Pointer 定向测试为 34 passed。
 保留同名 fixture 产物与旧 Interaction fixture 的弃用 warning。真实 Pointer、截图及
 runtime/MCP `0.20.0` 协议回归将在后续阶段采集，本阶段不计为已通过。
+
+## Bevy 0.20 升级：阶段 03 的 Pointer 回归
+
+在 `27eba2692d7b2f13154d931bdce047259e79d9ea` 的生产源码上运行，working tree
+仅增加测试覆盖：移除 PointerLocation、PointerPressState 或 PointerInteraction 都清理旧
+generation 并保留 UUID；原 press 目标销毁后不向失效 entity 补发 Cancel。对照 `v0.20.0`
+Picking 装配确认 First 输入生产、receive 后物理抑制、backend 后 Out 恢复、Hover 后收尾
+的顺序仍成立。无默认 feature 的 Pointer 定向测试 35 passed，stock Button example 的
+取消/再次激活测试通过；全仓 all-targets check、test --no-run 和 examples build 通过。
+
+`python tests/pointer-regression.py --port 15932 --output target/bevy020-stage03/pointer`
+通过，实际两窗口图像已查看。按钮、多击、拖放、Line/Pixel 滚动、双消费面取消、UUID
+复用、窗口销毁和错误上下文通过；六个鼠标工具的完整 schema 与阶段 01 普通构建一致。
+OS cursor 前后 `(144, 721)`，foreground PID 未变，两窗口未获焦点，raw 五通道零增长。
+空闲 0.5 秒 updates 为 232 → 236、activity 为零；App/MCP/15932 正常清理。
+本轮逻辑 DPI 覆盖来自自动化窗口尺度测试，未验证真实硬件多 DPI 或 Native Window。

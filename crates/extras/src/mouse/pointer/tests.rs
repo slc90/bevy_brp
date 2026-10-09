@@ -1266,6 +1266,12 @@ fn destroying_custom_entity_cancels_work_instead_of_waiting_forever_for_location
 
 #[test]
 fn lost_pointer_component_cancels_press_and_next_generation_reuses_only_identity() {
+    for removed in ["location", "press_state", "interaction"] {
+        lost_required_component(removed);
+    }
+}
+
+fn lost_required_component(removed: &str) {
     let (mut app, _, target) = fixture();
     super::super::click::click_mouse_handler(In(Some(json!({"button":"Left"}))), app.world_mut())
         .unwrap();
@@ -1273,9 +1279,24 @@ fn lost_pointer_component_cancels_press_and_next_generation_reuses_only_identity
     app.update();
     let state = app.world().resource::<BrpPointerState>();
     let (entity, id) = (state.entity.unwrap(), state.id);
-    app.world_mut()
-        .entity_mut(entity)
-        .remove::<PointerLocation>();
+    match removed {
+        "location" => {
+            app.world_mut()
+                .entity_mut(entity)
+                .remove::<PointerLocation>();
+        }
+        "press_state" => {
+            app.world_mut()
+                .entity_mut(entity)
+                .remove::<PointerPressState>();
+        }
+        "interaction" => {
+            app.world_mut()
+                .entity_mut(entity)
+                .remove::<bevy::picking::pointer::PointerInteraction>();
+        }
+        _ => panic!("unknown required component"),
+    }
     app.update();
     app.update();
     let state = app.world().resource::<BrpPointerState>();
@@ -1308,6 +1329,42 @@ fn lost_pointer_component_cancels_press_and_next_generation_reuses_only_identity
     assert_ne!(state.entity, Some(entity));
     let trace = app.world().resource::<Trace>();
     assert_eq!(trace.clicks.len(), 1);
+}
+
+#[test]
+fn destroyed_original_press_target_does_not_receive_compensating_cancel() {
+    let (mut app, window, target) = fixture();
+    for (position, action) in [
+        (Vec2::ZERO, PointerAction::Move { delta: Vec2::ZERO }),
+        (Vec2::ZERO, PointerAction::Press(PointerButton::Primary)),
+        (
+            Vec2::new(200.0, 0.0),
+            PointerAction::Move {
+                delta: Vec2::new(200.0, 0.0),
+            },
+        ),
+    ] {
+        enqueue(app.world_mut(), window, position, action, "test").unwrap();
+        app.update();
+    }
+    app.world_mut().despawn(target);
+    release(app.world_mut());
+    for _ in 0..3 {
+        app.update();
+    }
+    assert_eq!(
+        app.world().resource::<BrpPointerState>().phase,
+        Phase::Inactive
+    );
+    let trace = app.world().resource::<Trace>();
+    assert!(trace.cancels.iter().all(|event| event.entity != target));
+    assert!(trace.clicks.is_empty());
+    assert!(
+        !app.world()
+            .resource::<crate::BrpExtrasActivity>()
+            .state()
+            .is_active()
+    );
 }
 
 fn control(app: &mut App, action: &str) -> serde_json::Value {
