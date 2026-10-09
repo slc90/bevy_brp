@@ -156,10 +156,9 @@ pub(in crate::brp_tools::brp_type_guide) fn extract_spawn_insert_example(
     let root_path = mutation_paths.iter().find(|p| (*p.path).is_empty())?;
     let example = root_path.preferred_example();
 
-    // Select `SpawnInsertExample::Spawn` when `is_component`; the earlier check
-    // guarantees the remaining case is `SpawnInsertExample::Resource`.
+    // Bevy 0.20 resources also expose Component reflection. Preserve resource insertion guidance.
     // `Example::NotApplicable` selects guidance explaining the missing example.
-    if is_component {
+    if is_component && !is_resource {
         let agent_guidance = if matches!(example, Example::NotApplicable) {
             NO_COMPONENT_EXAMPLE_TEMPLATE.replace("{}", OPERATION_SPAWN)
         } else {
@@ -191,4 +190,39 @@ fn spawn_insert_payload(agent_guidance: &str, example: &Example) -> Value {
         payload.insert_field(RESPONSE_EXAMPLE_FIELD, example.to_value());
     }
     Value::Object(payload)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn resource_examples_survive_the_additional_component_reflection_trait() {
+        let name = BrpTypeName::from("u64");
+        let registry = Arc::new(HashMap::from([(name.clone(), json!({"kind": "Value"}))]));
+        let paths = build_mutation_paths(&name, registry).unwrap();
+        for traits in [
+            vec!["Resource".to_owned()],
+            vec!["Component".to_owned(), "Resource".to_owned()],
+        ] {
+            let example = extract_spawn_insert_example(&paths, &traits).unwrap();
+            let value = serde_json::to_value(example).unwrap();
+            assert!(
+                value
+                    .get("resource")
+                    .and_then(|resource| resource.get("example"))
+                    .is_some(),
+                "{value}"
+            );
+            assert!(value.get("spawn").is_none());
+        }
+        let example = extract_spawn_insert_example(&paths, &["Component".to_owned()]).unwrap();
+        assert!(
+            serde_json::to_value(example)
+                .unwrap()
+                .get("spawn")
+                .is_some()
+        );
+    }
 }

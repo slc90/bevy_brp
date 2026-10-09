@@ -181,3 +181,44 @@ CalculatedClip 含两项。hidden/partial UI、无 bounds、重名和错误 came
 不进入逐 view 的 VisibleEntities；局部改为 NoFrustumCulling 后红色主体恢复，crop 未变。
 早期失败输出保留用于诊断，最终通过输出有 binary SHA256、采集时 HEAD（源码修改当时
 在 working tree）、进程和端口清理记录。没有修改截图 transport 或 pending capture contract。
+
+## Bevy 0.20 升级：阶段 05 的 runtime/MCP 协议回归
+
+固定上游 transport/schedule 接缝核对见 [runtime 来源说明](../crates/runtime/UPSTREAM.md)。
+HTTP 与 Remote 装配未重写；wake、背压、双端点 lifecycle、30 秒 deadline、Cleanup 后
+progress 和端口优先级保持。runtime 的 15 项测试以及全仓 279 passed、0 failed、9 ignored
+通过；all-targets check、test --no-run、examples build、Clippy 与 runtime/MCP 两种
+feature 独立检查通过。证据位于 `target/bevy020-stage05/`。
+
+新增真实协议入口使用既有 event_test（非活动窗口、desktop_app 休眠模式）：
+
+```powershell
+cargo build -p bevy_brp_mcp --locked
+cargo build --workspace --example event_test --locked
+python tests/protocol-regression.py --port 15936 --output target/protocol-evidence
+```
+
+Main 与默认 Render=15703 均可发现/响应；并发 unknown→valid 请求后仍可继续处理。安全
+fixture 的 component/resource insert、mutate、remove、query/get/list、名称查找、spawn、
+reparent/despawn 均核对实际状态。实际 observer 收到 unit/payload event 并更新 tracker。
+生成的 primitive、enum、Option、nested struct、list/map 示例可用；u64=9007199254740993
+保持精度，缺失字段的 Default 与显式 null 的类型错误分别验证。Entity 使用本轮有效 ID；
+Handle 的 Uuid 变体可写，Strong 变体有明确不可写理由，包含它的 struct 不生成整体示例。
+计算态 CalculatedClip 仅核对 schema/读取，没有写入运行中的主场景。
+
+Bevy 0.20 的 Resource 同时暴露 Component 反射，原优先级使 resource 指导退化为 spawn。
+局部改为 Resource 优先，保留 resource insert 示例；独立 Red→Green 与真实插入/读回通过。
+live registry 确认 Tonemapping/DebandDither 为 bevy_render::view 路径，静态知识未存旧路径。
+普通 47/诊断 49 的完整工具 schema 与阶段 01 对照，仅 rpc_discover 描述中的引擎版本
+由 0.19 更新为 0.20；工具名、参数、required/optional、annotation 和注册边界未变。
+
+watch 记录实际两次 component 更新后停止，无残留 MCP watch；SSE 保留字符串 request id，
+关闭 stream 后 watcher 调用停止。普通 HTTP 客户端中断与真实 30 秒 timeout 都释放隐式
+Watching 请求，随后调用计数停止增长、更新回落、activity 为零且窗口未获焦点。
+分别占用 Main/Render 端口的 bind 失败使另一 listener 释放、App 退出码为 1；日志确认
+对应 endpoint 的 bind failure。event_test 现在把 AppExit 返回给进程，避免 fixture 丢弃
+失败码。正常回归要求 shutdown_method=clean_shutdown，并核对 App/MCP 和两个端口退出。
+停止 watch 与正常 shutdown 的清理互相独立；故障注入同时使两者抛错后，仍核实并清理
+本轮 event_test PID、MCP 和双端口，保留最初的 watch 错误及各清理错误记录。正常路径
+另行复跑通过，未触发强制清理，证据见 protocol-cleanup-grace 与 protocol-fault-cleanup-grace。
+独立消费者、安装版 MCP、最终桌面与历史回放仍由阶段 06 复验；不以此替代外部 Widgetry。
