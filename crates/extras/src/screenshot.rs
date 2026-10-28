@@ -892,6 +892,36 @@ mod native_tests {
     }
 
     #[test]
+    fn disconnected_watching_request_discards_late_readback() -> Result<(), Box<dyn Error>> {
+        use bevy::render::view::screenshot::{CapturedScreenshots, Capturing, trigger_screenshots};
+        use std::sync::{Arc, Mutex, mpsc};
+
+        let temp_dir = TempDir::new()?;
+        let path = temp_dir.path().join("disconnected.png");
+        let mut app = remote_screenshot_app();
+        app.world_mut().spawn((Window::default(), PrimaryWindow));
+        let (sender, receiver) = mpsc::channel();
+        app.insert_resource(CapturedScreenshots(Arc::new(Mutex::new(receiver))));
+        let receiver = send_remote_request(&app, json!({ "path": path }))?;
+        app.update();
+        let entity = screenshot_entity(app.world_mut())?;
+        app.world_mut().entity_mut(entity).insert(Capturing);
+        drop(receiver);
+        app.update();
+        app.update();
+        assert!(app.world().get_entity(entity).is_err());
+
+        sender.send((
+            entity,
+            render_target_image(UVec2::ONE, RenderAssetUsages::MAIN_WORLD),
+        ))?;
+        app.add_systems(Update, trigger_screenshots);
+        app.update();
+        assert!(!path.exists());
+        Ok(())
+    }
+
+    #[test]
     fn camera_request_completes_only_after_camera_target_png_publication()
     -> Result<(), Box<dyn Error>> {
         let temp_dir = TempDir::new()?;

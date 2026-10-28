@@ -1,11 +1,13 @@
 //! Screenshot capture lifecycle and worker plugin.
 
 mod pending_screenshot_capture;
+mod readbacks;
 mod screenshot_job;
 mod target_rgb_image;
 
 use bevy::camera::RenderTarget;
 use bevy::prelude::*;
+use bevy::render::view::screenshot::trigger_screenshots;
 use bevy_remote::BrpResult;
 use bevy_remote::RemoteLast;
 use bevy_remote::RemoteSystems;
@@ -23,6 +25,12 @@ pub(super) struct CapturePlugin;
 impl Plugin for CapturePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PendingScreenshotCapture>()
+            .add_systems(
+                Update,
+                readbacks::forward_readbacks
+                    .run_if(resource_exists::<readbacks::ReadbackRelay>)
+                    .before(trigger_screenshots),
+            )
             .add_systems(
                 RemoteLast,
                 ingest_capture_completion

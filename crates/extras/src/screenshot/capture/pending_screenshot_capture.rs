@@ -231,6 +231,7 @@ pub(super) fn start(
     request: ScreenshotRequest,
     capture_input: CaptureInput,
 ) -> BrpResult<()> {
+    super::readbacks::install(world);
     let render_target = capture_input.render_target.clone();
     let screenshot_entity = world
         .spawn((Screenshot(render_target), Name::new(SCREENSHOT_ENTITY_NAME)))
@@ -334,11 +335,15 @@ mod tests {
     use std::error::Error;
     use std::fs;
     use std::io;
+    use std::sync::{Arc, Mutex, mpsc};
 
     use bevy::MinimalPlugins;
+    use bevy::ecs::system::RunSystemOnce;
+    use bevy::render::view::screenshot::{CapturedScreenshots, Capturing, trigger_screenshots};
     use bevy_remote::RemotePlugin;
     use screenshot::CaptureResponseMetadata;
     use screenshot_job::CaptureMetadata;
+    use serde_json::json;
     use tempfile::TempDir;
 
     use super::*;
@@ -349,6 +354,54 @@ mod tests {
     const IDLE_UPDATE_COUNT: usize = 3;
     const INITIAL_DESTINATION_CONTENT: &[u8] = b"sentinel";
     const SCREENSHOT_CONTENT: &[u8] = b"complete png";
+
+    fn begin_test_capture(world: &mut World, path: &Path) -> (Entity, ScreenshotRequest) {
+        world.init_resource::<PendingScreenshotCapture>();
+        let request = ScreenshotRequest::from_params(Some(json!({ "path": path }))).unwrap();
+        start(
+            world,
+            request.clone(),
+            CaptureInput {
+                crop: None,
+                render_target: default(),
+                response_metadata: CaptureResponseMetadata::Full,
+            },
+        )
+        .unwrap();
+        let entity = world
+            .resource::<PendingScreenshotCapture>()
+            .active
+            .as_ref()
+            .unwrap()
+            .screenshot_entity;
+        (entity, request)
+    }
+
+    fn abandon_capture(world: &mut World) {
+        world
+            .resource_mut::<PendingScreenshotCapture>()
+            .begin_frame()
+            .unwrap();
+        world.run_system_once(advance_capture_lifecycle).unwrap();
+    }
+
+    fn deliver_readback(world: &mut World, entity: Entity) {
+        let (sender, receiver) = mpsc::channel();
+        world.insert_resource(CapturedScreenshots(Arc::new(Mutex::new(receiver))));
+        sender.send((entity, Image::default())).unwrap();
+        super::super::readbacks::install(world);
+        world
+            .run_system_once::<_, (), _>(super::super::readbacks::forward_readbacks)
+            .unwrap();
+        world.run_system_once(trigger_screenshots).unwrap();
+    }
+
+    fn activity_count(world: &World) -> usize {
+        world
+            .resource::<activity::BrpExtrasActivity>()
+            .state()
+            .active_count()
+    }
 
     fn completed_capture(destination: &Path) -> Result<OwnedTempCapture, io::Error> {
         let temp_path = screenshot_job::create_temporary_file(destination, SCREENSHOT_CONTENT)
@@ -366,6 +419,9 @@ mod tests {
     fn idle_capture_plugin_keeps_lifecycle_dormant() {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, RemotePlugin::default(), ScreenshotPlugin));
+        let (_sender, receiver) = mpsc::channel();
+        let source = Arc::new(Mutex::new(receiver));
+        app.insert_resource(CapturedScreenshots(source.clone()));
 
         for _ in 0..IDLE_UPDATE_COUNT {
             app.update();
@@ -375,6 +431,126 @@ mod tests {
         assert_eq!(pending.current_frame, FrameStamp::default());
         assert!(!pending.is_active());
         assert!(pending.completion_channel.is_none());
+        assert!(Arc::ptr_eq(
+            &app.world().resource::<CapturedScreenshots>().0,
+            &source
+        ));
+    }
+
+    #[test]
+    fn abandoned_readback_reclaims_entity_and_discards_late_capture() -> Result<(), Box<dyn Error>>
+    {
+        let temp_dir = TempDir::new()?;
+        let path = temp_dir.path().join("abandoned.png");
+        let mut world = World::new();
+        let (entity, _) = begin_test_capture(&mut world, &path);
+        world.entity_mut(entity).insert(Capturing);
+
+        abandon_capture(&mut world);
+        assert!(world.get_entity(entity).is_err());
+        assert!(!world.resource::<PendingScreenshotCapture>().is_active());
+        assert_eq!(
+            activity_count(&world),
+            0,
+            "abandoned requests must release their activity lease"
+        );
+
+        deliver_readback(&mut world, entity);
+        assert!(world.get_entity(entity).is_err());
+        assert_eq!(activity_count(&world), 0);
+        assert!(!path.exists(), "abandoned capture must not publish a PNG");
+        Ok(())
+    }
+
+    #[test]
+    fn timed_out_readback_preserves_destination_until_late_capture_is_discarded()
+    -> Result<(), Box<dyn Error>> {
+        let temp_dir = TempDir::new()?;
+        let path = temp_dir.path().join("timeout.png");
+        fs::write(&path, INITIAL_DESTINATION_CONTENT)?;
+        let mut world = World::new();
+        let (entity, request) = begin_test_capture(&mut world, &path);
+        world.entity_mut(entity).insert(Capturing);
+        world
+            .resource_mut::<PendingScreenshotCapture>()
+            .active
+            .as_mut()
+            .unwrap()
+            .deadline = Instant::now();
+
+        world.run_system_once(advance_capture_lifecycle).unwrap();
+        let error = world
+            .resource_mut::<PendingScreenshotCapture>()
+            .read(&request)
+            .unwrap()
+            .unwrap_err();
+        assert_eq!(error.code, INTERNAL_ERROR);
+        assert!(world.get_entity(entity).is_err());
+        assert_eq!(activity_count(&world), 1);
+        abandon_capture(&mut world);
+        assert_eq!(activity_count(&world), 0);
+
+        deliver_readback(&mut world, entity);
+        assert_eq!(activity_count(&world), 0);
+        assert_eq!(fs::read(path)?, INITIAL_DESTINATION_CONTENT);
+        Ok(())
+    }
+
+    #[test]
+    fn late_readback_cannot_complete_a_new_capture() -> Result<(), Box<dyn Error>> {
+        let temp_dir = TempDir::new()?;
+        let old_path = temp_dir.path().join("old.png");
+        let new_path = temp_dir.path().join("new.png");
+        let mut world = World::new();
+        let (old_entity, _) = begin_test_capture(&mut world, &old_path);
+        world.entity_mut(old_entity).insert(Capturing);
+        abandon_capture(&mut world);
+        let (new_entity, new_request) = begin_test_capture(&mut world, &new_path);
+        assert_ne!(new_entity, old_entity);
+        assert_eq!(activity_count(&world), 1);
+
+        deliver_readback(&mut world, old_entity);
+        assert_eq!(activity_count(&world), 1);
+        assert!(
+            world
+                .resource_mut::<PendingScreenshotCapture>()
+                .read(&new_request)
+                .unwrap()
+                .unwrap()
+                .is_none()
+        );
+        assert!(!old_path.exists());
+        assert!(!new_path.exists());
+
+        abandon_capture(&mut world);
+        assert!(world.get_entity(new_entity).is_err());
+        assert_eq!(activity_count(&world), 0);
+        Ok(())
+    }
+
+    #[test]
+    fn unsubmitted_capture_releases_entity_and_activity_on_abandonment()
+    -> Result<(), Box<dyn Error>> {
+        let temp_dir = TempDir::new()?;
+        let mut world = World::new();
+        let (entity, _) = begin_test_capture(&mut world, &temp_dir.path().join("unsubmitted.png"));
+        abandon_capture(&mut world);
+        assert!(world.get_entity(entity).is_err());
+        assert_eq!(activity_count(&world), 0);
+        Ok(())
+    }
+
+    #[test]
+    fn canceled_capture_without_readback_does_not_leave_an_entity() -> Result<(), Box<dyn Error>> {
+        let temp_dir = TempDir::new()?;
+        let mut world = World::new();
+        let (entity, _) =
+            begin_test_capture(&mut world, &temp_dir.path().join("never-submitted.png"));
+        world.entity_mut(entity).insert(Capturing);
+        abandon_capture(&mut world);
+        assert!(world.get_entity(entity).is_err());
+        assert_eq!(activity_count(&world), 0);
+        Ok(())
     }
 
     #[test]

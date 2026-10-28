@@ -25,6 +25,8 @@ Extras 的 `mouse` 模块以 App 内稳定的 Custom Pointer 和统一 `First` �
 
 `brp_extras/pointer_control` 只注册为 App instant method，经既有 `brp_execute` 调用并由 `rpc.discover` 发现，不增加静态 MCP tool 或默认动态 agent tool。status 返回生命周期、工作状态、稳定 UUID、目标窗口、generation、待输出动作、按键及异步错误快照；release 绕过 FIFO 启动取消，调用方查询至 inactive 后交接。状态查询不增加 activity，空闲 active Pointer 允许继续 hover 而不维持忙状态。
 
+首次 BRP 截图请求会在 `screenshot/capture/readbacks.rs` 接入 Bevy 0.20 的截图读回通道。Render 保留原始发送端，App 在 Bevy `trigger_screenshots` 前把目标 Entity 仍有效的结果转交到交付通道；无效 Entity 的迟到结果被丢弃，正常 `ScreenshotCaptured` 事件仍由 Bevy 派发。请求取消或超时后仍回收请求 Entity，不依赖 GPU 必须产生回调，也不保留新的活动责任。尚未使用 BRP 截图时不接管通道。
+
 ## 测试宿主
 
 | 路径 | Package 与 Cargo target | 验证用途 |
