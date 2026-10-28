@@ -39,27 +39,29 @@ cargo build -p bevy_brp_mcp --locked
 
 Configure the MCP client to launch `target/debug/bevy_brp_mcp.exe` over stdio, using an absolute path to the built executable. The normal build provides App discovery, BRP, watch, input, screenshot, and App log tools. For server trace controls, explicitly build with `cargo build -p bevy_brp_mcp --locked --features mcp-debug` and launch that executable. The diagnostic build adds two trace tools; application log tools remain available in the normal build. See [MCP usage and result contracts](docs/mcp.md).
 
-Production packages are version **`0.4.0`**, consumed from the **`v0.4.0` Git tag** for **Bevy 0.20.0**. Bevy's Plugin/ECS types are incompatible with 0.19. The existing **`v0.3.1` tag targets Bevy 0.19.1** and remains unchanged. See [upgrade validation and limitations](docs/testing.md#bevy-020-升级阶段-06-最终验收与交接) and [0.4.0 version validation](docs/testing.md#040-版本发布验证). Packages are consumed from Git or a local checkout; they are not published to crates.io.
+Production packages are version **`0.4.1`**, consumed from the **`0.4.1` Git tag** for **Bevy 0.20.0**. Bevy's Plugin/ECS types are incompatible with 0.19. The existing **`v0.3.1` tag targets Bevy 0.19.1** and remains unchanged. See [upgrade validation and limitations](docs/testing.md#bevy-020-升级阶段-06-最终验收与交接) and [0.4.0 version validation](docs/testing.md#040-版本发布验证). Packages are consumed from Git or a local checkout; they are not published to crates.io.
+
+The linked 0.4.0 version validation is historical; compilation and tests were not rerun for the 0.4.1 version bump.
 
 Use the same tag for runtime, Extras and MCP. Include Extras if your App imports it directly:
 
 ```toml
 [dependencies]
 bevy = "=0.20.0"
-bevy_brp_runtime = { git = "https://github.com/slc90/bevy_brp.git", tag = "v0.4.0" }
-bevy_brp_extras = { git = "https://github.com/slc90/bevy_brp.git", tag = "v0.4.0" }
+bevy_brp_runtime = { git = "https://github.com/slc90/bevy_brp.git", tag = "0.4.1" }
+bevy_brp_extras = { git = "https://github.com/slc90/bevy_brp.git", tag = "0.4.1" }
 ```
 
 Install MCP from the same tag:
 
 ```powershell
-cargo install --git https://github.com/slc90/bevy_brp.git --tag v0.4.0 --locked bevy_brp_mcp
+cargo install --git https://github.com/slc90/bevy_brp.git --tag 0.4.1 --locked bevy_brp_mcp
 ```
 
-For a local checkout of `v0.4.0`, install from its manifest. To keep an existing installation, select a separate root:
+For a local checkout of `0.4.1`, install from its manifest. To keep an existing installation, select a separate root:
 
 ```powershell
-cargo install --path crates/mcp --locked --root target/mcp-install-0.4.0
+cargo install --path crates/mcp --locked --root target/mcp-install-0.4.1
 ```
 
 Add `--features mcp-debug` only when selecting the diagnostic server. Launch the executable from the selected installation's `bin` directory. The validation record distinguishes local debug installation from remote Git download and release installation. Consumers such as Widgetry must update Bevy, runtime/Extras tag or revision, MCP installation command, tool-version metadata and Cargo.lock together; this repository does not modify that consumer.
