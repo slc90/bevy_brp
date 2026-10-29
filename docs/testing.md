@@ -362,3 +362,30 @@ App/MCP 退出码为 0、端口释放，见 `installed-consumers/summary.json`�
 0.4.0 的 Git 消费标识为 `v0.4.0`，runtime、直接导入的 Extras 与 MCP 使用同一 tag。
 旧 `v0.3.1` 保留为 Bevy 0.19.1 回退组合；本次不发布 crates.io package，也不修改
 外部 Widgetry 或本机原 MCP 安装。
+
+## 0.4.2 版本发布验证
+
+2026-10-29 先同步远端 `0.4.1` 提交 `1b1c4a65`，再将四个生产 package 与内部
+dependency requirement 统一升级为 `0.4.2`，Git 消费标识为 `0.4.2`。Bevy 保持
+`0.20.0`。Cargo.lock 的外部依赖变化仅为 `arboard` 的间接依赖
+`clipboard-win 5.4.1 → 5.4.3`，替换已被 crates.io 撤回的版本；其余外部 package
+版本、依赖列表及测试宿主版本不变。
+
+在 Windows MSVC、Rust 1.99.1 上通过 `cargo fmt --all -- --check`、
+`cargo check --workspace --all-targets --locked`、
+`cargo clippy --workspace --all-targets --locked`、
+`cargo test --workspace --locked --no-fail-fast` 和 `cargo build --workspace --locked`。
+测试结果为 286 passed、0 failed、9 ignored；保留同名 fixture 与测试 example 的
+`Interaction` 弃用 warning。命令、退出码及日志保留在本地忽略目录
+`target/release-0.4.2/`。
+
+隔离 workspace 的消费者以精确 `=0.4.2` 与本地 path 同时引用 runtime 和 Extras，
+公共入口通过独立 `cargo check --offline`。MCP 以
+`cargo install --path crates/mcp --locked --offline --debug --root target/release-0.4.2/mcp-install --target-dir target`
+安装到独立 root；使用该安装版完成 stdio `initialize` 和 `tools/list`，普通目录为
+47 工具，关闭 stdin 后进程退出码为 0。结果见 `consumer-results.json` 与
+`installed-mcp.json`；这些检查不代表 Git 下载、release 安装或完整 App 协议链验收。
+
+本轮未重跑 MCP→BRP 桌面协议链、Pointer/Keyboard/GPU 截图回归、其他平台或硬件
+验收；历史记录仍代表各自跑次。远程 Git 下载和 release 安装未由本轮本地验证证明。
+本次不发布 crates.io package，不修改外部消费者或本机原 MCP 安装。
