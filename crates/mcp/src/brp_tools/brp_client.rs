@@ -6,6 +6,7 @@ mod operation;
 mod response_handling;
 
 // Re-export public items
+pub(crate) use client::BoundedBrpError;
 pub use client::BrpClient;
 pub(crate) use client::method_not_found_message;
 // Re-export constants needed by external modules

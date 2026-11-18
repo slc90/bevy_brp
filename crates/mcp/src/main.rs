@@ -3,6 +3,9 @@
 //! A Model Context Protocol server that provides tools for interacting with
 //! Bevy applications through the Bevy Remote Protocol (BRP).
 //!
+//! The server also provides an inspection guide, a live BRP method resource,
+//! and the parameterized `inspect_bevy_app` prompt.
+//!
 //! This server enables remote debugging, inspection, and manipulation of
 //! Bevy applications at runtime through a standardized MCP interface.
 //!

@@ -4,6 +4,10 @@
 //! format errors. `execute_raw` returns the BRP response status, and
 //! `execute_streaming` returns a streaming HTTP response for watch operations.
 
+mod bounded;
+
+pub(crate) use bounded::BoundedBrpError;
+
 use reqwest::Response;
 use reqwest::header::CONTENT_TYPE;
 use serde_json::Value;

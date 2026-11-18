@@ -1,11 +1,20 @@
+mod inspection;
+
 use rmcp::ErrorData as McpError;
 use rmcp::RoleServer;
 use rmcp::ServerHandler;
 use rmcp::model::CacheScope;
 use rmcp::model::CallToolRequestParams;
 use rmcp::model::CallToolResponse;
+use rmcp::model::GetPromptRequestParams;
+use rmcp::model::GetPromptResponse;
+use rmcp::model::ListPromptsResult;
+use rmcp::model::ListResourceTemplatesResult;
+use rmcp::model::ListResourcesResult;
 use rmcp::model::ListToolsResult;
 use rmcp::model::PaginatedRequestParams;
+use rmcp::model::ReadResourceRequestParams;
+use rmcp::model::ReadResourceResponse;
 use rmcp::model::ServerCapabilities;
 use rmcp::model::ServerConfig;
 use rmcp::service::RequestContext;
@@ -16,8 +25,7 @@ use crate::constants::TOOL_LIST_CACHE_TTL_MS;
 
 /// MCP service implementation for Bevy Remote Protocol integration.
 ///
-/// This service provides tools for interacting with Bevy applications through BRP,
-/// including entity manipulation, component management, and resource access.
+/// The service exposes BRP tools, inspection resources, and an inspection prompt.
 pub(crate) struct McpService {
     registry: ToolRegistry,
 }
@@ -50,7 +58,11 @@ impl McpService {
 impl ServerHandler for McpService {
     fn get_info(&self) -> ServerConfig {
         let mut info = ServerConfig::default();
-        info.capabilities = ServerCapabilities::builder().enable_tools().build();
+        info.capabilities = ServerCapabilities::builder()
+            .enable_tools()
+            .enable_resources()
+            .enable_prompts()
+            .build();
         info
     }
 
@@ -73,6 +85,50 @@ impl ServerHandler for McpService {
 
         // Every BRP tool completes in one round trip, so the MRTR response is always `Complete`.
         tool_def.call_tool(request).await.map(Into::into)
+    }
+
+    async fn list_resources(
+        &self,
+        request: Option<PaginatedRequestParams>,
+        _: RequestContext<RoleServer>,
+    ) -> Result<ListResourcesResult, McpError> {
+        inspection::list_resources(request)
+    }
+
+    async fn list_resource_templates(
+        &self,
+        request: Option<PaginatedRequestParams>,
+        _: RequestContext<RoleServer>,
+    ) -> Result<ListResourceTemplatesResult, McpError> {
+        inspection::list_resource_templates(request)
+    }
+
+    async fn read_resource(
+        &self,
+        request: ReadResourceRequestParams,
+        context: RequestContext<RoleServer>,
+    ) -> Result<ReadResourceResponse, McpError> {
+        tokio::select! {
+            biased;
+            () = context.ct.cancelled() => Err(McpError::internal_error("Resource read cancelled", None)),
+            result = inspection::read_resource(request.uri) => result.map(Into::into),
+        }
+    }
+
+    async fn list_prompts(
+        &self,
+        request: Option<PaginatedRequestParams>,
+        _: RequestContext<RoleServer>,
+    ) -> Result<ListPromptsResult, McpError> {
+        inspection::list_prompts(request)
+    }
+
+    async fn get_prompt(
+        &self,
+        request: GetPromptRequestParams,
+        _: RequestContext<RoleServer>,
+    ) -> Result<GetPromptResponse, McpError> {
+        inspection::get_prompt(request).map(Into::into)
     }
 }
 

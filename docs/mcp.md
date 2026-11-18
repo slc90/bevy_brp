@@ -1,4 +1,4 @@
-# MCP tools, diagnostics, and logs
+# MCP tools, resources, prompts, and logs
 
 The normal `tools/list` registry has 47 native tools. The catalog of application methods is a
 separate BRP response: call `brp_list_agent_tools` with `{"port":15712}` on a running app. Select
@@ -46,6 +46,45 @@ prove that the UI responded; check application state separately. Screenshot succ
 has been published at the requested path.
 
 `bevy_brp_mcp` runs over stdio. Its normal build exposes application, BRP, watch, and log tools. It does not list or dispatch the server's own trace controls. A call to `brp_get_trace_log_path` or `brp_set_tracing_level` in this build returns an MCP unknown-tool error.
+
+## Inspection resources and prompt
+
+Both server builds advertise the MCP Resources and Prompts capabilities. Clients using
+`2025-11-25` or earlier discover them during `initialize`; `2026-07-28` clients can discover
+them with `server/discover` and send the protocol metadata in each request.
+
+| MCP request | Parameters or discovery | Result |
+| --- | --- | --- |
+| `resources/list` | First page | The bundled guide at `bevy-brp://guide/inspection` |
+| `resources/templates/list` | First page | The live directory URI template `bevy-brp://app/{port}/methods` |
+| `resources/read` | `{"uri":"bevy-brp://guide/inspection"}` | One `contents` entry with `text/markdown` and the full guide text |
+| `resources/read` | `{"uri":"bevy-brp://app/15712/methods"}` | One `contents` entry with `application/json` and the live `rpc.discover` result as JSON text |
+| `prompts/list` | First page | `inspect_bevy_app` with required argument `port` |
+| `prompts/get` | `{"name":"inspect_bevy_app","arguments":{"port":"15712"}}` | One `messages` entry with role `user` and content type `text` |
+
+Each resource entry has `uri`, `mimeType`, and `text` fields. With the live URI above, parse
+`contents[0].text` as an OpenRPC document and look up method names in `methods[].name`.
+The server only calls `rpc.discover` on the requested loopback port. It limits the HTTP
+request to five seconds and the response body to 1 MiB. Read failures return an MCP error
+with `data.method`, `data.port`, and `data.kind`. For example, a closed port can return
+`{"method":"rpc.discover","port":15712,"kind":"connection"}` in `error.data`.
+Other kinds include `timeout`, `transport`, `http_status`, `invalid_response`,
+`response_too_large`, and `brp_error`. A BRP JSON-RPC error is retained in `data.brp_error`.
+Unknown resource URIs return resource not found. Validation errors include `data.field`.
+
+Use a decimal port string in the range `1024–65534` for the prompt and the live URI. For example,
+`messages[0].content.text` begins with “Inspect the Bevy App on BRP port 15712” and points to
+`bevy-brp://app/15712/methods`. Preview the message before submitting it as user input.
+The guide and prompt are available without a running App. Expanding the prompt only produces text
+for the client, which decides when to read resources and call tools.
+
+The lists fit in one response and issue no cursor. The server supplies private cache metadata
+for lists and resource reads, with a 60-second lifetime for static results and zero freshness for
+live method reads.
+The server filters rmcp wire-payload events from its trace, so resource bodies, prompt arguments,
+and upstream BRP error details from resource reads are available in protocol messages only.
+
+## Diagnostics and logs
 
 Build the normal server with `cargo build -p bevy_brp_mcp --locked`. For an MCP server failure, explicitly build and run `cargo build -p bevy_brp_mcp --locked --features mcp-debug`. That build also lists `brp_get_trace_log_path` and `brp_set_tracing_level`. Call `brp_set_tracing_level` with `{"level":"debug"}` (supported levels: `error`, `warn`, `info`, `debug`, `trace`), then call `brp_get_trace_log_path` to locate the server trace in the system temp directory. The trace file is created lazily when an enabled event is written. This option is available to any user who selects the diagnostic build; it is not tied to identity or repository location. Both builds retain the normal BRP tools.
 

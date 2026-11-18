@@ -30,9 +30,10 @@ where
     fn enabled(&self, metadata: &Metadata<'_>, _: Context<'_, S>) -> bool {
         // Suppress third-party HTTP connection logs that are noise for BRP debugging
         let target = metadata.target();
-        if TRACING_FILTERED_TARGET_PREFIXES
-            .iter()
-            .any(|prefix| target.starts_with(prefix))
+        if contains_mcp_payload(metadata)
+            || TRACING_FILTERED_TARGET_PREFIXES
+                .iter()
+                .any(|prefix| target.starts_with(prefix))
         {
             return false;
         }
@@ -40,6 +41,23 @@ where
         let current_level = TracingLevel::from(CURRENT_LEVEL.load(Ordering::Relaxed));
         let metadata_level = TracingLevel::from(*metadata.level());
         metadata_level.code() <= current_level.code()
+    }
+}
+
+fn contains_mcp_payload(metadata: &Metadata<'_>) -> bool {
+    // rmcp logs wire envelopes as structured fields in the service loop. Its stdio
+    // codec also includes the raw input line in parse diagnostics at debug level.
+    match metadata.target() {
+        "rmcp::service" => {
+            let fields = metadata.fields();
+            ["evt", "request", "result", "notification"]
+                .iter()
+                .any(|field| fields.field(field).is_some())
+                || (fields.field("error").is_some()
+                    && (fields.field("id").is_some() || *metadata.level() == Level::DEBUG))
+        }
+        "rmcp::transport::async_rw" => matches!(*metadata.level(), Level::DEBUG | Level::TRACE),
+        _ => false,
     }
 }
 

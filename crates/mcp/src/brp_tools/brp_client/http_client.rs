@@ -4,8 +4,11 @@
 //! It encapsulates all HTTP-related operations including URL building, request sending,
 //! status checking, and response parsing.
 
+use std::time::Duration;
 use std::time::UNIX_EPOCH;
 
+use reqwest::Client;
+use reqwest::RequestBuilder;
 use reqwest::Response;
 use serde_json::Value;
 use tracing::debug;
@@ -102,16 +105,34 @@ impl<'method> BrpHttpClient<'method> {
         brp_json_rpc_builder.build().to_string()
     }
 
+    fn post(client: &Client, url: &str, body: String) -> RequestBuilder {
+        client
+            .post(url)
+            .header(HTTP_HEADER_CONTENT_TYPE, HTTP_CONTENT_TYPE_JSON)
+            .body(body)
+    }
+
+    pub(super) async fn send_local_request(
+        &self,
+        timeout: Duration,
+    ) -> std::result::Result<Response, reqwest::Error> {
+        let client = Client::builder()
+            .no_proxy()
+            .redirect(reqwest::redirect::Policy::none())
+            .build()?;
+        Self::post(&client, &self.build_url(), self.build_request_body())
+            .timeout(timeout)
+            .send()
+            .await
+    }
+
     /// Send an HTTP request with timeout
     pub(super) async fn send_request(&self) -> Result<Response> {
         let url = self.build_url();
         let body = self.build_request_body();
         let client = reqwest::Client::new();
 
-        let response = client
-            .post(&url)
-            .header(HTTP_HEADER_CONTENT_TYPE, HTTP_CONTENT_TYPE_JSON)
-            .body(body.clone())
+        let response = Self::post(&client, &url, body.clone())
             .timeout(HTTP_REQUEST_TIMEOUT)
             .send()
             .await;
@@ -133,12 +154,7 @@ impl<'method> BrpHttpClient<'method> {
         // Create client with no timeout for streaming
         let client = reqwest::Client::new();
 
-        let response = client
-            .post(&url)
-            .header(HTTP_HEADER_CONTENT_TYPE, HTTP_CONTENT_TYPE_JSON)
-            .body(body.clone())
-            .send()
-            .await;
+        let response = Self::post(&client, &url, body.clone()).send().await;
 
         let response = match response {
             Ok(resp) => resp,
