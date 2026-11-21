@@ -7,16 +7,20 @@ use std::sync::Mutex;
 #[cfg(feature = "diagnostics")]
 use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
 use bevy::prelude::*;
+use bevy::render::RenderApp;
 use bevy::window::PrimaryWindow;
 use bevy_remote::RemoteMethodSystemId;
 use bevy_remote::RemoteMethods;
 use bevy_remote::RemotePlugin;
+use bevy_remote::http::DEFAULT_RENDER_PORT;
+use bevy_remote::http::HostPort;
 use bevy_remote::http::RemoteHttpPlugin;
 
 use super::DEFAULT_REMOTE_PORT;
 use super::agent_tools;
 use super::agent_tools::RegisteredAgentTools;
 use super::constants::BRP_EXTRAS_PORT_ENV_VAR;
+use super::constants::BRP_EXTRAS_RENDER_PORT_ENV_VAR;
 use super::constants::EXTRAS_COMMAND_PREFIX;
 use super::constants::METHOD_AGENT_TOOLS;
 use super::constants::METHOD_CLICK_MOUSE;
@@ -74,11 +78,11 @@ const WINDOW_FOCUSED_ENV_VAR: &str = "BRP_EXTRAS_WINDOW_FOCUSED";
 /// ```no_run
 /// # use bevy::prelude::*;
 /// # use bevy_brp_extras::BrpExtrasPlugin;
-/// // 1. Default — uses BRP_EXTRAS_PORT env var or port 15702
+/// // 1. Default — Main 15702 and Render 15703, with environment overrides
 /// App::new().add_plugins((DefaultPlugins, BrpExtrasPlugin::default()));
 ///
-/// // 2. Explicit port
-/// App::new().add_plugins((DefaultPlugins, BrpExtrasPlugin::with_port(9000)));
+/// // 2. Explicit Main and Render ports
+/// App::new().add_plugins((DefaultPlugins, BrpExtrasPlugin::with_ports(9000, 9001)));
 /// ```
 ///
 /// ```ignore
@@ -113,7 +117,8 @@ pub struct BrpExtrasPlugin<HttpConfig = Unconfigured> {
 impl BrpExtrasPlugin<Unconfigured> {
     /// Create a new plugin instance with default HTTP configuration.
     ///
-    /// Uses `BRP_EXTRAS_PORT` environment variable if set, otherwise port 15702.
+    /// Main defaults to `15702` and Render defaults to `15703` when a render sub-app exists.
+    /// Valid `BRP_EXTRAS_PORT` and `BRP_EXTRAS_RENDER_PORT` overrides apply independently.
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -122,16 +127,28 @@ impl BrpExtrasPlugin<Unconfigured> {
         }
     }
 
-    /// Create plugin with a custom port.
+    /// Create a plugin with a custom Main port and the default Render port (`15703`).
     ///
-    /// The `BRP_EXTRAS_PORT` environment variable takes precedence if set.
+    /// Valid Main and Render environment overrides still take precedence.
     ///
     /// This is mutually exclusive with [`with_http_plugin`](Self::with_http_plugin)
     /// — the compiler enforces that only one can be used.
     #[must_use]
     pub const fn with_port(port: u16) -> BrpExtrasPlugin<PortConfigured> {
+        Self::with_ports(port, DEFAULT_RENDER_PORT)
+    }
+
+    /// Create a plugin with custom Main and Render BRP ports.
+    ///
+    /// Valid `BRP_EXTRAS_PORT` and `BRP_EXTRAS_RENDER_PORT` overrides apply independently.
+    /// Add this plugin after Bevy's rendering plugins to configure the render sub-app.
+    #[must_use]
+    pub const fn with_ports(main_port: u16, render_port: u16) -> BrpExtrasPlugin<PortConfigured> {
         BrpExtrasPlugin {
-            http_config: PortConfigured(port),
+            http_config: PortConfigured {
+                main_port,
+                render_port,
+            },
             port_display: None,
         }
     }
@@ -139,7 +156,7 @@ impl BrpExtrasPlugin<Unconfigured> {
     /// Provide a fully configured `RemoteHttpPlugin` (native only).
     ///
     /// When using this method, `BrpExtrasPlugin` adds the provided plugin as-is.
-    /// The `BRP_EXTRAS_PORT` environment variable and `with_port()` are not used.
+    /// Port environment overrides apply only to the managed HTTP configuration.
     ///
     /// This is mutually exclusive with [`with_port`](Self::with_port)
     /// — the compiler enforces that only one can be used.
@@ -171,20 +188,22 @@ impl BrpExtrasPlugin<Unconfigured> {
 // ---------------------------------------------------------------------------
 
 impl<H: HasEffectivePort> BrpExtrasPlugin<H> {
-    /// Get the effective port that will be used for HTTP transport.
+    /// Get the effective Main port for the managed HTTP transport.
     ///
     /// Priority order:
     /// 1. `BRP_EXTRAS_PORT` environment variable (highest priority)
-    /// 2. Configured port (via [`with_port`](BrpExtrasPlugin::with_port)) or default (15702)
+    /// 2. Configured Main port or default (15702)
     ///
     /// Returns `(port, source_description)` for logging.
     #[must_use]
     pub fn get_effective_port(&self) -> (u16, String) {
+        self.resolve_main_port(false)
+    }
+
+    fn resolve_main_port(&self, warn_on_invalid: bool) -> (u16, String) {
         let fallback = self.http_config.fallback_port();
 
-        let env_port = std::env::var(BRP_EXTRAS_PORT_ENV_VAR)
-            .ok()
-            .and_then(|s| s.parse::<u16>().ok());
+        let env_port = read_port_override(BRP_EXTRAS_PORT_ENV_VAR, fallback, warn_on_invalid);
 
         let effective_port = env_port.unwrap_or(fallback);
 
@@ -228,6 +247,18 @@ impl<H: HasEffectivePort> BrpExtrasPlugin<H> {
         self.port_display = Some(display);
         self
     }
+
+    fn build_managed(&self, app: &mut App, render_fallback: u16) {
+        let owns_transport = !app.is_plugin_added::<RemoteHttpPlugin>();
+        let (main_port, source) = self.resolve_main_port(owns_transport);
+        if owns_transport {
+            add_managed_http_transport(app, main_port, render_fallback, source);
+        } else {
+            warn!("`RemoteHttpPlugin` is already installed and provides the BRP transport.");
+        }
+        maybe_add_port_title_system(app, main_port, self.port_display);
+        build_shared(app);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -242,10 +273,7 @@ impl Default for BrpExtrasPlugin<Unconfigured> {
 
 impl Plugin for BrpExtrasPlugin<Unconfigured> {
     fn build(&self, app: &mut App) {
-        add_managed_http_transport(app, None);
-        maybe_add_port_title_system(app, &self.http_config, self.port_display);
-
-        build_shared(app);
+        self.build_managed(app, DEFAULT_RENDER_PORT);
     }
 }
 
@@ -257,9 +285,7 @@ impl Plugin for BrpExtrasPlugin<ExternalTransport> {
 
 impl Plugin for BrpExtrasPlugin<PortConfigured> {
     fn build(&self, app: &mut App) {
-        add_managed_http_transport(app, Some(self.http_config.0));
-        maybe_add_port_title_system(app, &self.http_config, self.port_display);
-        build_shared(app);
+        self.build_managed(app, self.http_config.render_port);
     }
 }
 
@@ -318,7 +344,10 @@ pub struct Unconfigured;
 pub struct ExternalTransport;
 
 /// HTTP transport configured with an explicit port.
-pub struct PortConfigured(u16);
+pub struct PortConfigured {
+    main_port: u16,
+    render_port: u16,
+}
 
 /// HTTP transport configured with a user-provided `RemoteHttpPlugin`.
 pub struct HttpPluginConfigured(Mutex<Option<RemoteHttpPlugin>>);
@@ -353,7 +382,7 @@ impl HasEffectivePort for Unconfigured {
 
 impl HasEffectivePort for PortConfigured {
     fn fallback_port(&self) -> u16 {
-        self.0
+        self.main_port
     }
     fn is_explicit(&self) -> bool {
         true
@@ -417,38 +446,28 @@ fn apply_window_startup_focus(app: &mut App, env_value: Option<&OsStr>) {
     }
 }
 
-/// Add managed HTTP transport, using env var / optional port / default.
-fn add_managed_http_transport(app: &mut App, configured_port: Option<u16>) {
-    if app.is_plugin_added::<RemoteHttpPlugin>() {
-        warn!(
-            "`RemoteHttpPlugin` is already added — `BrpExtrasPlugin` port configuration \
-             (with_port / BRP_EXTRAS_PORT) will be ignored. The existing HTTP transport \
-             will be used as-is."
-        );
-        return;
+fn read_port_override(env_var: &str, fallback_port: u16, warn_on_invalid: bool) -> Option<u16> {
+    let value = std::env::var_os(env_var)?;
+    match value.to_string_lossy().parse() {
+        Ok(port) => Some(port),
+        Err(error) => {
+            if warn_on_invalid {
+                warn!(env_var, fallback_port, %error, "Invalid BRP port override. Using the configured port.");
+            }
+            None
+        }
     }
+}
 
-    let env_port = std::env::var(BRP_EXTRAS_PORT_ENV_VAR)
-        .ok()
-        .and_then(|s| s.parse::<u16>().ok());
-
-    let effective_port = env_port.unwrap_or_else(|| configured_port.unwrap_or(DEFAULT_REMOTE_PORT));
-
-    let source_description = match (env_port, configured_port) {
-        (Some(_), Some(with_port_value)) => {
-            format!("environment override from with_port {with_port_value}")
-        }
-        (Some(_), None) => {
-            format!("environment override from default {DEFAULT_REMOTE_PORT}")
-        }
-        (None, Some(_)) => "with_port".to_string(),
-        (None, None) => "default".to_string(),
-    };
-
-    let http_plugin = RemoteHttpPlugin::default().with_port(effective_port);
-    app.add_plugins(http_plugin);
+fn add_managed_http_transport(app: &mut App, main_port: u16, render_fallback: u16, source: String) {
+    app.add_plugins(RemoteHttpPlugin::default().with_port(main_port));
+    if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
+        let render_port = read_port_override(BRP_EXTRAS_RENDER_PORT_ENV_VAR, render_fallback, true)
+            .unwrap_or(render_fallback);
+        render_app.insert_resource(HostPort(render_port));
+    }
     app.add_systems(Startup, move |_: &mut World| {
-        log_initialization(effective_port, &source_description);
+        log_initialization(main_port, &source);
     });
 }
 
@@ -545,20 +564,12 @@ fn log_initialization(port: u16, source_description: &str) {
 /// window's title, based on the [`PortDisplay`] policy.
 fn maybe_add_port_title_system(
     app: &mut App,
-    http_config: &impl HasEffectivePort,
+    effective_port: u16,
     port_display: Option<PortDisplay>,
 ) {
     let Some(display) = port_display else {
         return;
     };
-
-    let fallback = http_config.fallback_port();
-
-    let env_port = std::env::var(BRP_EXTRAS_PORT_ENV_VAR)
-        .ok()
-        .and_then(|s| s.parse::<u16>().ok());
-
-    let effective_port = env_port.unwrap_or(fallback);
 
     let should_display = match display {
         PortDisplay::Always => true,
@@ -579,9 +590,60 @@ fn maybe_add_port_title_system(
 
 #[cfg(test)]
 mod tests {
+    use bevy::app::SubApp;
+    use bevy::render::RenderScheduleOrder;
+
     use super::*;
 
     const UNEXPECTED_ENTITY_CAPTURE_METHOD: &str = "brp_extras/screenshot_entity";
+
+    fn app_with_render_sub_app() -> App {
+        let mut render_app = SubApp::new();
+        render_app.init_resource::<RenderScheduleOrder>();
+        let mut app = App::new();
+        app.insert_sub_app(RenderApp, render_app);
+        app
+    }
+
+    #[test]
+    fn dual_port_configuration_sets_both_managed_world_ports() {
+        let mut app = app_with_render_sub_app();
+        app.add_plugins(BrpExtrasPlugin::with_ports(9000, 9010));
+
+        let plugin = BrpExtrasPlugin::with_ports(9000, 9010);
+        let (main, _) = plugin.get_effective_port();
+        assert_eq!(app.world().resource::<HostPort>().0, main);
+        let render = std::env::var("BRP_EXTRAS_RENDER_PORT")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(9010);
+        assert_eq!(
+            app.sub_app(RenderApp).world().resource::<HostPort>().0,
+            render
+        );
+    }
+
+    #[test]
+    fn dual_port_configuration_does_not_change_unmanaged_transport_resources() {
+        let mut app = app_with_render_sub_app();
+        app.add_plugins(BrpExtrasPlugin::without_http_transport());
+        assert!(!app.world().contains_resource::<HostPort>());
+        assert!(
+            !app.sub_app(RenderApp)
+                .world()
+                .contains_resource::<HostPort>()
+        );
+
+        let mut app = app_with_render_sub_app();
+        app.add_plugins(BrpExtrasPlugin::with_http_plugin(
+            RemoteHttpPlugin::default().with_port(9000),
+        ));
+        assert_eq!(app.world().resource::<HostPort>().0, 9000);
+        assert_eq!(
+            app.sub_app(RenderApp).world().resource::<HostPort>().0,
+            DEFAULT_RENDER_PORT
+        );
+    }
 
     #[cfg(windows)]
     #[test]

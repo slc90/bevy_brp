@@ -22,14 +22,14 @@ cargo build -p bevy_brp_mcp -p bevy_brp_test_apps --locked --features bevy_brp_m
 
 普通构建的 MCP 公共协议链使用 `cargo build -p bevy_brp_mcp -p bevy_brp_test_apps --locked` 后运行 `& .\tests\public-mcp-regression.ps1`。普通和诊断两种 tool registry 及 trace 隔离可在相应构建后运行 `& .\tests\diagnostics-regression.ps1`；诊断构建传入 `-DebugBuild`。每次切换 feature 后先重建 MCP binary，避免复用上一种构建。
 
-`BrpRuntimePlugin::with_port` 的真实监听验证使用独立示例：
+`BrpRuntimePlugin::with_ports` 的真实监听验证使用独立示例：
 
 ```powershell
 cargo build -p bevy_brp_runtime --example runtime_custom_port --locked
 & .\tests\runtime-port-regression.ps1
 ```
 
-脚本要求 15752（代码配置的 Main）、15702（默认 Main）和 15703（Render）均空闲。它移除子进程继承的 `BRP_EXTRAS_PORT`，检查自定义端口能响应 `rpc.discover`、默认端口未监听，并经 `brp_extras/shutdown` 确认进程和自定义端口清理。环境变量覆盖优先级另由 runtime unit test 验证。
+脚本要求 15752–15755 空闲。它在子进程中分别验证代码配置、两个环境变量的独立覆盖和无效值回退。Main 和 Render 都必须响应 `rpc.discover`，正常退出后两个端口都必须释放。脚本分别占用 Main 和 Render 的代码配置端口，验证任一侧 bind 失败都会结束应用并释放另一侧端口。
 
 如无交互式桌面、GPU 或图形窗口，跳过该入口并记录为**未测及缺失条件**，不要把 Cargo 测试通过等同于端到端通过。成功运行的 MCP 交互记录在 `interaction.jsonl`，完整摘要在 `summary.json`。失败时先查同目录的 `failure.json` 和已写出的部分 `interaction.jsonl`，再按实际生成情况检查 `tools-list.json` 与截图。进程、端口或 trace 文件未恢复属于测试失败。
 

@@ -56,20 +56,24 @@
 //! to the app, `BrpExtrasPlugin` will skip adding them and register its methods
 //! into the existing [`RemoteMethods`](bevy_remote::RemoteMethods) resource.
 //!
-//! **Important**: If `RemoteHttpPlugin` is already present, any port
-//! configuration on `BrpExtrasPlugin` (`with_port()` or the `BRP_EXTRAS_PORT`
-//! environment variable) will be ignored — the existing HTTP transport is used
-//! as-is. A warning is logged when this occurs.
+//! An existing `RemoteHttpPlugin` retains its own endpoint configuration.
+//! Extras logs a warning if its managed port configuration is superseded by
+//! that plugin.
 //!
 //! # HTTP Transport Configuration
 //!
 //! On native targets, HTTP transport can be configured in three mutually
 //! exclusive ways (enforced at compile time):
 //!
-//! 1. **Default** — uses `BRP_EXTRAS_PORT` env var or port 15702
-//! 2. **Explicit port** — `BrpExtrasPlugin::with_port(9000)`
+//! 1. **Default** — Main `15702` and Render `15703` when a render sub-app exists.
+//! 2. **Explicit ports** — `BrpExtrasPlugin::with_ports(9000, 9001)`.
+//!    `BrpExtrasPlugin::with_port(9000)` configures Main and uses the default Render port.
 //! 3. **Full control** — `BrpExtrasPlugin::with_http_plugin(plugin)` accepts a pre-configured
-//!    [`RemoteHttpPlugin`](bevy_remote::http::RemoteHttpPlugin)
+//!    [`RemoteHttpPlugin`](bevy_remote::http::RemoteHttpPlugin).
+//!
+//! In the default and explicit modes, valid `BRP_EXTRAS_PORT` and
+//! `BRP_EXTRAS_RENDER_PORT` environment overrides apply independently.
+//! Install Extras after Bevy's render plugins if you want a Render endpoint.
 //!
 //! # Available BRP Methods
 //!

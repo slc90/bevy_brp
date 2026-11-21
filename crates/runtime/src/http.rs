@@ -9,7 +9,7 @@ use bevy::tasks::{IoTaskPool, Task};
 use bevy::window::RequestRedraw;
 use bevy::winit::{EventLoopProxy, EventLoopProxyWrapper, WinitUserEvent};
 use bevy_brp_extras::BrpExtrasActivity;
-use bevy_remote::http::{DEFAULT_ADDR, DEFAULT_RENDER_PORT, HostAddress, HostPort};
+use bevy_remote::http::{DEFAULT_ADDR, HostAddress, HostPort};
 use bevy_remote::{
     BrpBatch, BrpError, BrpMessage, BrpReceiver, BrpRequest, BrpResponse, BrpResult, BrpSender,
     RemoteLast, RemoteSystems, error_codes,
@@ -39,6 +39,8 @@ use super::progress::BrpProgress;
 
 const MAIN_ENDPOINT: &str = "Main";
 const RENDER_ENDPOINT: &str = "Render";
+const MAIN_PORT_ENV_VAR: &str = "BRP_EXTRAS_PORT";
+const RENDER_PORT_ENV_VAR: &str = "BRP_EXTRAS_RENDER_PORT";
 const RUNNING: u8 = 0;
 const APP_SHUTDOWN: u8 = 1;
 const TRANSPORT_FAILED: u8 = 2;
@@ -51,6 +53,7 @@ type ConnectionFuture = Pin<Box<dyn Future<Output = ConnectionOutcome> + Send>>;
 pub(super) struct BrpRemoteHttpPlugin {
     request_deadline: Duration,
     main_port: u16,
+    render_port: u16,
 }
 
 /// 单个 World 的 HTTP endpoint 配置；Main 与 Render 共享 lifecycle 和主 event loop proxy。
@@ -184,10 +187,11 @@ enum BrpHttpBody {
 
 impl BrpRemoteHttpPlugin {
     /// 使用给定普通请求 deadline 创建 runtime transport。
-    pub(super) const fn new(request_deadline: Duration, main_port: u16) -> Self {
+    pub(super) const fn new(request_deadline: Duration, main_port: u16, render_port: u16) -> Self {
         Self {
             request_deadline,
             main_port,
+            render_port,
         }
     }
 }
@@ -218,9 +222,10 @@ impl Plugin for BrpRemoteHttpPlugin {
                     warn!("Extras activity 变化后无法 wake event loop");
                 }
             });
-        let main_port = resolve_main_port(
+        let main_port = resolve_endpoint_port(
+            MAIN_PORT_ENV_VAR,
             self.main_port,
-            std::env::var_os("BRP_EXTRAS_PORT").as_deref(),
+            std::env::var_os(MAIN_PORT_ENV_VAR).as_deref(),
         );
         let main_config = HttpEndpointConfig {
             endpoint: MAIN_ENDPOINT,
@@ -248,10 +253,15 @@ impl Plugin for BrpRemoteHttpPlugin {
         let Some(render_app) = app.get_sub_app_mut(RenderApp) else {
             return;
         };
+        let render_port = resolve_endpoint_port(
+            RENDER_PORT_ENV_VAR,
+            self.render_port,
+            std::env::var_os(RENDER_PORT_ENV_VAR).as_deref(),
+        );
         let render_config = HttpEndpointConfig {
             endpoint: RENDER_ENDPOINT,
             address: DEFAULT_ADDR,
-            port: DEFAULT_RENDER_PORT,
+            port: render_port,
             headers: HeaderMap::new(),
             request_deadline: self.request_deadline,
             event_loop_proxy,
@@ -260,7 +270,7 @@ impl Plugin for BrpRemoteHttpPlugin {
         };
         render_app
             .insert_resource(HostAddress(DEFAULT_ADDR))
-            .insert_resource(HostPort(DEFAULT_RENDER_PORT))
+            .insert_resource(HostPort(render_port))
             .insert_resource(render_config)
             .add_systems(Render, start_http_server.run_if(run_once))
             .add_systems(
@@ -451,8 +461,7 @@ impl Body for BrpHttpBody {
     }
 }
 
-/// 解析 Main port，合法环境变量优先；无效值回退到代码配置的端口。
-fn resolve_main_port(configured_port: u16, env_value: Option<&OsStr>) -> u16 {
+fn resolve_endpoint_port(env_var: &str, configured_port: u16, env_value: Option<&OsStr>) -> u16 {
     let Some(value) = env_value else {
         return configured_port;
     };
@@ -460,10 +469,10 @@ fn resolve_main_port(configured_port: u16, env_value: Option<&OsStr>) -> u16 {
         Ok(port) => port,
         Err(error) => {
             warn!(
-                value = %value.to_string_lossy(),
+                env_var,
                 %error,
                 fallback_port = configured_port,
-                "BRP_EXTRAS_PORT 无效，使用代码配置的端口"
+                "Invalid BRP port override. Using the configured port."
             );
             configured_port
         }
@@ -892,15 +901,23 @@ mod tests {
     use std::time::Duration;
 
     use super::{
-        ResponseWaitError, SubmitError, TransportFailure, TransportLifecycle, receive_result,
-        resolve_main_port, submit_message,
+        MAIN_PORT_ENV_VAR, RENDER_PORT_ENV_VAR, ResponseWaitError, SubmitError, TransportFailure,
+        TransportLifecycle, receive_result, resolve_endpoint_port, submit_message,
     };
 
     #[test]
-    fn main_port_uses_code_value_unless_valid_environment_overrides_it() {
-        assert_eq!(resolve_main_port(9000, None), 9000);
-        assert_eq!(resolve_main_port(9000, Some(OsStr::new("9001"))), 9001);
-        assert_eq!(resolve_main_port(9000, Some(OsStr::new("invalid"))), 9000);
+    fn dual_port_configuration_uses_code_values_unless_environment_overrides_them() {
+        for (env_var, configured) in [(MAIN_PORT_ENV_VAR, 9000), (RENDER_PORT_ENV_VAR, 9010)] {
+            assert_eq!(resolve_endpoint_port(env_var, configured, None), configured);
+            assert_eq!(
+                resolve_endpoint_port(env_var, configured, Some(OsStr::new("9020"))),
+                9020
+            );
+            assert_eq!(
+                resolve_endpoint_port(env_var, configured, Some(OsStr::new("invalid"))),
+                configured
+            );
+        }
     }
 
     /// 构造只用于观察 mailbox 提交顺序的 BRP message。

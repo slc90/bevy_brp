@@ -13,7 +13,7 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 use bevy_brp_extras::BrpExtrasPlugin;
-use bevy_remote::http::RemoteHttpPlugin;
+use bevy_remote::http::{DEFAULT_RENDER_PORT, RemoteHttpPlugin};
 
 use self::http::BrpRemoteHttpPlugin;
 
@@ -41,6 +41,8 @@ pub struct BrpRuntimePlugin {
     request_deadline: Duration,
     /// Main World BRP listener port when the environment does not override it.
     main_port: u16,
+    /// Render World BRP listener port when the environment does not override it.
+    render_port: u16,
 }
 
 impl Default for BrpRuntimePlugin {
@@ -48,6 +50,7 @@ impl Default for BrpRuntimePlugin {
         Self {
             request_deadline: Duration::from_secs(30),
             main_port: bevy_brp_extras::DEFAULT_REMOTE_PORT,
+            render_port: DEFAULT_RENDER_PORT,
         }
     }
 }
@@ -56,12 +59,22 @@ impl BrpRuntimePlugin {
     /// Create the runtime with a custom Main World BRP port.
     ///
     /// A valid `BRP_EXTRAS_PORT` environment variable takes precedence. The Render World
-    /// listener keeps Bevy's default Render port. Without either setting, use
-    /// [`Default`] for the standard Main port (15702).
+    /// port defaults to `15703` and can be overridden by `BRP_EXTRAS_RENDER_PORT`.
     #[must_use]
     pub fn with_port(port: u16) -> Self {
+        Self::with_ports(port, DEFAULT_RENDER_PORT)
+    }
+
+    /// Create the runtime with custom Main and Render World BRP ports.
+    ///
+    /// Valid `BRP_EXTRAS_PORT` and `BRP_EXTRAS_RENDER_PORT` environment variables
+    /// override the corresponding configured port independently. [`Default`] uses
+    /// `15702` for Main and `15703` for Render. Render requires Bevy's render sub-app.
+    #[must_use]
+    pub fn with_ports(main_port: u16, render_port: u16) -> Self {
         Self {
-            main_port: port,
+            main_port,
+            render_port,
             ..Self::default()
         }
     }
@@ -73,7 +86,7 @@ impl Plugin for BrpRuntimePlugin {
 
         app.add_plugins((
             BrpExtrasPlugin::without_http_transport(),
-            BrpRemoteHttpPlugin::new(self.request_deadline, self.main_port),
+            BrpRemoteHttpPlugin::new(self.request_deadline, self.main_port, self.render_port),
         ));
     }
 
@@ -103,6 +116,13 @@ mod tests {
     fn code_configured_main_port_is_retained() {
         let plugin = BrpRuntimePlugin::with_port(9000);
         assert_eq!(plugin.main_port, 9000);
+        assert_eq!(plugin.render_port, bevy_remote::http::DEFAULT_RENDER_PORT);
+    }
+
+    #[test]
+    fn dual_port_configuration_retains_both_code_configured_ports() {
+        let plugin = BrpRuntimePlugin::with_ports(9000, 9010);
+        assert_eq!((plugin.main_port, plugin.render_port), (9000, 9010));
     }
 
     #[test]

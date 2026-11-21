@@ -27,7 +27,7 @@ App::new()
 
 `BrpRuntimePlugin` installs the extras methods and owns the wake-aware HTTP transport. If an application already owns a `RemoteHttpPlugin`, use `bevy_brp_extras::BrpExtrasPlugin` instead; its [rustdoc](crates/extras/src/lib.rs) describes port configuration and method behavior. The default BRP port is 15702. [App method metadata](crates/extras/examples/agent_tool_registration.rs) is optional: it exposes selected registered BRP methods through `brp_list_agent_tools`, and clients call them with `brp_execute`. It does not create native MCP tools.
 
-To set the runtime's Main BRP port in code, use `BrpRuntimePlugin::with_port(9000)` in place of `BrpRuntimePlugin::default()`; see the [custom port example](crates/runtime/examples/runtime_custom_port.rs). A valid `BRP_EXTRAS_PORT` environment variable overrides that value. The Render BRP port remains Bevy's default.
+Use `BrpRuntimePlugin::with_ports(9000, 9001)` to set the Main and Render BRP ports. `with_port(9000)` configures Main and keeps `15703` as the Render fallback. Managed Extras supports the same constructors. Valid `BRP_EXTRAS_PORT` and `BRP_EXTRAS_RENDER_PORT` environment overrides apply independently. See the [custom port example](crates/runtime/examples/runtime_custom_port.rs).
 
 ## Connect an MCP client
 

@@ -31,6 +31,7 @@ pub(crate) const METHOD_TYPE_TEXT: &str = "type_text";
 
 // environment variables
 pub(crate) const BRP_EXTRAS_PORT_ENV_VAR: &str = "BRP_EXTRAS_PORT";
+pub(crate) const BRP_EXTRAS_RENDER_PORT_ENV_VAR: &str = "BRP_EXTRAS_RENDER_PORT";
 
 // error messages
 pub(crate) const MISSING_REQUEST_PARAMETERS_MESSAGE: &str = "Missing request parameters";
