@@ -177,6 +177,8 @@
 //! ### `brp_extras/send_keys`
 //! Simulates keyboard input with a press-hold-release cycle. All keys are
 //! pressed simultaneously and held for the specified duration.
+//! Named keys carry their Bevy logical values on both press and release, so a
+//! focused Bevy text widget can handle editing keys and platform shortcuts.
 //! - `keys` (array of strings, required): key codes (e.g., `["KeyA", "Space", "ShiftLeft"]`)
 //! - `duration_ms` (u32, optional, default: 100, max: 60000): hold duration in milliseconds
 //!

@@ -1,4 +1,4 @@
-"""通过本地 MCP stdio 验证 multi-window keyboard 的真实 runtime 路径。"""
+"""通过本地 MCP stdio 验证键盘的多窗口路由和 Bevy 文本编辑。"""
 
 import argparse
 import hashlib
@@ -125,7 +125,8 @@ def main():
         before_hold_secondary = evidence(secondary)
         before_hold_primary = evidence(primary)
         call("brp_extras_send_keys", window=secondary, keys=["ControlLeft"], duration_ms=60000)
-        wait_for(lambda: evidence(primary, global_type), lambda state: state["ctrl_pressed"])
+        wait_for(lambda: evidence(primary, global_type), lambda state:
+                 state["ctrl_pressed"] and state["logical_ctrl_pressed"])
         held_keys_secondary = evidence(secondary)
         assert held_keys_secondary["presses"] == before_hold_secondary["presses"] + 1
         assert evidence(primary)["presses"] == before_hold_primary["presses"]
@@ -138,12 +139,32 @@ def main():
                                           and state["active_operations"] == 2)
         call("brp_execute", method="fixture/close_window", params={"window": secondary})
         wait_for(lambda: call("world_find_entities_by_name", name="SecondaryWindow")["result"], lambda rows: not rows)
-        final = wait_for(lambda: evidence(primary, global_type), lambda state: not state["ctrl_pressed"] and not state["shift_pressed"] and state["active_operations"] == 0)
+        final = wait_for(lambda: evidence(primary, global_type), lambda state:
+                         not state["ctrl_pressed"] and not state["shift_pressed"]
+                         and not state["logical_ctrl_pressed"] and state["active_operations"] == 0)
         assert evidence(primary)["text"] == "pok"
         for name, payload in [("brp_extras_send_keys", {"keys": ["ShiftLeft"]}),
                               ("brp_extras_type_text", {"text": "stale"})]:
             stale = mcp.tool(name, {"port": args.port, "window": secondary, **payload}, error=True)
             assert stale["error_info"]["code"] == -32602
+
+        def editor_state():
+            return evidence(primary, global_type)
+
+        call("brp_extras_move_mouse", window=primary, position=[120, 160])
+        call("brp_extras_click_mouse", window=primary, button="Left")
+        wait_for(editor_state, lambda state: state["editor_focused"])
+        call("brp_extras_type_text", window=primary, text="old")
+        wait_for(editor_state, lambda state: state["edited_text"] == "old" and state["active_operations"] == 0)
+
+        call("brp_extras_send_keys", window=primary, keys=["Backspace"])
+        after_backspace = wait_for(editor_state, lambda state: state["edited_text"] == "ol")
+        released = wait_for(lambda: evidence(primary), lambda state: state["presses"] == state["releases"])
+        call("brp_extras_send_keys", window=primary, keys=["ControlLeft", "KeyA"])
+        wait_for(lambda: evidence(primary), lambda state: state["releases"] >= released["releases"] + 2)
+        wait_for(editor_state, lambda state: not state["logical_ctrl_pressed"])
+        call("brp_extras_send_keys", window=primary, keys=["KeyX"])
+        after_replace = wait_for(editor_state, lambda state: state["edited_text"] == "x")
 
         result = call("brp_shutdown", app_name="keyboard_windows")
         clean_shutdown = result["metadata"]["shutdown_method"] == "clean_shutdown"
@@ -152,6 +173,7 @@ def main():
         wait_for(lambda: process_alive(pid), lambda state: not state)
         summary = {"primary": primary, "secondary": secondary, "primary_input": primary_text,
                    "secondary_input": secondary_text, "after_target_close": final,
+                   "after_backspace": after_backspace, "after_replace": after_replace,
                    "typing_started": typing_started, "modifiers_before_close": modifiers_before_close,
                    "clean_shutdown": clean_shutdown, "port_released": True,
                    "binary_sha256": {name: binary_sha256(repo / "target/debug" / name)

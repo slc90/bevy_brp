@@ -47,8 +47,7 @@ pub(super) fn resolve_window(
 
 /// Create keyboard events from validated key code wrappers, addressed to `window`.
 ///
-/// Populates `logical_key` and `text` fields for printable characters,
-/// enabling text input simulation that works with Bevy's text input systems.
+/// Uses Bevy logical values for named keys and the default characters for text keys.
 pub(super) fn create_keyboard_events(
     wrappers: &[KeyCodeWrapper],
     button_state: ButtonState,
@@ -59,9 +58,9 @@ pub(super) fn create_keyboard_events(
 
 /// Create keyboard events with an optional target character override.
 ///
-/// When `target_char` is provided, it will be used as the `text` field
-/// for the final non-modifier key in the sequence. This is essential for
-/// shifted characters (e.g., `!` requires Shift+1, but text should be `!`).
+/// An explicit typing character supplies the logical value of the final
+/// non-modifier key and its text on press. This preserves shifted characters
+/// and literal characters such as a tab requested through `type_text`.
 pub(super) fn create_keyboard_events_with_text(
     wrappers: &[KeyCodeWrapper],
     button_state: ButtonState,
@@ -90,25 +89,23 @@ pub(super) fn create_keyboard_events_with_text(
             let key_code = wrapper.to_key_code();
             let is_target_key = Some(idx) == last_non_modifier_idx;
 
-            // Use target_char for the final non-modifier key, otherwise use to_char()
-            let char_opt = if is_target_key && target_char.is_some() {
-                target_char
+            let character_override = target_char.filter(|_| is_target_key);
+            let character = character_override
+                .or_else(|| wrapper.to_char())
+                .map(|c| c.to_string().into());
+            let named_key = if character_override.is_none() {
+                wrapper.named_key()
             } else {
-                wrapper.to_char()
+                None
             };
-
-            // Build logical_key and text based on whether this is a printable character.
-            let (logical_key, text) =
-                char_opt.map_or((Key::Unidentified(NativeKey::Unidentified), None), |c| {
-                    let s: String = c.to_string();
-                    // Only populate text on press events, not release, and only for the target key
-                    let text = if button_state == ButtonState::Pressed && is_target_key {
-                        Some(s.clone().into())
-                    } else {
-                        None
-                    };
-                    (Key::Character(s.into()), text)
-                });
+            let logical_key = named_key
+                .or_else(|| character.as_ref().cloned().map(Key::Character))
+                .unwrap_or(Key::Unidentified(NativeKey::Unidentified));
+            let text = if button_state == ButtonState::Pressed && is_target_key {
+                character
+            } else {
+                None
+            };
 
             KeyboardInput {
                 state: button_state,

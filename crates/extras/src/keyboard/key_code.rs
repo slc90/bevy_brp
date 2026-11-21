@@ -1,5 +1,6 @@
 //! `KeyCodeWrapper` enum for string-based key code parsing and conversion.
 
+use bevy::input::keyboard::Key;
 use bevy::input::keyboard::KeyCode;
 use strum_macros::Display;
 use strum_macros::EnumIter;
@@ -160,6 +161,73 @@ pub(super) enum KeyCodeWrapper {
 }
 
 impl KeyCodeWrapper {
+    /// The layout-independent logical value of a named key.
+    pub(super) const fn named_key(self) -> Option<Key> {
+        Some(match self {
+            Self::AltLeft | Self::AltRight => Key::Alt,
+            Self::ControlLeft | Self::ControlRight => Key::Control,
+            Self::ShiftLeft | Self::ShiftRight => Key::Shift,
+            Self::SuperLeft | Self::SuperRight => Key::Super,
+            Self::ArrowDown => Key::ArrowDown,
+            Self::ArrowLeft => Key::ArrowLeft,
+            Self::ArrowRight => Key::ArrowRight,
+            Self::ArrowUp => Key::ArrowUp,
+            Self::End => Key::End,
+            Self::Home => Key::Home,
+            Self::PageDown => Key::PageDown,
+            Self::PageUp => Key::PageUp,
+            Self::Backspace => Key::Backspace,
+            Self::Delete => Key::Delete,
+            Self::Enter | Self::NumpadEnter => Key::Enter,
+            Self::Escape => Key::Escape,
+            Self::Insert => Key::Insert,
+            Self::Space => Key::Space,
+            Self::Tab => Key::Tab,
+            Self::F1 => Key::F1,
+            Self::F2 => Key::F2,
+            Self::F3 => Key::F3,
+            Self::F4 => Key::F4,
+            Self::F5 => Key::F5,
+            Self::F6 => Key::F6,
+            Self::F7 => Key::F7,
+            Self::F8 => Key::F8,
+            Self::F9 => Key::F9,
+            Self::F10 => Key::F10,
+            Self::F11 => Key::F11,
+            Self::F12 => Key::F12,
+            Self::F13 => Key::F13,
+            Self::F14 => Key::F14,
+            Self::F15 => Key::F15,
+            Self::F16 => Key::F16,
+            Self::F17 => Key::F17,
+            Self::F18 => Key::F18,
+            Self::F19 => Key::F19,
+            Self::F20 => Key::F20,
+            Self::F21 => Key::F21,
+            Self::F22 => Key::F22,
+            Self::F23 => Key::F23,
+            Self::F24 => Key::F24,
+            Self::AudioVolumeDown => Key::AudioVolumeDown,
+            Self::AudioVolumeMute => Key::AudioVolumeMute,
+            Self::AudioVolumeUp => Key::AudioVolumeUp,
+            Self::BrowserBack => Key::BrowserBack,
+            Self::BrowserForward => Key::BrowserForward,
+            Self::BrowserHome => Key::BrowserHome,
+            Self::BrowserRefresh => Key::BrowserRefresh,
+            Self::BrowserSearch => Key::BrowserSearch,
+            Self::CapsLock => Key::CapsLock,
+            Self::NumLock => Key::NumLock,
+            Self::ScrollLock => Key::ScrollLock,
+            Self::PrintScreen => Key::PrintScreen,
+            Self::Pause => Key::Pause,
+            Self::MediaPlayPause => Key::MediaPlayPause,
+            Self::MediaStop => Key::MediaStop,
+            Self::MediaTrackNext => Key::MediaTrackNext,
+            Self::MediaTrackPrevious => Key::MediaTrackPrevious,
+            _ => return None,
+        })
+    }
+
     /// Convert the wrapper to a character for text input (lowercase, unshifted).
     ///
     /// Returns `None` for non-printable keys (modifiers, function keys, etc.)
@@ -204,7 +272,7 @@ impl KeyCodeWrapper {
             Self::Digit7 | Self::Numpad7 => Some('7'),
             Self::Digit8 | Self::Numpad8 => Some('8'),
             Self::Digit9 | Self::Numpad9 => Some('9'),
-            // Special printable keys
+            // Named keys with an existing text payload
             Self::Space => Some(' '),
             Self::Tab => Some('\t'),
             Self::Enter | Self::NumpadEnter => Some('\n'),

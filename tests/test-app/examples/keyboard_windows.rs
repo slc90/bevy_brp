@@ -1,10 +1,13 @@
 //! 真实 MCP→BRP multi-window keyboard 回归宿主。
-//! 两个窗口分别显示自身接收到的文本，并记录 pointer、press/release 与全局 modifier 状态。
+//! 两个窗口分别显示收到的文本。主窗口用 Bevy TextInput 验证实际编辑结果。
 
 use bevy::camera::RenderTarget;
 use bevy::input::ButtonState;
-use bevy::input::keyboard::KeyboardInput;
+use bevy::input::keyboard::{Key, KeyboardInput};
+use bevy::input_focus::{InputFocus, tab_navigation::TabIndex};
 use bevy::prelude::*;
+use bevy::text::EditableText;
+use bevy::ui_widgets::TextInput;
 use bevy::window::{PrimaryWindow, WindowCloseRequested, WindowRef};
 use bevy::winit::WinitSettings;
 use bevy_brp_extras::BrpExtrasActivity;
@@ -27,7 +30,10 @@ struct WindowInputEvidence {
 struct GlobalKeyboardEvidence {
     ctrl_pressed: bool,
     shift_pressed: bool,
+    logical_ctrl_pressed: bool,
     active_operations: usize,
+    editor_focused: bool,
+    edited_text: String,
 }
 
 #[derive(Component)]
@@ -117,6 +123,26 @@ fn setup(mut commands: Commands, primary: Single<Entity, With<PrimaryWindow>>) {
                     InputView(window),
                     Pickable::IGNORE,
                 ));
+                if window == primary {
+                    parent.spawn((
+                        TextInput,
+                        TabIndex(0),
+                        TextFont {
+                            font_size: FontSize::Px(24.0),
+                            ..default()
+                        },
+                        Node {
+                            position_type: PositionType::Absolute,
+                            left: px(20),
+                            top: px(140),
+                            width: px(360),
+                            height: px(44),
+                            padding: UiRect::all(px(6)),
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgb(0.2, 0.3, 0.45)),
+                    ));
+                }
             });
     }
 }
@@ -155,12 +181,22 @@ fn display_input(
 
 fn global_state(
     keys: Res<ButtonInput<KeyCode>>,
+    logical_keys: Res<ButtonInput<Key>>,
     activity: Res<BrpExtrasActivity>,
+    focus: Res<InputFocus>,
+    editor: Single<(Entity, &EditableText), With<TextInput>>,
     mut evidence: Single<&mut GlobalKeyboardEvidence>,
 ) {
     evidence.ctrl_pressed = keys.pressed(KeyCode::ControlLeft);
     evidence.shift_pressed = keys.pressed(KeyCode::ShiftLeft);
+    evidence.logical_ctrl_pressed = logical_keys.pressed(Key::Control);
     evidence.active_operations = activity.state().active_count();
+    let (editor_entity, editable_text) = *editor;
+    evidence.editor_focused = focus.get() == Some(editor_entity);
+    let text = editable_text.value();
+    if text != evidence.edited_text.as_str() {
+        evidence.edited_text = text.to_string();
+    }
 }
 
 fn close_window(In(params): In<Option<Value>>, world: &mut World) -> BrpResult {

@@ -32,6 +32,7 @@ mod tests {
     use bevy::input::ButtonInput;
     use bevy::input::ButtonState;
     use bevy::input::InputPlugin;
+    use bevy::input::keyboard::Key;
     use bevy::input::keyboard::KeyCode;
     use bevy::input::keyboard::KeyboardInput;
     use bevy::prelude::Entity;
@@ -82,6 +83,48 @@ mod tests {
             .filter(|event| event.state == ButtonState::Pressed)
             .cloned()
             .collect()
+    }
+
+    #[test]
+    fn send_keys_emits_named_logical_keys_on_press_and_release() {
+        let (mut app, _) = app_with_primary_window();
+        app.add_plugins(super::KeyboardPlugin);
+
+        for (code, logical_key, text) in [
+            (KeyCode::ControlLeft, Key::Control, None),
+            (KeyCode::ControlRight, Key::Control, None),
+            (KeyCode::Backspace, Key::Backspace, None),
+            (KeyCode::ArrowLeft, Key::ArrowLeft, None),
+            (KeyCode::F24, Key::F24, None),
+            (KeyCode::MediaPlayPause, Key::MediaPlayPause, None),
+            (KeyCode::Enter, Key::Enter, Some("\n")),
+            (KeyCode::NumpadEnter, Key::Enter, Some("\n")),
+            (KeyCode::Tab, Key::Tab, Some("\t")),
+            (KeyCode::Space, Key::Space, Some(" ")),
+        ] {
+            let mut cursor = app
+                .world()
+                .resource::<Messages<KeyboardInput>>()
+                .get_cursor_current();
+            send_keys_handler(
+                In(Some(json!({"keys":[format!("{code:?}")],"duration_ms":0}))),
+                app.world_mut(),
+            )
+            .unwrap();
+            app.update();
+
+            let messages = app.world().resource::<Messages<KeyboardInput>>();
+            let events: Vec<_> = cursor.read(messages).collect();
+            assert_eq!(events.len(), 2, "{code:?}");
+            assert_eq!(events[0].state, ButtonState::Pressed);
+            assert_eq!(events[1].state, ButtonState::Released);
+            assert_eq!(events[0].text.as_deref(), text);
+            assert_eq!(events[1].text, None);
+            for event in events {
+                assert_eq!(event.key_code, code);
+                assert_eq!(event.logical_key, logical_key);
+            }
+        }
     }
 
     #[test]
@@ -147,13 +190,13 @@ mod tests {
         app.add_plugins(super::KeyboardPlugin);
         let secondary = app.world_mut().spawn(Window::default()).id();
         type_text_handler(
-            In(Some(json!({"text":"Ab","window":secondary.to_bits()}))),
+            In(Some(json!({"text":"A\tb","window":secondary.to_bits()}))),
             app.world_mut(),
         )
         .unwrap();
         let mut cursor = MessageCursor::<KeyboardInput>::default();
         let mut observed = Vec::new();
-        for index in 0..4 {
+        for index in 0..6 {
             app.update();
             observed.extend(
                 cursor
@@ -167,13 +210,30 @@ mod tests {
                 app.world_mut().spawn((Window::default(), PrimaryWindow));
             }
         }
-        assert_eq!(observed.len(), 6);
+        assert_eq!(observed.len(), 8);
         assert!(observed.iter().all(|event| event.window == secondary));
         let text: String = observed
             .iter()
             .filter_map(|event| event.text.as_deref())
             .collect();
-        assert_eq!(text, "Ab");
+        assert_eq!(text, "A\tb");
+        for (key_code, logical_key) in [
+            (KeyCode::ShiftLeft, Key::Shift),
+            (KeyCode::KeyA, Key::Character("A".into())),
+            (KeyCode::Tab, Key::Character("\t".into())),
+            (KeyCode::KeyB, Key::Character("b".into())),
+        ] {
+            let pair: Vec<_> = observed
+                .iter()
+                .filter(|event| event.key_code == key_code)
+                .collect();
+            assert_eq!(pair.len(), 2, "{key_code:?}");
+            assert_eq!(pair[0].state, ButtonState::Pressed);
+            assert_eq!(pair[1].state, ButtonState::Released);
+            assert_eq!(pair[0].logical_key, logical_key);
+            assert_eq!(pair[1].logical_key, logical_key);
+            assert_eq!(pair[1].text, None);
+        }
         assert!(
             !app.world()
                 .resource::<BrpExtrasActivity>()

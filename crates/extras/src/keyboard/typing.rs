@@ -40,7 +40,7 @@ pub(super) struct TextTypingQueue {
     chars: VecDeque<char>,
     /// Currently pressed keys (waiting for release next frame)
     current_keys: Vec<KeyCodeWrapper>,
-    /// The character we're currently typing (for proper text field on shifted chars)
+    /// The explicit logical character shared by the press and release events.
     current_char: Option<char>,
     /// Current phase of the typing state machine
     typing_phase: TypingPhase,
@@ -213,9 +213,12 @@ pub(super) fn process_text_typing(
         let target_gone = window != Entity::PLACEHOLDER && !windows.contains(window);
         if target_gone {
             // 停止未输入字符，仅向原 target 释放已按下的按键。
-            for event in
-                events::create_keyboard_events(&queue.current_keys, ButtonState::Released, window)
-            {
+            for event in events::create_keyboard_events_with_text(
+                &queue.current_keys,
+                ButtonState::Released,
+                queue.current_char,
+                window,
+            ) {
                 window_events.write(WindowEvent::from(event.clone()));
                 keyboard_events.write(event);
             }
@@ -226,9 +229,10 @@ pub(super) fn process_text_typing(
             TypingPhase::ReleaseCurrentKeys => {
                 // Release the current keys
                 if !queue.current_keys.is_empty() {
-                    let release_events = events::create_keyboard_events(
+                    let release_events = events::create_keyboard_events_with_text(
                         &queue.current_keys,
                         ButtonState::Released,
+                        queue.current_char,
                         window,
                     );
                     for event in release_events {
