@@ -7,7 +7,6 @@ keywords             = ["bevy", "brp", "mcp", "remote"]
 license.workspace    = true
 name                 = "bevy_brp_mcp"
 repository.workspace = true
-rust-version.workspace = true
 version.workspace    = true
 publish              = false
 

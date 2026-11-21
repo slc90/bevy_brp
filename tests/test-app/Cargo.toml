@@ -1,6 +1,5 @@
 [package]
 edition.workspace = true
-rust-version.workspace = true
 name    = "bevy_brp_test_apps"
 publish = false                # Never publish test apps
 

@@ -15,7 +15,6 @@ authors = ["natepiano <slicks.curable.0k@icloud.com>"]
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/slc90/bevy_brp"
-rust-version = "1.98.1"
 version = "0.4.2"
 
 [workspace.dependencies]

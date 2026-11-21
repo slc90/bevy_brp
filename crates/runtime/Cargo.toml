@@ -11,7 +11,6 @@ keywords = ["bevy", "brp", "debugging", "gamedev", "remote"]
 license.workspace = true
 name = "bevy_brp_runtime"
 repository.workspace = true
-rust-version.workspace = true
 version.workspace    = true
 publish              = false
 

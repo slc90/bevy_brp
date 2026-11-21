@@ -47,7 +47,7 @@ Windows 环境统一使用 PowerShell 7（`pwsh`），禁止使用 Windows Power
 
 ## 验证入口
 
-按变更风险和命中规则选择必要验证，不机械执行无关命令。Windows MSVC 开发使用 Rust 1.98.1 或更新版本，活动工具链需安装 `rustfmt` 和 `clippy`。定向测试可用 `cargo test -p <package-name> --locked`。完整验证入口：
+按变更风险和命中规则选择必要验证，不机械执行无关命令。Windows MSVC 开发使用本机当前的 Rust 工具链，需安装 `rustfmt` 和 `clippy`。定向测试可用 `cargo test -p <package-name> --locked`。以下命令用于完整验证。
 
 ```powershell
 cargo fmt --all -- --check

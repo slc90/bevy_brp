@@ -7,7 +7,6 @@ license.workspace    = true
 name                 = "test-app-a"
 publish              = false
 repository.workspace = true
-rust-version.workspace = true
 
 # TEST INFRASTRUCTURE - Path Disambiguation Testing
 #

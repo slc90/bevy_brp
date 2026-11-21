@@ -31,7 +31,7 @@ Use `BrpRuntimePlugin::with_ports(9000, 9001)` to set the Main and Render BRP po
 
 ## Connect an MCP client
 
-Build the server from the repository root with Rust 1.98.1 or newer:
+Build the server from the repository root using your installed Rust toolchain.
 
 ```powershell
 cargo build -p bevy_brp_mcp --locked
