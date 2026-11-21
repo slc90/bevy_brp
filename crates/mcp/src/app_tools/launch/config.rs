@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::marker::PhantomData;
-use std::path::PathBuf;
 use std::process::Command;
 use std::time::Instant;
 
@@ -13,6 +12,7 @@ use super::build::BuildScope;
 use super::build::BuildState;
 use super::build_freshness;
 use super::build_freshness::FreshnessCheckResult;
+use super::ports::PortPair;
 use crate::app_tools::instance_count::InstanceCount;
 use crate::app_tools::launch_params::SearchOrder;
 use crate::app_tools::targets::BevyTarget;
@@ -21,21 +21,16 @@ use crate::brp_tools::Port;
 use crate::error::Result;
 
 /// Marker type for `App` launch configuration
-#[derive(Clone)]
 pub(super) struct App;
 
 /// Marker type for `Example` launch configuration
-#[derive(Clone)]
 pub(super) struct Example;
 
 /// Parameterized launch configuration for apps and examples
-#[derive(Clone)]
 pub(super) struct LaunchConfig<T> {
     target: String,
     profile: String,
     package: Option<String>,
-    port: Port,
-    instance_count: InstanceCount,
     activate_window: bool,
     env: Option<HashMap<String, String>>,
     arguments: Option<Vec<String>>,
@@ -47,8 +42,6 @@ impl<T> LaunchConfig<T> {
         target: String,
         profile: String,
         package: Option<String>,
-        port: Port,
-        instance_count: InstanceCount,
         activate_window: bool,
         env: Option<HashMap<String, String>>,
         arguments: Option<Vec<String>>,
@@ -57,8 +50,6 @@ impl<T> LaunchConfig<T> {
             target,
             profile,
             package,
-            port,
-            instance_count,
             activate_window,
             env,
             arguments,
@@ -69,10 +60,13 @@ impl<T> LaunchConfig<T> {
 
 /// Represents a single launched instance
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct LaunchedInstance {
-    pid: u32,
-    log_file: String,
-    port: u16,
+pub(super) struct LaunchedInstance {
+    pub(super) pid: u32,
+    pub(super) log_file: String,
+    pub(super) port: Port,
+    pub(super) render_port: Port,
+    pub(super) main_listening: bool,
+    pub(super) render_listening: bool,
 }
 
 /// Unified result type for launching Bevy apps and examples
@@ -126,7 +120,9 @@ pub(crate) struct LaunchParams {
     pub profile: String,
     pub path: Option<String>,
     pub package: Option<String>,
-    pub port: Port,
+    pub port: Option<Port>,
+    pub render_port: Option<Port>,
+    pub ports_from_config: bool,
     pub instance_count: InstanceCount,
     pub activate_window: bool,
     pub env: Option<HashMap<String, String>>,
@@ -135,7 +131,7 @@ pub(crate) struct LaunchParams {
 }
 
 /// Trait for configuring launch behavior for different target types (app vs example)
-pub(super) trait LaunchConfigTrait: Clone {
+pub(super) trait LaunchConfigTrait {
     const TARGET_TYPE: TargetType;
 
     fn target(&self) -> &str;
@@ -144,13 +140,7 @@ pub(super) trait LaunchConfigTrait: Clone {
 
     fn package(&self) -> Option<&str>;
 
-    fn port(&self) -> Port;
-
-    fn instance_count(&self) -> InstanceCount;
-
-    fn set_port(&mut self, port: Port);
-
-    fn build_command(&self, target: &BevyTarget) -> Command;
+    fn build_command(&self, target: &BevyTarget, override_ports: Option<PortPair>) -> Command;
 
     fn extra_log_info(&self, target: &BevyTarget) -> Option<String>;
 
@@ -193,8 +183,6 @@ impl From<&LaunchParams> for LaunchConfig<App> {
             params.target.clone(),
             params.profile.clone(),
             params.package.clone(),
-            params.port,
-            params.instance_count,
             params.activate_window,
             params.env.clone(),
             params.args.clone(),
@@ -217,22 +205,10 @@ impl LaunchConfigTrait for LaunchConfig<App> {
         self.package.as_deref()
     }
 
-    fn port(&self) -> Port {
-        self.port
-    }
-
-    fn instance_count(&self) -> InstanceCount {
-        self.instance_count
-    }
-
-    fn set_port(&mut self, port: Port) {
-        self.port = port;
-    }
-
-    fn build_command(&self, target: &BevyTarget) -> Command {
+    fn build_command(&self, target: &BevyTarget, override_ports: Option<PortPair>) -> Command {
         build::build_app_command(
             &target.get_binary_path(self.profile()),
-            Some(self.port),
+            override_ports,
             self.env.as_ref(),
             self.arguments.as_deref(),
             self.activate_window,
@@ -250,8 +226,6 @@ impl From<&LaunchParams> for LaunchConfig<Example> {
             params.target.clone(),
             params.profile.clone(),
             params.package.clone(),
-            params.port,
-            params.instance_count,
             params.activate_window,
             params.env.clone(),
             params.args.clone(),
@@ -274,22 +248,10 @@ impl LaunchConfigTrait for LaunchConfig<Example> {
         self.package.as_deref()
     }
 
-    fn port(&self) -> Port {
-        self.port
-    }
-
-    fn instance_count(&self) -> InstanceCount {
-        self.instance_count
-    }
-
-    fn set_port(&mut self, port: Port) {
-        self.port = port;
-    }
-
-    fn build_command(&self, target: &BevyTarget) -> Command {
+    fn build_command(&self, target: &BevyTarget, override_ports: Option<PortPair>) -> Command {
         build::build_app_command(
             &target.get_binary_path(self.profile()),
-            Some(self.port),
+            override_ports,
             self.env.as_ref(),
             self.arguments.as_deref(),
             self.activate_window,
@@ -302,52 +264,29 @@ impl LaunchConfigTrait for LaunchConfig<Example> {
 }
 
 pub(super) fn build_launch_result<T: LaunchConfigTrait>(
-    all_pids: Vec<u32>,
-    all_log_files: Vec<PathBuf>,
-    all_ports: Vec<u16>,
+    instance_count: usize,
     config: &T,
     target: &BevyTarget,
-    launch_start: Instant,
 ) -> LaunchResult {
-    let launch_duration = launch_start.elapsed();
-
-    let instances: Vec<LaunchedInstance> = all_pids
-        .into_iter()
-        .zip(all_log_files.iter())
-        .zip(all_ports.iter())
-        .map(|((process_id, log_file), port)| LaunchedInstance {
-            pid: process_id,
-            log_file: log_file.display().to_string(),
-            port: *port,
-        })
-        .collect();
-
     let workspace = target
         .workspace_root
         .file_name()
         .and_then(|name| name.to_str())
         .map(String::from);
 
-    let port_range = if all_ports.len() == 1 {
-        all_ports[0].to_string()
-    } else {
-        format!("{}-{}", all_ports[0], all_ports[all_ports.len() - 1])
-    };
-
-    let instance_count = all_ports.len();
     let message = format!(
-        "Successfully launched {instance_count} instance(s) of {} on ports {port_range}",
+        "Successfully launched {instance_count} instance(s) of {}",
         config.target()
     );
 
     LaunchResult {
         target: Some(config.target().to_string()),
-        instances,
+        instances: Vec::new(),
         working_directory: std::env::current_dir()
             .ok()
             .map(|dir| dir.display().to_string()),
         profile: Some(config.profile().to_string()),
-        duration_ms: Some(launch_duration.as_millis()),
+        duration_ms: None,
         timestamp: Some(chrono::Utc::now().to_rfc3339()),
         workspace,
         package: if T::TARGET_TYPE == TargetType::Example {
@@ -364,5 +303,17 @@ pub(super) fn build_launch_result<T: LaunchConfigTrait>(
         launched_as: Some(T::TARGET_TYPE.to_string()),
         duplicate_paths: None,
         message_template: Some(message),
+    }
+}
+
+impl LaunchResult {
+    pub(super) fn with_started_instances(
+        mut self,
+        instances: Vec<LaunchedInstance>,
+        start: Instant,
+    ) -> Self {
+        self.instances = instances;
+        self.duration_ms = Some(start.elapsed().as_millis());
+        self
     }
 }

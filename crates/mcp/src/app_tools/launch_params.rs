@@ -40,9 +40,17 @@ pub struct LaunchBevyBinaryParams {
     #[serde(rename = "package_name")]
     #[to_metadata(skip_if_none)]
     pub package: Option<String>,
-    /// The BRP port (default: 15702)
+    /// Main BRP port (default connection target: 15702)
     #[serde(default)]
-    pub port: Port,
+    #[to_metadata(skip_if_none)]
+    pub port: Option<Port>,
+    /// Render BRP port (defaults to 15703, or Main plus one for a Main-only override)
+    #[serde(default)]
+    #[to_metadata(skip_if_none)]
+    pub render_port: Option<Port>,
+    /// Single instance uses the supplied App-configured pair without environment overrides
+    #[serde(default)]
+    pub ports_from_config: bool,
     /// Number of instances to launch (default: 1)
     #[serde(default)]
     pub instance_count: InstanceCount,
@@ -74,6 +82,8 @@ impl LaunchBevyBinaryParams {
             path: self.path.clone(),
             package: self.package.clone(),
             port: self.port,
+            render_port: self.render_port,
+            ports_from_config: self.ports_from_config,
             instance_count: self.instance_count,
             activate_window: self.activate_window,
             env: self.env.clone(),

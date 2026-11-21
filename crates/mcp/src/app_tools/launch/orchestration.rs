@@ -1,9 +1,12 @@
 use std::fs::File;
+use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 use std::time::Instant;
 
 use error_stack::Report;
+use tokio::sync::oneshot::Sender;
+use tokio::sync::{Mutex, MutexGuard};
 use tracing::debug;
 use tracing::warn;
 
@@ -15,6 +18,8 @@ use super::config::LaunchParams;
 use super::config::LaunchResult;
 use super::constants::ERROR_CHAIN_FIELD;
 use super::constants::ERROR_FIELD;
+use super::ports::{LaunchPorts, PortPair, plan_ports};
+use super::startup::{StartingInstance, check_ports_available, wait_for_listeners};
 use crate::app_tools::launch_params::LaunchBevyBinaryParams;
 use crate::app_tools::launch_params::SearchOrder;
 use crate::app_tools::process;
@@ -23,24 +28,49 @@ use crate::app_tools::targets::AvailableTarget;
 use crate::app_tools::targets::BevyTarget;
 use crate::app_tools::targets::TargetType;
 use crate::app_tools::targets::UnifiedTargetNotFoundError;
-use crate::brp_tools::MAX_VALID_PORT;
-use crate::brp_tools::Port;
 use crate::error::Error;
 use crate::error::Result;
+
+// Keep concurrent launch calls from checking the same ports before either child binds.
+static LAUNCH_PORT_CHECK: Mutex<()> = Mutex::const_new(());
+
+pub(in crate::app_tools) struct PendingLaunch {
+    instances: Vec<StartingInstance>,
+    result: LaunchResult,
+    started_at: Instant,
+    require_both: bool,
+    _port_check: MutexGuard<'static, ()>,
+}
+
+impl PendingLaunch {
+    pub(in crate::app_tools) async fn verify(mut self) -> Result<LaunchResult> {
+        wait_for_listeners(&mut self.instances, self.require_both).await?;
+        let instances = self
+            .instances
+            .into_iter()
+            .map(StartingInstance::finish)
+            .collect::<Result<_>>()?;
+        Ok(self
+            .result
+            .with_started_instances(instances, self.started_at))
+    }
+}
 
 fn prepare_launch_environment<T: config::LaunchConfigTrait>(
     config: &T,
     target: &BevyTarget,
+    ports: PortPair,
+    override_env: bool,
 ) -> Result<(Command, PathBuf, PathBuf, File)> {
     let manifest_dir = build::validate_manifest_directory(&target.manifest)?;
-    let command = config.build_command(target);
+    let command = config.build_command(target, override_env.then_some(ports));
     let (log_file_path, log_file_for_redirect) = build::setup_launch_logging(
         config.target(),
         T::TARGET_TYPE,
         config.profile(),
-        &PathBuf::from(format!("{command:?}")),
+        Path::new(command.get_program()),
         manifest_dir,
-        config.port(),
+        ports.main,
         config.extra_log_info(target).as_deref(),
     )?;
 
@@ -52,48 +82,30 @@ fn prepare_launch_environment<T: config::LaunchConfigTrait>(
     ))
 }
 
-fn validate_port_range(base_port: u16, instance_count: u16) -> Result<()> {
-    if base_port.saturating_add(instance_count.saturating_sub(1)) > MAX_VALID_PORT {
-        return Err(Error::tool_call_failed(format!(
-            "Port range {base_port} to {} exceeds maximum valid port {MAX_VALID_PORT}",
-            base_port.saturating_add(instance_count.saturating_sub(1)),
-        ))
-        .into());
-    }
-    Ok(())
-}
-
 fn launch_instances<T: config::LaunchConfigTrait>(
     config: &T,
     target: &BevyTarget,
-    instance_count: u16,
-    base_port: u16,
-) -> Result<(Vec<u32>, Vec<PathBuf>, Vec<u16>)> {
-    let mut all_pids = Vec::new();
-    let mut all_log_files = Vec::new();
-    let mut all_ports = Vec::new();
-
-    for i in 0..instance_count {
-        let port = Port(base_port.saturating_add(i));
-        let mut instance_config = config.clone();
-        instance_config.set_port(port);
-
-        let (command, manifest_dir, log_file_path, log_file_for_redirect) =
-            prepare_launch_environment(&instance_config, target)?;
-
-        let process_id = process::launch_detached_process(
+    port_plan: &LaunchPorts,
+    request: &Sender<()>,
+) -> Result<Vec<StartingInstance>> {
+    check_ports_available(&port_plan.pairs)?;
+    let mut instances = Vec::with_capacity(port_plan.pairs.len());
+    for &ports in &port_plan.pairs {
+        if request.is_closed() {
+            return Err(Error::tool_call_failed("Launch cancelled").into());
+        }
+        let (command, manifest_dir, log_file, log_file_for_redirect) =
+            prepare_launch_environment(config, target, ports, port_plan.override_env)?;
+        let child = process::spawn_app_process(
             &command,
             &manifest_dir,
             log_file_for_redirect,
             config.target(),
         )?;
-
-        all_pids.push(process_id);
-        all_log_files.push(log_file_path);
-        all_ports.push(port.0);
+        instances.push(StartingInstance::new(child, log_file, ports));
     }
 
-    Ok((all_pids, all_log_files, all_ports))
+    Ok(instances)
 }
 
 fn handle_target_discovery_error(error: Report<Error>) -> Report<Error> {
@@ -112,8 +124,15 @@ fn handle_target_discovery_error(error: Report<Error>) -> Report<Error> {
 pub(in crate::app_tools) fn launch_bevy_target(
     typed_params: LaunchBevyBinaryParams,
     default_profile: &'static str,
-) -> Result<LaunchResult> {
+    request: &Sender<()>,
+) -> Result<PendingLaunch> {
     let params = typed_params.to_launch_params(default_profile);
+    let port_plan = plan_ports(
+        params.port,
+        params.render_port,
+        params.ports_from_config,
+        params.instance_count,
+    )?;
 
     let search_roots = targets::resolve_search_paths(params.path.as_deref())?;
 
@@ -130,7 +149,14 @@ pub(in crate::app_tools) fn launch_bevy_target(
         first_targets = targets::filter_targets_by_path_scope(first_targets, scope);
     }
     if !first_targets.is_empty() {
-        return launch_found_target(first, first_targets, &params, &search_roots);
+        return launch_found_target(
+            first,
+            first_targets,
+            &params,
+            &search_roots,
+            &port_plan,
+            request,
+        );
     }
 
     let mut second_targets =
@@ -139,7 +165,14 @@ pub(in crate::app_tools) fn launch_bevy_target(
         second_targets = targets::filter_targets_by_path_scope(second_targets, scope);
     }
     if !second_targets.is_empty() {
-        return launch_found_target(second, second_targets, &params, &search_roots);
+        return launch_found_target(
+            second,
+            second_targets,
+            &params,
+            &search_roots,
+            &port_plan,
+            request,
+        );
     }
 
     let mut all_targets = targets::scan_bevy_targets(&search_roots);
@@ -167,15 +200,17 @@ fn launch_found_target(
     cached_targets: Vec<BevyTarget>,
     params: &LaunchParams,
     roots: &[PathBuf],
-) -> Result<LaunchResult> {
+    port_plan: &LaunchPorts,
+    request: &Sender<()>,
+) -> Result<PendingLaunch> {
     match target_type {
         TargetType::App => {
             let config = config::LaunchConfig::<config::App>::from(params);
-            launch_target_with_cached(&config, roots, cached_targets)
+            launch_target_with_cached(&config, roots, cached_targets, port_plan, request)
         }
         TargetType::Example => {
             let config = config::LaunchConfig::<config::Example>::from(params);
-            launch_target_with_cached(&config, roots, cached_targets)
+            launch_target_with_cached(&config, roots, cached_targets, port_plan, request)
         }
     }
 }
@@ -184,10 +219,10 @@ fn launch_target_with_cached<T: config::LaunchConfigTrait>(
     config: &T,
     search_paths: &[PathBuf],
     cached_targets: Vec<BevyTarget>,
-) -> Result<LaunchResult> {
+    port_plan: &LaunchPorts,
+    request: &Sender<()>,
+) -> Result<PendingLaunch> {
     let launch_start = Instant::now();
-
-    debug!("Environment variable: BRP_EXTRAS_PORT={}", config.port());
 
     // cargo applies --bin and --example to every package it selects, so a name that
     // two members of one workspace both define would build both and write them to a
@@ -221,22 +256,16 @@ fn launch_target_with_cached<T: config::LaunchConfigTrait>(
         }
     }
 
-    let instance_count = *config.instance_count();
-    let base_port = *config.port();
-
-    validate_port_range(base_port, instance_count)?;
-
-    let (all_pids, all_log_files, all_ports) =
-        launch_instances(config, &target, instance_count, base_port)?;
-
-    Ok(config::build_launch_result(
-        all_pids,
-        all_log_files,
-        all_ports,
-        config,
-        &target,
-        launch_start,
-    ))
+    let port_check = LAUNCH_PORT_CHECK.blocking_lock();
+    let instances = launch_instances(config, &target, port_plan, request)?;
+    let result = config::build_launch_result(instances.len(), config, &target);
+    Ok(PendingLaunch {
+        instances,
+        result,
+        started_at: launch_start,
+        require_both: port_plan.require_both,
+        _port_check: port_check,
+    })
 }
 
 fn find_and_validate_target_with_cache<T: config::LaunchConfigTrait>(

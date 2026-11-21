@@ -25,7 +25,14 @@ impl ToolFn for LaunchBevyTarget {
         context: HandlerContext,
     ) -> HandlerResult<'_, ToolResult<Self::Output, Self::Params>> {
         tool::call_with_typed_params(context, |_, params: LaunchBevyBinaryParams| async move {
-            launch::launch_bevy_target(params, DEFAULT_PROFILE)
+            let (request, active) = tokio::sync::oneshot::channel::<()>();
+            let pending = tokio::task::spawn_blocking(move || {
+                launch::launch_bevy_target(params, DEFAULT_PROFILE, &request)
+            })
+            .await
+            .map_err(|error| Error::ProcessManagement(format!("Launch task failed: {error}")))??;
+            drop(active);
+            pending.verify().await
         })
     }
 

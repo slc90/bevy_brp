@@ -31,6 +31,13 @@ cargo build -p bevy_brp_runtime --example runtime_custom_port --locked
 
 脚本要求 15752–15755 空闲。它在子进程中分别验证代码配置、两个环境变量的独立覆盖和无效值回退。Main 和 Render 都必须响应 `rpc.discover`，正常退出后两个端口都必须释放。脚本分别占用 Main 和 Render 的代码配置端口，验证任一侧 bind 失败都会结束应用并释放另一侧端口。
 
+通过 MCP 验证端口对分配、App 配置保留和多实例清理时，运行以下命令。测试端口在脚本起始处检查。
+
+```powershell
+cargo build --workspace --bin bevy_brp_mcp --locked
+python tests/launch-port-regression.py --output target/launch-port-evidence
+```
+
 如无交互式桌面、GPU 或图形窗口，跳过该入口并记录为**未测及缺失条件**，不要把 Cargo 测试通过等同于端到端通过。成功运行的 MCP 交互记录在 `interaction.jsonl`，完整摘要在 `summary.json`。失败时先查同目录的 `failure.json` 和已写出的部分 `interaction.jsonl`，再按实际生成情况检查 `tools-list.json` 与截图。进程、端口或 trace 文件未恢复属于测试失败。
 
 ## 覆盖边界

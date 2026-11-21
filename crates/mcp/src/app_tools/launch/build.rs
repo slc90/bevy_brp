@@ -15,6 +15,7 @@ use super::constants::BUILD_OUTPUT_NAME_FIELD;
 use super::constants::BUILD_OUTPUT_TARGET_FIELD;
 use super::constants::CARGO_RELEASE_FLAG;
 use super::logging;
+use super::ports::PortPair;
 use crate::app_tools::constants::CARGO_BUILD_SUBCOMMAND;
 use crate::app_tools::constants::CARGO_COMMAND_NAME;
 use crate::app_tools::constants::CARGO_MESSAGE_FORMAT_JSON_FLAG;
@@ -27,6 +28,7 @@ use crate::error::Error;
 use crate::error::Result;
 
 const WINDOW_FOCUSED_ENV_VAR: &str = "BRP_EXTRAS_WINDOW_FOCUSED";
+const RENDER_PORT_ENV_VAR: &str = "BRP_EXTRAS_RENDER_PORT";
 
 /// Which packages cargo selects when it builds a launch target.
 ///
@@ -80,9 +82,13 @@ pub(super) fn validate_manifest_directory(manifest_path: &Path) -> Result<&Path>
     })
 }
 
-fn set_brp_env_vars(command: &mut Command, port: Option<Port>) {
-    if let Some(port) = port {
-        command.env(BRP_EXTRAS_PORT_ENV_VAR, port.to_string());
+fn set_brp_env_vars(command: &mut Command, override_ports: Option<PortPair>) {
+    if let Some(ports) = override_ports {
+        command.env(BRP_EXTRAS_PORT_ENV_VAR, ports.main.to_string());
+        command.env(RENDER_PORT_ENV_VAR, ports.render.to_string());
+    } else {
+        command.env_remove(BRP_EXTRAS_PORT_ENV_VAR);
+        command.env_remove(RENDER_PORT_ENV_VAR);
     }
 }
 
@@ -122,7 +128,7 @@ pub(super) fn setup_launch_logging(
 
 pub(super) fn build_app_command(
     binary_path: &Path,
-    port: Option<Port>,
+    override_ports: Option<PortPair>,
     env: Option<&HashMap<String, String>>,
     command_line_arguments: Option<&[String]>,
     activate_window: bool,
@@ -131,8 +137,8 @@ pub(super) fn build_app_command(
     if let Some(user_arguments) = command_line_arguments {
         command.args(user_arguments);
     }
-    set_brp_env_vars(&mut command, port);
     set_user_env_vars(&mut command, env);
+    set_brp_env_vars(&mut command, override_ports);
     if cfg!(windows) {
         command.env(WINDOW_FOCUSED_ENV_VAR, activate_window.to_string());
     }
@@ -261,12 +267,13 @@ pub(super) fn run_cargo_build(
     Ok(build_state)
 }
 
-#[cfg(all(test, windows))]
+#[cfg(test)]
 mod tests {
     use std::ffi::OsStr;
 
     use super::*;
 
+    #[cfg(windows)]
     #[test]
     fn window_startup_focus_takes_precedence_over_the_user_environment() {
         for (activate_window, expected, conflicting) in
@@ -278,7 +285,7 @@ mod tests {
             )]);
             let command = build_app_command(
                 Path::new("example.exe"),
-                Some(Port::default()),
+                None,
                 Some(&env),
                 None,
                 activate_window,
@@ -289,6 +296,41 @@ mod tests {
             assert_eq!(
                 effective.and_then(|(_, value)| value),
                 Some(OsStr::new(expected))
+            );
+        }
+    }
+
+    #[test]
+    fn launch_port_environment_uses_the_managed_pair_or_leaves_both_unset() {
+        let env = HashMap::from([
+            (BRP_EXTRAS_PORT_ENV_VAR.to_owned(), "9000".to_owned()),
+            (RENDER_PORT_ENV_VAR.to_owned(), "9001".to_owned()),
+            ("APP_SETTING".to_owned(), "value".to_owned()),
+        ]);
+        for (ports, main, render) in [
+            (
+                Some(PortPair {
+                    main: Port(9010),
+                    render: Port(9020),
+                }),
+                Some("9010"),
+                Some("9020"),
+            ),
+            (None, None, None),
+        ] {
+            let command = build_app_command(Path::new("example"), ports, Some(&env), None, false);
+            let environment: HashMap<_, _> = command.get_envs().collect();
+            assert_eq!(
+                environment[OsStr::new(BRP_EXTRAS_PORT_ENV_VAR)],
+                main.map(OsStr::new)
+            );
+            assert_eq!(
+                environment[OsStr::new(RENDER_PORT_ENV_VAR)],
+                render.map(OsStr::new)
+            );
+            assert_eq!(
+                environment[OsStr::new("APP_SETTING")],
+                Some(OsStr::new("value"))
             );
         }
     }

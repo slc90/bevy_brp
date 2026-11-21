@@ -77,14 +77,23 @@ impl ServerHandler for McpService {
     async fn call_tool(
         &self,
         request: CallToolRequestParams,
-        _: RequestContext<RoleServer>,
+        context: RequestContext<RoleServer>,
     ) -> Result<CallToolResponse, McpError> {
         let tool_def = self.get_tool_def(&request.name).ok_or_else(|| {
             McpError::invalid_params(format!("unknown tool: {}", request.name), None)
         })?;
 
         // Every BRP tool completes in one round trip, so the MRTR response is always `Complete`.
-        tool_def.call_tool(request).await.map(Into::into)
+        let call = tool_def.call_tool(request);
+        if tool_def.name() == "brp_launch" {
+            tokio::select! {
+                biased;
+                () = context.ct.cancelled() => Err(McpError::internal_error("Launch cancelled", None)),
+                response = call => response.map(Into::into),
+            }
+        } else {
+            call.await.map(Into::into)
+        }
     }
 
     async fn list_resources(

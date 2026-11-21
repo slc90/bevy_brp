@@ -17,6 +17,20 @@ alongside the original BRP `code` and `data`. `method_error_message` is the BRP 
 may include plugin guidance for a missing extras method.
 To start this repository's fixture through MCP, call `brp_launch` with
 `{"target_name":"extras_plugin","package_name":"bevy_brp_test_apps","search_order":"example","path":"tests/test-app","port":15712}`.
+Each `brp_launch` result includes the process ID, log path, Main `port`, and `render_port` for each
+instance. A legacy Main-only override uses Main plus one for Render. Supply both numbers for an
+explicit pair. For a single App with configured ports, interpret its configuration and pass both
+numbers with `ports_from_config:true` to preserve the App's settings. A single launch with no ports
+supplied uses 15702 and 15703 as connection targets. Multi-instance launches allocate distinct
+pairs and override both endpoints in each child. `main_listening` and `render_listening` record
+whether BRP discovery confirmed each listener during startup. Supplying a pair or requesting
+multiple instances requires both endpoints to respond. An occupied port reports its instance,
+endpoint and port before launch.
+
+On Windows, `activate_window` defaults to `false` for a windowed primary window in an App
+using Extras or Runtime. Set it to `true` to request activation. Winit requests activation when
+creating a fullscreen window.
+
 The wire names are `target_name` and `package_name`; those fields have not been renamed.
 If a search root contains multiple packages and the target's package directory is already known,
 scope `brp_list_bevy` to it, for example `{"path":"tests/test-app"}` from this repository root.

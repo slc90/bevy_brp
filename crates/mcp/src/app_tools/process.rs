@@ -2,6 +2,7 @@ use std::fs::File;
 #[cfg(unix)]
 use std::os::unix::process::CommandExt;
 use std::path::Path;
+use std::process::Child;
 use std::process::Command;
 use std::process::Stdio;
 
@@ -21,14 +22,13 @@ use crate::error::Result;
 
 /// Launch a process with the `command` arguments and configured environment values.
 ///
-/// Redirect stdout and stderr to `log_file`, set `process_group(0)` on Unix, and
-/// reap the child with `child.wait()` on a background thread.
-pub(super) fn launch_detached_process(
+/// Redirect stdout and stderr to `log_file` and set `process_group(0)` on Unix.
+pub(super) fn spawn_app_process(
     command: &Command,
     working_dir: &Path,
     log_file: File,
     process_name: &str,
-) -> Result<u32> {
+) -> Result<Child> {
     // Clone the log file handle for stderr
     let log_file_for_stderr = log_file
         .try_clone()
@@ -54,6 +54,8 @@ pub(super) fn launch_detached_process(
     for (key, value) in command.get_envs() {
         if let Some(value) = value {
             new_command.env(key, value);
+        } else {
+            new_command.env_remove(key);
         }
     }
 
@@ -69,28 +71,15 @@ pub(super) fn launch_detached_process(
 
     // Spawn the process
     tracing::debug!("Preparing to spawn process: {process_name}");
-    tracing::debug!("Command: {:?}", new_command);
     tracing::debug!("Working directory: {}", working_dir.display());
 
     match new_command.spawn() {
-        Ok(mut child) => {
-            // Get the PID
-            let process_id = child.id();
-
-            tracing::debug!("Process spawned successfully: {process_name} (PID: {process_id})");
-
-            // Spawn a background thread to reap the child when it exits
-            // This prevents zombie processes
-            std::thread::spawn(move || match child.wait() {
-                Ok(status) => {
-                    tracing::debug!("Child process {process_id} exited with status: {status:?}");
-                }
-                Err(e) => {
-                    tracing::warn!("Failed to wait for child process {process_id}: {e}");
-                }
-            });
-
-            Ok(process_id)
+        Ok(child) => {
+            tracing::debug!(
+                pid = child.id(),
+                "Process spawned successfully: {process_name}"
+            );
+            Ok(child)
         }
         Err(e) => {
             tracing::error!("Failed to spawn process {process_name}: {e}");
@@ -102,6 +91,14 @@ pub(super) fn launch_detached_process(
                 .attach(format!("Working directory: {}", working_dir.display())))?
         }
     }
+}
+
+pub(super) fn reap_app_process(mut child: Child) {
+    let pid = child.id();
+    std::thread::spawn(move || match child.wait() {
+        Ok(status) => tracing::debug!(pid, ?status, "Launched app exited"),
+        Err(error) => tracing::warn!(pid, %error, "Failed to wait for launched app"),
+    });
 }
 
 /// Normalize a process name or binary path for robust matching.

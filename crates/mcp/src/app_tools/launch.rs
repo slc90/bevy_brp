@@ -4,6 +4,8 @@ mod config;
 mod constants;
 mod logging;
 mod orchestration;
+mod ports;
+mod startup;
 
 pub(super) use config::LaunchParams;
 pub(super) use config::LaunchResult;

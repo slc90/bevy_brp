@@ -12,11 +12,14 @@ Optional args parameter passes command-line arguments to the launched process. A
 
 On Windows, apps using BrpExtrasPlugin or BrpRuntimePlugin request an inactive primary window by default. Pass {"target_name":"my_bevy_app","activate_window":true} to request activation. Windows decides whether the request brings the window to the foreground. Winit separately requests activation when creating a fullscreen window. The launch setting takes precedence over BRP_EXTRAS_WINDOW_FOCUSED in env.
 
-Features: Non-blocking execution, temp directory logs, debug/release profiles, multi-instance support.
-
-Multi-instance launching:
-- When instance_count > 1, launches multiple instances on sequential ports starting from the specified port.
-- Each instance gets its own log file with port in filename
+Port configuration:
+- `port` is the Main BRP port. `render_port` is the Render BRP port. Both must be in 1024–65534 and must differ.
+- For a single instance at the library defaults, omit both fields. The connection targets are Main 15702 and Render 15703.
+- To use a single instance's existing App configuration, map its Main and Render settings to the generic fields `port` and `render_port`, then set `ports_from_config=true`. Example: {"target_name":"my_bevy_app","port":9000,"render_port":9020,"ports_from_config":true}. The caller reads and interprets the App configuration when supplied by the user. MCP receives the port numbers.
+- To override ports, supply `port` and `render_port` with `ports_from_config=false` (the default). A Main-only override uses Main plus one for Render. `render_port` requires `port`.
+- With `instance_count > 1`, the launch tool allocates unique pairs starting at the supplied pair or defaults. Adjacent defaults yield 15702/15703, 15704/15705, and so on. Nonadjacent pairs skip overlaps.
+- Managed launches set BRP_EXTRAS_PORT and BRP_EXTRAS_RENDER_PORT after applying `env`. A single launch using App configuration or library defaults clears both overrides from the child environment.
+- Each instance includes `pid`, `log_file`, `port`, `render_port`, `main_listening`, and `render_listening`. The listening fields indicate confirmed BRP discovery on the instance's ports during startup. An explicit pair or multi-instance launch requires both endpoints to respond within the startup grace period. A single launch with only `port` or neither field can report an unconfirmed endpoint.
 
 Notes:
 - App launches use a lock-free freshness check before invoking Cargo. If the binary appears up to date, the tool launches it directly without running cargo build. If the binary is missing, stale, or freshness cannot be determined confidently, the tool runs cargo build first.
@@ -25,4 +28,4 @@ Notes:
 - Optional `path` parameter overrides the default search roots (MCP workspace roots / cwd). When provided, only the specified OS-level directory is searched for Bevy projects.
 - If multiple targets with the same name exist in different packages, you must specify the package_name parameter.
 - `package_name` matches the `package_name` field returned by `brp_list_bevy` for exact disambiguation.
-- When specifying a port, bevy_brp_extras is required to support listening on the environment variable BRP_EXTRAS_PORT.
+- Port overrides require the App to honor the corresponding environment variables, as current managed Extras and Runtime do.

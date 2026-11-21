@@ -15,7 +15,7 @@
 2. mailbox 满时先 wake 已排队工作，等待当前 message 入队后再次 wake。
 3. 普通请求具有 30 秒默认 deadline；result receiver 在完成、取消或 timeout 后都会请求一次
    cleanup wake，因为 HTTP method name 无法表达 ECS registration 的 Instant / Watching 类型。
-4. Main / Render listener 共享失败与 shutdown lifecycle，任一侧 fatal 失败都会关闭另一侧并结束 App。
+4. Main / Render listener 共享失败与 shutdown lifecycle，任一侧 fatal 失败都会关闭另一侧并结束 App。错误日志记录失败的 endpoint 和实际端口。
 5. 在 `RemoteSystems::Cleanup` 后检查残留 mailbox，覆盖固定版本遇到未知 method 提前停止 drain 的边界。
 6. `BrpRuntimePlugin::with_ports` 可为 Main 和 Render listener 分别设置代码级端口。有效的 `BRP_EXTRAS_PORT` 和 `BRP_EXTRAS_RENDER_PORT` 分别优先于对应的代码配置。`with_port` 设置 Main 的代码级端口，Render 的 fallback 仍为上游默认值。
 

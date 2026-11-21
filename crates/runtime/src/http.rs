@@ -108,6 +108,8 @@ struct TransportLifecycleInner {
 struct TransportFailure {
     /// 发生失败的 World endpoint。
     endpoint: &'static str,
+    /// 发生失败的 listener 端口。
+    port: u16,
     /// 保留底层 bind 或 accept error context。
     message: String,
 }
@@ -807,6 +809,7 @@ fn wake_event_loop(event_loop_proxy: &EventLoopProxy<WinitUserEvent>) -> Result<
 fn fail_transport(config: &HttpEndpointConfig, message: String) {
     config.lifecycle.fail(TransportFailure {
         endpoint: config.endpoint,
+        port: config.port,
         message,
     });
     if wake_event_loop(&config.event_loop_proxy).is_err() && !config.lifecycle.is_app_shutdown() {
@@ -824,6 +827,7 @@ fn report_transport_failure(config: Res<HttpEndpointConfig>, mut app_exit: Messa
     };
     error!(
         endpoint = failure.endpoint,
+        port = failure.port,
         error = %failure.message,
         "BRP runtime HTTP transport 无法继续运行"
     );
@@ -1001,10 +1005,12 @@ mod tests {
         let lifecycle = TransportLifecycle::new();
         lifecycle.fail(TransportFailure {
             endpoint: "Main",
+            port: 9000,
             message: "bind failed".to_string(),
         });
         lifecycle.fail(TransportFailure {
             endpoint: "Render",
+            port: 9001,
             message: "second failure".to_string(),
         });
 
@@ -1012,6 +1018,7 @@ mod tests {
         let failure = lifecycle.take_failure().unwrap();
 
         assert_eq!(failure.endpoint, "Main");
+        assert_eq!(failure.port, 9000);
         assert_eq!(failure.message, "bind failed");
         assert!(!lifecycle.is_running());
     }
