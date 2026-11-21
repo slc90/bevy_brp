@@ -10,6 +10,8 @@ If the target is not found as either type, returns an enriched error with an ava
 
 Optional args parameter passes command-line arguments to the launched process. Apps and examples both run their built binary directly, so args are appended to it unchanged.
 
+On Windows, apps using BrpExtrasPlugin or BrpRuntimePlugin request an inactive primary window by default. Pass {"target_name":"my_bevy_app","activate_window":true} to request activation. Windows decides whether the request brings the window to the foreground. Winit separately requests activation when creating a fullscreen window. The launch setting takes precedence over BRP_EXTRAS_WINDOW_FOCUSED in env.
+
 Features: Non-blocking execution, temp directory logs, debug/release profiles, multi-instance support.
 
 Multi-instance launching:

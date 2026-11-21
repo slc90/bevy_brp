@@ -36,6 +36,7 @@ pub(super) struct LaunchConfig<T> {
     package: Option<String>,
     port: Port,
     instance_count: InstanceCount,
+    activate_window: bool,
     env: Option<HashMap<String, String>>,
     arguments: Option<Vec<String>>,
     phantom_data: PhantomData<T>,
@@ -48,6 +49,7 @@ impl<T> LaunchConfig<T> {
         package: Option<String>,
         port: Port,
         instance_count: InstanceCount,
+        activate_window: bool,
         env: Option<HashMap<String, String>>,
         arguments: Option<Vec<String>>,
     ) -> Self {
@@ -57,6 +59,7 @@ impl<T> LaunchConfig<T> {
             package,
             port,
             instance_count,
+            activate_window,
             env,
             arguments,
             phantom_data: PhantomData,
@@ -125,6 +128,7 @@ pub(crate) struct LaunchParams {
     pub package: Option<String>,
     pub port: Port,
     pub instance_count: InstanceCount,
+    pub activate_window: bool,
     pub env: Option<HashMap<String, String>>,
     pub search_order: SearchOrder,
     pub args: Option<Vec<String>>,
@@ -191,6 +195,7 @@ impl From<&LaunchParams> for LaunchConfig<App> {
             params.package.clone(),
             params.port,
             params.instance_count,
+            params.activate_window,
             params.env.clone(),
             params.args.clone(),
         )
@@ -230,6 +235,7 @@ impl LaunchConfigTrait for LaunchConfig<App> {
             Some(self.port),
             self.env.as_ref(),
             self.arguments.as_deref(),
+            self.activate_window,
         )
     }
 
@@ -246,6 +252,7 @@ impl From<&LaunchParams> for LaunchConfig<Example> {
             params.package.clone(),
             params.port,
             params.instance_count,
+            params.activate_window,
             params.env.clone(),
             params.args.clone(),
         )
@@ -285,6 +292,7 @@ impl LaunchConfigTrait for LaunchConfig<Example> {
             Some(self.port),
             self.env.as_ref(),
             self.arguments.as_deref(),
+            self.activate_window,
         )
     }
 

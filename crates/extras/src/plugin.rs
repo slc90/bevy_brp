@@ -1,5 +1,7 @@
 //! Plugin implementation for extra BRP methods
 
+#[cfg(windows)]
+use std::ffi::OsStr;
 use std::sync::Mutex;
 
 #[cfg(feature = "diagnostics")]
@@ -44,6 +46,9 @@ use super::screenshot;
 use super::screenshot::ScreenshotPlugin;
 use super::shutdown;
 use super::window_title;
+
+#[cfg(windows)]
+const WINDOW_FOCUSED_ENV_VAR: &str = "BRP_EXTRAS_WINDOW_FOCUSED";
 
 // ---------------------------------------------------------------------------
 // Plugin struct and const shorthand
@@ -94,6 +99,12 @@ pub const BrpExtrasPlugin: BrpExtrasPlugin = BrpExtrasPlugin::new();
 ///
 /// The `HttpConfig` type parameter controls how HTTP transport is configured.
 /// See the [module-level documentation](struct@BrpExtrasPlugin) for usage examples.
+///
+/// On Windows, install this plugin after `WindowPlugin` to let
+/// `BRP_EXTRAS_WINDOW_FOCUSED=true` or `false` set the primary window's initial focus
+/// request before Winit creates the native window. An unset or invalid value preserves
+/// the host's window settings. This applies to all HTTP configuration modes.
+/// Winit separately requests activation when creating a fullscreen window.
 pub struct BrpExtrasPlugin<HttpConfig = Unconfigured> {
     http_config: HttpConfig,
     port_display: Option<PortDisplay>,
@@ -355,6 +366,9 @@ impl HasEffectivePort for PortConfigured {
 
 /// Common plugin setup shared across all HTTP configuration states.
 fn build_shared(app: &mut App) {
+    #[cfg(windows)]
+    apply_window_startup_focus(app, std::env::var_os(WINDOW_FOCUSED_ENV_VAR).as_deref());
+
     app.init_resource::<RegisteredAgentTools>();
     app.init_resource::<crate::activity::BrpExtrasActivity>();
 
@@ -378,6 +392,29 @@ fn build_shared(app: &mut App) {
 
     // Add the system to handle deferred shutdown
     app.add_systems(Update, shutdown::deferred_shutdown_system);
+}
+
+#[cfg(windows)]
+fn apply_window_startup_focus(app: &mut App, env_value: Option<&OsStr>) {
+    let Some(value) = env_value else {
+        return;
+    };
+    let Some(focused) = value.to_str().and_then(|value| value.parse::<bool>().ok()) else {
+        warn!(
+            env_var = WINDOW_FOCUSED_ENV_VAR,
+            "Ignoring invalid startup window focus setting. Expected true or false."
+        );
+        return;
+    };
+
+    // Winit reads this field when it creates the native window.
+    let world = app.world_mut();
+    if let Ok(mut window) = world
+        .query_filtered::<&mut Window, With<PrimaryWindow>>()
+        .single_mut(world)
+    {
+        window.focused = focused;
+    }
 }
 
 /// Add managed HTTP transport, using env var / optional port / default.
@@ -545,6 +582,42 @@ mod tests {
     use super::*;
 
     const UNEXPECTED_ENTITY_CAPTURE_METHOD: &str = "brp_extras/screenshot_entity";
+
+    #[cfg(windows)]
+    #[test]
+    fn window_startup_focus_applies_to_the_primary_window_during_build() {
+        use std::ffi::OsStr;
+
+        for (configured, initial, expected) in [
+            (Some("false"), true, false),
+            (Some("true"), false, true),
+            (Some("invalid"), true, true),
+            (None, false, false),
+        ] {
+            let mut app = App::new();
+            let world = app.world_mut();
+            let primary = world
+                .spawn((
+                    Window {
+                        focused: initial,
+                        ..default()
+                    },
+                    PrimaryWindow,
+                ))
+                .id();
+            let secondary = world.spawn(Window::default()).id();
+
+            apply_window_startup_focus(&mut app, configured.map(OsStr::new));
+
+            assert_eq!(
+                app.world().get::<Window>(primary).unwrap().focused,
+                expected
+            );
+            assert!(app.world().get::<Window>(secondary).unwrap().focused);
+        }
+
+        apply_window_startup_focus(&mut App::new(), Some(OsStr::new("false")));
+    }
 
     fn assert_all_extras_methods_registered(app: &App) {
         let methods = app.world().resource::<RemoteMethods>();

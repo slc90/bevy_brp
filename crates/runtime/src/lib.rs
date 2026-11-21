@@ -24,6 +24,9 @@ use self::http::BrpRemoteHttpPlugin;
 /// transport. Use `BrpExtrasPlugin` when the App already owns an upstream
 /// transport.
 ///
+/// On Windows, Runtime shares [`struct@BrpExtrasPlugin`]'s `BRP_EXTRAS_WINDOW_FOCUSED`
+/// override for the primary window's initial focus request.
+///
 /// ```no_run
 /// use bevy::prelude::*;
 /// use bevy_brp_runtime::BrpRuntimePlugin;

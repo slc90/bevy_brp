@@ -46,6 +46,9 @@ pub struct LaunchBevyBinaryParams {
     /// Number of instances to launch (default: 1)
     #[serde(default)]
     pub instance_count: InstanceCount,
+    /// Request initial activation of the primary window on Windows (default: false)
+    #[serde(default)]
+    pub activate_window: bool,
     /// Optional environment variables to set on the launched process
     #[serde(default)]
     #[to_metadata(skip_if_none)]
@@ -72,9 +75,42 @@ impl LaunchBevyBinaryParams {
             package: self.package.clone(),
             port: self.port,
             instance_count: self.instance_count,
+            activate_window: self.activate_window,
             env: self.env.clone(),
             search_order: self.search_order.clone(),
             args: self.args.clone(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn window_startup_focus_is_optional_and_must_be_boolean() {
+        let default: LaunchBevyBinaryParams =
+            serde_json::from_value(serde_json::json!({"target_name": "example"})).unwrap();
+        assert!(!default.to_launch_params("debug").activate_window);
+
+        for activate_window in [false, true] {
+            let params: LaunchBevyBinaryParams = serde_json::from_value(serde_json::json!({
+                "target_name": "example",
+                "activate_window": activate_window,
+            }))
+            .unwrap();
+            assert_eq!(
+                params.to_launch_params("debug").activate_window,
+                activate_window
+            );
+        }
+
+        assert!(
+            serde_json::from_value::<LaunchBevyBinaryParams>(serde_json::json!({
+                "target_name": "example",
+                "activate_window": "true",
+            }))
+            .is_err()
+        );
     }
 }

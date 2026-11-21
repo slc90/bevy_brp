@@ -26,6 +26,8 @@ use crate::brp_tools::Port;
 use crate::error::Error;
 use crate::error::Result;
 
+const WINDOW_FOCUSED_ENV_VAR: &str = "BRP_EXTRAS_WINDOW_FOCUSED";
+
 /// Which packages cargo selects when it builds a launch target.
 ///
 /// Cargo unifies features over the packages it selects, not over the workspace, so
@@ -123,6 +125,7 @@ pub(super) fn build_app_command(
     port: Option<Port>,
     env: Option<&HashMap<String, String>>,
     command_line_arguments: Option<&[String]>,
+    activate_window: bool,
 ) -> Command {
     let mut command = Command::new(binary_path);
     if let Some(user_arguments) = command_line_arguments {
@@ -130,6 +133,9 @@ pub(super) fn build_app_command(
     }
     set_brp_env_vars(&mut command, port);
     set_user_env_vars(&mut command, env);
+    if cfg!(windows) {
+        command.env(WINDOW_FOCUSED_ENV_VAR, activate_window.to_string());
+    }
     command
 }
 
@@ -253,4 +259,37 @@ pub(super) fn run_cargo_build(
     log_build_result(build_state, target_name, target_type);
 
     Ok(build_state)
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use std::ffi::OsStr;
+
+    use super::*;
+
+    #[test]
+    fn window_startup_focus_takes_precedence_over_the_user_environment() {
+        for (activate_window, expected, conflicting) in
+            [(false, "false", "true"), (true, "true", "false")]
+        {
+            let env = HashMap::from([(
+                "BRP_EXTRAS_WINDOW_FOCUSED".to_lowercase(),
+                conflicting.to_string(),
+            )]);
+            let command = build_app_command(
+                Path::new("example.exe"),
+                Some(Port::default()),
+                Some(&env),
+                None,
+                activate_window,
+            );
+            let effective = command
+                .get_envs()
+                .find(|(key, _)| key.eq_ignore_ascii_case("BRP_EXTRAS_WINDOW_FOCUSED"));
+            assert_eq!(
+                effective.and_then(|(_, value)| value),
+                Some(OsStr::new(expected))
+            );
+        }
+    }
 }
