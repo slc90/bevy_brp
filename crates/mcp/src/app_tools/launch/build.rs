@@ -5,23 +5,22 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::process::Output;
 
+use cargo_metadata::Message;
 use error_stack::Report;
-use serde_json::Value;
 use tracing::debug;
 use tracing::info;
 
-use super::constants::BUILD_OUTPUT_FRESH_FIELD;
-use super::constants::BUILD_OUTPUT_NAME_FIELD;
-use super::constants::BUILD_OUTPUT_TARGET_FIELD;
 use super::constants::CARGO_RELEASE_FLAG;
 use super::logging;
 use super::ports::PortPair;
 use crate::app_tools::constants::CARGO_BUILD_SUBCOMMAND;
 use crate::app_tools::constants::CARGO_COMMAND_NAME;
 use crate::app_tools::constants::CARGO_MESSAGE_FORMAT_JSON_FLAG;
+use crate::app_tools::constants::CARGO_PACKAGE_FLAG;
+use crate::app_tools::constants::CARGO_TARGET_DIR_FLAG;
 use crate::app_tools::constants::CARGO_WORKSPACE_FLAG;
 use crate::app_tools::constants::PROFILE_RELEASE;
-use crate::app_tools::targets::TargetType;
+use crate::app_tools::targets::{BevyTarget, TargetType};
 use crate::brp_tools::BRP_EXTRAS_PORT_ENV_VAR;
 use crate::brp_tools::Port;
 use crate::error::Error;
@@ -30,46 +29,16 @@ use crate::error::Result;
 const WINDOW_FOCUSED_ENV_VAR: &str = "BRP_EXTRAS_WINDOW_FOCUSED";
 const RENDER_PORT_ENV_VAR: &str = "BRP_EXTRAS_RENDER_PORT";
 
-/// Which packages cargo selects when it builds a launch target.
-///
-/// Cargo unifies features over the packages it selects, not over the workspace, so
-/// `cargo build --example x` run inside one package resolves a different feature set
-/// for a shared dependency than `cargo build --workspace` resolves for the same
-/// dependency. Those two sets compile to separate artifacts, so a developer who runs
-/// `cargo clippy --workspace` and then launches a target compiles the dependency graph
-/// twice. Selecting the whole workspace makes a launch build reuse what a workspace
-/// build already produced.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum BuildScope {
-    /// Select every workspace member, resolving features the way a bare
-    /// `cargo build --workspace` does. Cargo applies `--bin` and `--example` to every
-    /// package it selects, so this is only correct when the target name is unique
-    /// within the workspace.
-    Workspace,
-    /// Select only the package that holds the target. Required when more than one
-    /// member of the workspace defines a target under this name, because building
-    /// both would write them to a single output path.
-    Package,
-}
-
-impl BuildScope {
-    /// Directory cargo runs in under this scope.
-    ///
-    /// Cargo selects packages relative to its working directory, so the workspace scope
-    /// has to run from the workspace root for `--workspace` to mean the whole workspace.
-    const fn build_dir<'a>(self, manifest_dir: &'a Path, workspace_root: &'a Path) -> &'a Path {
-        match self {
-            Self::Workspace => workspace_root,
-            Self::Package => manifest_dir,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy)]
 pub(super) enum BuildState {
     NotFound,
     Fresh,
     Rebuilt,
+}
+
+pub(super) struct BuiltTarget {
+    pub(super) executable: PathBuf,
+    pub(super) state: BuildState,
 }
 
 pub(super) fn validate_manifest_directory(manifest_path: &Path) -> Result<&Path> {
@@ -145,22 +114,25 @@ pub(super) fn build_app_command(
     command
 }
 
-fn build_cargo_command(
-    target_name: &str,
-    target_type: TargetType,
-    profile: &str,
-    manifest_dir: &Path,
-    workspace_root: &Path,
-    scope: BuildScope,
-) -> Command {
+fn build_cargo_command(target: &BevyTarget, profile: &str, build_dir: &Path) -> Command {
     let mut command = Command::new(CARGO_COMMAND_NAME);
-    command.current_dir(scope.build_dir(manifest_dir, workspace_root));
+    command.current_dir(build_dir);
     command.arg(CARGO_BUILD_SUBCOMMAND);
-    if scope == BuildScope::Workspace {
+    if let Some(target_dir) = &target.isolated_target_dir {
+        // Cargo can mark a package fresh even after another package overwrites its output.
+        command
+            .arg(CARGO_PACKAGE_FLAG)
+            .arg(&target.package_name)
+            .arg(CARGO_TARGET_DIR_FLAG)
+            .arg(target_dir);
+    } else {
+        // Use Cargo's workspace feature resolution to reuse ordinary workspace builds.
         command.arg(CARGO_WORKSPACE_FLAG);
     }
 
-    target_type.add_cargo_args(&mut command, target_name);
+    target
+        .target_type
+        .add_cargo_args(&mut command, &target.name);
 
     if profile == PROFILE_RELEASE {
         command.arg(CARGO_RELEASE_FLAG);
@@ -199,29 +171,26 @@ fn execute_build_command(
     Ok(output)
 }
 
-fn parse_build_output(stdout: &[u8], target_name: &str) -> BuildState {
-    let stdout_str = String::from_utf8_lossy(stdout);
-
-    for line in stdout_str.lines() {
-        if let Ok(json) = serde_json::from_str::<Value>(line)
-            && let Some(target) = json.get(BUILD_OUTPUT_TARGET_FIELD)
-            && let Some(name) = target.get(BUILD_OUTPUT_NAME_FIELD)
-            && name.as_str() == Some(target_name)
+fn parse_build_output(stdout: &[u8], target: &BevyTarget) -> Option<BuiltTarget> {
+    for message in Message::parse_stream(stdout) {
+        if let Ok(Message::CompilerArtifact(artifact)) = message
+            && artifact.manifest_path.as_std_path() == target.manifest
+            && artifact.target.name == target.name
+            && TargetType::from_cargo(&artifact.target) == Some(target.target_type)
+            && let Some(executable) = artifact.executable
         {
-            return json
-                .get(BUILD_OUTPUT_FRESH_FIELD)
-                .and_then(serde_json::Value::as_bool)
-                .map_or(BuildState::Rebuilt, |is_fresh| {
-                    if is_fresh {
-                        BuildState::Fresh
-                    } else {
-                        BuildState::Rebuilt
-                    }
-                });
+            let state = if artifact.fresh {
+                BuildState::Fresh
+            } else {
+                BuildState::Rebuilt
+            };
+            return Some(BuiltTarget {
+                executable: executable.into_std_path_buf(),
+                state,
+            });
         }
     }
-
-    BuildState::NotFound
+    None
 }
 
 fn log_build_result(build_state: BuildState, target_name: &str, target_type: TargetType) {
@@ -238,33 +207,36 @@ fn log_build_result(build_state: BuildState, target_name: &str, target_type: Tar
     }
 }
 
-pub(super) fn run_cargo_build(
-    target_name: &str,
-    target_type: TargetType,
-    profile: &str,
-    manifest_dir: &Path,
-    workspace_root: &Path,
-    scope: BuildScope,
-) -> Result<BuildState> {
-    let mut command = build_cargo_command(
-        target_name,
-        target_type,
-        profile,
-        manifest_dir,
-        workspace_root,
-        scope,
-    );
+pub(super) fn run_cargo_build(target: &BevyTarget, profile: &str) -> Result<BuiltTarget> {
+    let build_dir = if target.isolated_target_dir.is_some() {
+        validate_manifest_directory(&target.manifest)?
+    } else {
+        &target.workspace_root
+    };
+    let mut command = build_cargo_command(target, profile, build_dir);
     let output = execute_build_command(
         &mut command,
-        target_name,
-        target_type,
+        &target.name,
+        target.target_type,
         profile,
-        scope.build_dir(manifest_dir, workspace_root),
+        build_dir,
     )?;
-    let build_state = parse_build_output(&output.stdout, target_name);
-    log_build_result(build_state, target_name, target_type);
-
-    Ok(build_state)
+    let built = match parse_build_output(&output.stdout, target) {
+        Some(built) => built,
+        None if target.isolated_target_dir.is_some() => {
+            return Err(Error::ProcessManagement(format!(
+                "Cargo did not report an executable for {} '{}' in package '{}'",
+                target.target_type, target.name, target.package_name
+            ))
+            .into());
+        }
+        None => BuiltTarget {
+            executable: target.get_binary_path(profile),
+            state: BuildState::NotFound,
+        },
+    };
+    log_build_result(built.state, &target.name, target.target_type);
+    Ok(built)
 }
 
 #[cfg(test)]

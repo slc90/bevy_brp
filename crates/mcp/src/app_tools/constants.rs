@@ -14,7 +14,9 @@ pub(super) const CARGO_COMMAND_NAME: &str = "cargo";
 pub(super) const CARGO_EXAMPLE_FLAG: &str = "--example";
 pub(super) const CARGO_MANIFEST_FILE: &str = "Cargo.toml";
 pub(super) const CARGO_MESSAGE_FORMAT_JSON_FLAG: &str = "--message-format=json";
+pub(super) const CARGO_PACKAGE_FLAG: &str = "--package";
 pub(super) const CARGO_RUN_SUBCOMMAND: &str = "run";
+pub(super) const CARGO_TARGET_DIR_FLAG: &str = "--target-dir";
 pub(super) const CARGO_WORKSPACE_FLAG: &str = "--workspace";
 
 // executable suffixes

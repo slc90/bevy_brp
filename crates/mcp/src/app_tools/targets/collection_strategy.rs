@@ -31,9 +31,8 @@ pub(super) struct AllBevyTargetsStrategy;
 
 /// A `BevyTarget` enriched with BRP status.
 ///
-/// For bins, `brp_level` checks the package's `src/` tree and the target source file
-/// for recognized BRP plugin imports.
-/// For examples, the individual source file is checked for BRP plugin imports.
+/// For examples and explicitly registered bins, `brp_level` checks the target source
+/// file for recognized BRP plugin imports. Other bins also require package-level BRP detection.
 pub(super) struct EnrichedTarget {
     pub(super) target: BevyTarget,
     pub(super) brp_level: BrpLevel,
@@ -43,24 +42,19 @@ impl AllBevyTargetsStrategy {
     pub(super) fn collect_items(detector: &CargoDetector) -> Vec<EnrichedTarget> {
         let all_targets = detector.find_bevy_targets();
 
-        // Build a package-level BRP lookup for bins (requires deep `src/` scan)
+        // Identify bins with package-level BRP evidence or explicit registration.
         let brp_targets = detector.find_brp_targets();
         let brp_keys: HashSet<String> = brp_targets
             .iter()
             .map(|t| format!("{}::{}", t.manifest.display(), t.name))
             .collect();
 
-        // Enrich each target with BRP level using a hybrid approach:
-        // - Bins: package-level set lookup (scans `src/` tree for BRP plugin registration) then
-        //   file-level check for extras vs brp_only distinction
-        // - Examples: per-file check (reads the example's source file directly)
         all_targets
             .into_iter()
             .map(|target| {
                 let brp_level = if target.is_app() {
                     let key = format!("{}::{}", target.manifest.display(), target.name);
                     if brp_keys.contains(&key) {
-                        // Package has BRP — check the specific binary's source for level
                         CargoDetector::file_brp_level(&target.source)
                     } else {
                         BrpLevel::None
@@ -151,9 +145,104 @@ fn create_builds_json(item: &BevyTarget) -> Value {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::fs;
+    use std::path::{Path, PathBuf};
 
+    use cargo_metadata::MetadataCommand;
+
+    use super::CargoDetector;
     use super::collect_all_bevy_targets;
+
+    #[test]
+    fn lists_only_the_explicitly_registered_application_binary() {
+        let root = tempfile::tempdir().expect("temporary Cargo package");
+        fs::write(
+            root.path().join("Cargo.toml"),
+            "[package]\nname = 'wrapper'\nversion = '0.1.0'\nedition = '2024'\n[package.metadata.bevy_brp]\napps = ['launcher']\n[dependencies]\nbevy_brp_extras = { path = 'extras' }\n",
+        )
+        .expect("package manifest");
+        let extras = root.path().join("extras");
+        fs::create_dir_all(extras.join("src")).expect("extras source directory");
+        fs::write(
+            extras.join("Cargo.toml"),
+            "[package]\nname = 'bevy_brp_extras'\nversion = '0.1.0'\nedition = '2024'\n",
+        )
+        .expect("extras manifest");
+        fs::write(extras.join("src/lib.rs"), "pub struct BrpExtrasPlugin;").expect("extras source");
+        let sources = root.path().join("src/bin");
+        fs::create_dir_all(&sources).expect("binary source directory");
+        fs::write(
+            sources.join("launcher.rs"),
+            "use bevy_brp_extras::BrpExtrasPlugin;\nfn main() { let _plugin = BrpExtrasPlugin; }\n",
+        )
+        .expect("registered binary source");
+        fs::write(sources.join("helper.rs"), "fn main() {}\n").expect("helper binary source");
+
+        let targets = collect_all_bevy_targets(&[root.path().to_owned()]);
+        assert_eq!(targets.len(), 1);
+        assert_eq!(targets[0]["name"], "launcher");
+        assert_eq!(targets[0]["kind"], "app");
+        assert_eq!(targets[0]["brp_level"], "extras");
+    }
+
+    #[test]
+    fn detects_output_collisions_with_unlisted_workspace_binaries() {
+        let root = tempfile::tempdir().expect("temporary Cargo workspace");
+        write_workspace_with_colliding_binaries(root.path());
+        let detector = CargoDetector::try_from(root.path()).expect("workspace metadata");
+        let targets = detector.find_bevy_targets();
+        assert_eq!(targets.len(), 1);
+        assert_eq!(targets[0].package_name, "app");
+        assert!(targets[0].isolated_target_dir.is_some());
+    }
+
+    #[test]
+    fn isolated_outputs_are_distinct_between_workspaces_with_one_target_directory() {
+        let root = tempfile::tempdir().expect("temporary Cargo workspaces");
+        let shared = root.path().join("shared");
+        let directories = ["first", "second"].map(|name| {
+            let workspace = root.path().join(name);
+            fs::create_dir(&workspace).expect("workspace directory");
+            write_workspace_with_colliding_binaries(&workspace);
+            let metadata = MetadataCommand::new()
+                .current_dir(&workspace)
+                .env("CARGO_TARGET_DIR", &shared)
+                .exec()
+                .expect("workspace metadata");
+            let detector = CargoDetector::from(metadata);
+            let targets = detector.find_bevy_targets();
+            let directory = targets[0]
+                .isolated_target_dir
+                .clone()
+                .expect("isolated target directory");
+            assert!(directory.starts_with(&shared));
+            directory
+        });
+        assert_ne!(directories[0], directories[1]);
+    }
+
+    fn write_workspace_with_colliding_binaries(root: &Path) {
+        fs::write(
+            root.join("Cargo.toml"),
+            "[workspace]\nresolver = '3'\nmembers = ['app', 'helper']\n",
+        )
+        .expect("workspace manifest");
+
+        for (name, registration) in [
+            ("app", "[package.metadata.bevy_brp]\napps = ['shared']\n"),
+            ("helper", ""),
+        ] {
+            let package = root.join(name);
+            let sources = package.join("src/bin");
+            fs::create_dir_all(&sources).expect("binary source directory");
+            fs::write(
+                package.join("Cargo.toml"),
+                format!("[package]\nname = '{name}'\nversion = '0.1.0'\nedition = '2024'\n{registration}"),
+            )
+            .expect("package manifest");
+            fs::write(sources.join("shared.rs"), "fn main() {}\n").expect("binary source");
+        }
+    }
 
     #[test]
     fn lists_runtime_plugin_targets_with_extras_support() {

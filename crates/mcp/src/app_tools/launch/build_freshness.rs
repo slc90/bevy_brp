@@ -311,6 +311,7 @@ mod tests {
             manifest: manifest_path.to_path_buf(),
             relative: PathBuf::new(),
             source: PathBuf::new(),
+            isolated_target_dir: None,
         }
     }
 

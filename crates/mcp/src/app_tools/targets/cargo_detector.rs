@@ -1,5 +1,7 @@
 //! Simple cargo detector based on `bevy_brp_tool`
 
+use std::collections::HashSet;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
@@ -10,6 +12,7 @@ use anyhow::Result;
 use cargo_metadata::Metadata;
 use cargo_metadata::MetadataCommand;
 use cargo_metadata::Package;
+use cargo_metadata::Target;
 use serde::Serialize;
 use strum::AsRefStr;
 use strum::Display;
@@ -38,7 +41,7 @@ use crate::app_tools::constants::CARGO_BIN_FLAG;
 use crate::app_tools::constants::CARGO_EXAMPLE_FLAG;
 
 /// Type of Bevy target
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Display, AsRefStr, EnumString, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Display, AsRefStr, EnumString, Serialize)]
 #[strum(serialize_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
 pub enum TargetType {
@@ -72,6 +75,20 @@ impl BrpLevel {
 }
 
 impl TargetType {
+    pub(in crate::app_tools) fn from_cargo(target: &Target) -> Option<Self> {
+        if target.is_bin() {
+            Some(Self::App)
+        } else if target.is_example() {
+            Some(Self::Example)
+        } else {
+            None
+        }
+    }
+
+    fn output_key(self, name: &str) -> (Self, String) {
+        (self, name.to_lowercase())
+    }
+
     /// Add cargo-specific arguments for this target type
     pub fn add_cargo_args(self, command: &mut Command, target_name: &str) {
         match self {
@@ -102,24 +119,29 @@ pub struct BevyTarget {
     pub relative: PathBuf,
     /// Path to the target's source file (from `cargo metadata`)
     pub source: PathBuf,
+    /// A private Cargo target directory when workspace targets share an output path.
+    pub(in crate::app_tools) isolated_target_dir: Option<PathBuf>,
 }
 
 impl BevyTarget {
     /// Get the path to the binary for a given profile
     pub fn get_binary_path(&self, profile: &str) -> PathBuf {
-        match self.target_type {
-            TargetType::App => self
-                .workspace_root
-                .join(TARGET_DIRECTORY_NAME)
-                .join(profile)
-                .join(&self.name),
-            TargetType::Example => self
-                .workspace_root
-                .join(TARGET_DIRECTORY_NAME)
-                .join(profile)
-                .join(CARGO_EXAMPLES_DIRECTORY)
-                .join(&self.name),
+        let mut path = self.isolated_target_dir.as_ref().map_or_else(
+            || {
+                self.workspace_root
+                    .join(TARGET_DIRECTORY_NAME)
+                    .join(profile)
+            },
+            |target_dir| target_dir.join(profile),
+        );
+        if self.target_type == TargetType::Example {
+            path.push(CARGO_EXAMPLES_DIRECTORY);
         }
+        path.push(&self.name);
+        if cfg!(windows) && self.isolated_target_dir.is_some() {
+            path.set_extension("exe");
+        }
+        path
     }
 
     /// Check if this target is an app
@@ -131,6 +153,8 @@ impl BevyTarget {
 /// Detects binary targets in a project or workspace
 pub(super) struct CargoDetector {
     metadata: Metadata,
+    shared_outputs: HashSet<(TargetType, String)>,
+    collision_cache: PathBuf,
 }
 
 impl CargoDetector {
@@ -157,60 +181,70 @@ impl CargoDetector {
         let package_name = package.name.to_string();
         let manifest_path: PathBuf = package.manifest_path.clone().into();
 
-        let mut targets = Vec::new();
-
-        // Extract apps
-        for target in package.targets.iter().filter(|t| t.is_bin()) {
-            targets.push(BevyTarget {
-                name: target.name.clone(),
-                target_type: TargetType::App,
-                package_name: package_name.clone(),
-                workspace_root: workspace_root.clone(),
-                manifest: manifest_path.clone(),
-                relative: PathBuf::new(), // Will be set by scanning logic
-                source: target.src_path.clone().into(),
-            });
-        }
-
-        // Extract examples
-        for target in package.targets.iter().filter(|t| t.is_example()) {
-            targets.push(BevyTarget {
-                name: target.name.clone(),
-                target_type: TargetType::Example,
-                package_name: package_name.clone(),
-                workspace_root: workspace_root.clone(),
-                manifest: manifest_path.clone(),
-                relative: PathBuf::new(), // Will be set by scanning logic
-                source: target.src_path.clone().into(),
-            });
-        }
-
-        targets
+        package
+            .targets
+            .iter()
+            .filter_map(|target| {
+                let target_type = TargetType::from_cargo(target)?;
+                Some(BevyTarget {
+                    name: target.name.clone(),
+                    target_type,
+                    package_name: package_name.clone(),
+                    workspace_root: workspace_root.clone(),
+                    manifest: manifest_path.clone(),
+                    relative: PathBuf::new(), // Will be set by scanning logic
+                    source: target.src_path.clone().into(),
+                    isolated_target_dir: self
+                        .shared_outputs
+                        .contains(&target_type.output_key(&target.name))
+                        .then(|| {
+                            self.collision_cache
+                                .join(encode_path_segment(&package_name))
+                                .join(format!(
+                                    "{target_type}-{}",
+                                    encode_path_segment(&target.name)
+                                ))
+                        }),
+                })
+            })
+            .collect()
     }
 
-    /// Filter for packages that depend on Bevy (excluding `bevy_brp_mcp` itself)
-    /// Also includes the `bevy` crate itself since it contains examples
-    fn bevy_app_filter(package: &Package) -> bool {
-        package.name.as_str() != MCP_CRATE_NAME
-            && (package.name.as_str() == BEVY_CRATE_NAME || Self::package_depends_on_bevy(package))
-    }
-
-    /// Filter for packages that have BRP support and are not `bevy_brp_mcp` itself
-    fn brp_app_filter(package: &Package) -> bool {
-        package.name.as_str() != MCP_CRATE_NAME && Self::package_has_brp_support(package)
+    fn is_registered_app(package: &Package, target: &BevyTarget) -> bool {
+        target.is_app()
+            && package
+                .metadata
+                .pointer("/bevy_brp/apps")
+                .and_then(serde_json::Value::as_array)
+                .is_some_and(|names| {
+                    names
+                        .iter()
+                        .any(|name| name.as_str() == Some(target.name.as_str()))
+                })
     }
 
     /// Find all Bevy targets (apps and examples) in the workspace/project
     pub(super) fn find_bevy_targets(&self) -> Vec<BevyTarget> {
-        self.find_packages_with_filter(Self::bevy_app_filter)
-            .flat_map(|p| self.extract_all_targets(p))
+        self.find_packages_with_filter(|package| package.name.as_str() != MCP_CRATE_NAME)
+            .flat_map(|package| {
+                let direct = package.name.as_str() == BEVY_CRATE_NAME
+                    || Self::package_depends_on_bevy(package);
+                self.extract_all_targets(package)
+                    .into_iter()
+                    .filter(move |target| direct || Self::is_registered_app(package, target))
+            })
             .collect()
     }
 
-    /// Find all BRP-enabled Bevy targets (apps and examples) in the workspace/project
+    /// Find targets eligible for file-level BRP detection.
     pub(super) fn find_brp_targets(&self) -> Vec<BevyTarget> {
-        self.find_packages_with_filter(Self::brp_app_filter)
-            .flat_map(|p| self.extract_all_targets(p))
+        self.find_packages_with_filter(|package| package.name.as_str() != MCP_CRATE_NAME)
+            .flat_map(|package| {
+                let brp_support = Self::package_has_brp_support(package);
+                self.extract_all_targets(package)
+                    .into_iter()
+                    .filter(move |target| brp_support || Self::is_registered_app(package, target))
+            })
             .collect()
     }
 
@@ -353,6 +387,20 @@ impl CargoDetector {
     }
 }
 
+// Preserve distinct cache keys even when the build directory is on a case-insensitive filesystem.
+fn encode_path_segment(name: &str) -> String {
+    const HEX_DIGITS: &[u8; 16] = b"0123456789abcdef";
+    name.bytes()
+        .flat_map(|byte| {
+            [
+                HEX_DIGITS[usize::from(byte >> 4)],
+                HEX_DIGITS[usize::from(byte & 15)],
+            ]
+            .map(char::from)
+        })
+        .collect()
+}
+
 impl TryFrom<&Path> for CargoDetector {
     type Error = Error;
 
@@ -361,7 +409,31 @@ impl TryFrom<&Path> for CargoDetector {
             .current_dir(path)
             .exec()
             .context("Failed to execute cargo metadata")?;
+        Ok(Self::from(metadata))
+    }
+}
 
-        Ok(Self { metadata })
+impl From<Metadata> for CargoDetector {
+    fn from(metadata: Metadata) -> Self {
+        let mut seen = HashSet::new();
+        let shared_outputs = metadata
+            .workspace_packages()
+            .into_iter()
+            .flat_map(|package| &package.targets)
+            .filter_map(|target| Some(TargetType::from_cargo(target)?.output_key(&target.name)))
+            .filter(|key| !seen.insert(key.clone()))
+            .collect();
+        let mut workspace_hash = DefaultHasher::new();
+        metadata.workspace_root.hash(&mut workspace_hash);
+        let collision_cache = metadata
+            .target_directory
+            .as_std_path()
+            .join("brp-launch")
+            .join(format!("{:016x}", workspace_hash.finish()));
+        Self {
+            metadata,
+            shared_outputs,
+            collision_cache,
+        }
     }
 }

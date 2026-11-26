@@ -1,6 +1,6 @@
 Launches Bevy apps or examples using unified target search.
 
-Searches for the target by name across both apps and examples. Use search_order to control priority:
+Searches for the target by name across apps and examples, including binary targets explicitly registered in `[package.metadata.bevy_brp].apps`. Use search_order to control priority:
 - "app" (default): searches apps first, then examples
 - "example": searches examples first, then apps
 
@@ -22,9 +22,9 @@ Port configuration:
 - Each instance includes `pid`, `log_file`, `port`, `render_port`, `main_listening`, and `render_listening`. The listening fields indicate confirmed BRP discovery on the instance's ports during startup. An explicit pair or multi-instance launch requires both endpoints to respond within the startup grace period. A single launch with only `port` or neither field can report an unconfirmed endpoint.
 
 Notes:
-- App launches use a lock-free freshness check before invoking Cargo. If the binary appears up to date, the tool launches it directly without running cargo build. If the binary is missing, stale, or freshness cannot be determined confidently, the tool runs cargo build first.
+- App launches use a lock-free freshness check when the output path belongs to a single Cargo target. The tool invokes Cargo if the binary is missing or stale, if its freshness is unknown, or if multiple workspace targets share the path.
 - Example launches always invoke cargo build before running, so cargo decides whether the example is already fresh or needs rebuilding. The freshness short-circuit above applies to apps only.
-- Builds run from the workspace root with --workspace so they reuse the artifacts a workspace build already produced. A target name defined by more than one member of the same workspace is built with only its own package selected instead, because cargo applies --bin and --example to every package it selects.
+- Builds run from the workspace root with --workspace so they reuse the artifacts a workspace build already produced. If multiple Cargo targets can write to the same path, the tool builds the selected package and target in a private Cargo target directory and starts the executable reported by Cargo. Collision detection includes all workspace members.
 - Optional `path` parameter overrides the default search roots (MCP workspace roots / cwd). When provided, only the specified OS-level directory is searched for Bevy projects.
 - If multiple targets with the same name exist in different packages, you must specify the package_name parameter.
 - `package_name` matches the `package_name` field returned by `brp_list_bevy` for exact disambiguation.

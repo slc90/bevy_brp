@@ -1,12 +1,13 @@
 Discovers all Bevy apps and examples declared in workspace Cargo.toml files via cargo metadata.
+A package that delegates Bevy setup to a library can list its binary target names in an `apps` array under `[package.metadata.bevy_brp]`.
 Targets not registered in Cargo.toml are not included.
 Returns target names, kind (app or example), BRP support level, build profiles, build status, and paths.
 Each item includes a `kind` field ("app" or "example") and `brp_level` field:
   - "extras": Uses `BrpExtrasPlugin` or `BrpRuntimePlugin` (full support: screenshots, input simulation, clean shutdown, etc.)
   - "brp_only": Uses `RemotePlugin` only (core BRP queries and mutations, no extras methods)
   - "none": No BRP support detected
-For bins, `brp_level` reflects whether the package's src/ tree imports recognized BRP plugins and the target source file imports one.
-For examples, the individual source file is checked for BRP plugin imports.
+For examples and explicitly listed binaries, `brp_level` checks the target source file for recognized BRP plugin imports.
+Other binaries also require package-level BRP evidence.
 This is a source-code estimate, not a live capability probe.
 Optional `path` parameter overrides the default search roots (MCP workspace roots / cwd). When provided, only the specified OS-level directory is searched for Bevy projects.
 When the search root contains multiple packages and the target package directory is already known, scope discovery to it, for example `{"path":"tests/test-app"}` from this repository root. This returns only targets in that search directory. A single-package search root may already return just one target, so a narrower path need not save bytes. When the target location is unknown, omit `path` or use the workspace root so other packages remain discoverable.

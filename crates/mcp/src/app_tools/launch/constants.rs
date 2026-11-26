@@ -1,11 +1,6 @@
 // cargo arguments
 pub(super) const CARGO_RELEASE_FLAG: &str = "--release";
 
-// cargo build json fields
-pub(super) const BUILD_OUTPUT_FRESH_FIELD: &str = "fresh";
-pub(super) const BUILD_OUTPUT_NAME_FIELD: &str = "name";
-pub(super) const BUILD_OUTPUT_TARGET_FIELD: &str = "target";
-
 // error details
 pub(super) const ERROR_CHAIN_FIELD: &str = "error_chain";
 pub(super) const ERROR_FIELD: &str = "error";

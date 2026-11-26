@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::marker::PhantomData;
+use std::path::Path;
 use std::process::Command;
 use std::time::Instant;
 
@@ -8,8 +9,8 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use super::build;
-use super::build::BuildScope;
 use super::build::BuildState;
+use super::build::BuiltTarget;
 use super::build_freshness;
 use super::build_freshness::FreshnessCheckResult;
 use super::ports::PortPair;
@@ -140,12 +141,12 @@ pub(super) trait LaunchConfigTrait {
 
     fn package(&self) -> Option<&str>;
 
-    fn build_command(&self, target: &BevyTarget, override_ports: Option<PortPair>) -> Command;
+    fn build_command(&self, executable: &Path, override_ports: Option<PortPair>) -> Command;
 
     fn extra_log_info(&self, target: &BevyTarget) -> Option<String>;
 
-    fn ensure_built(&self, target: &BevyTarget, scope: BuildScope) -> Result<BuildState> {
-        if Self::TARGET_TYPE == TargetType::App {
+    fn ensure_built(&self, target: &BevyTarget) -> Result<BuiltTarget> {
+        if Self::TARGET_TYPE == TargetType::App && target.isolated_target_dir.is_none() {
             let freshness = build_freshness::check_target_freshness(target, self.profile());
             match &freshness {
                 FreshnessCheckResult::Fresh => {}
@@ -161,19 +162,14 @@ pub(super) trait LaunchConfigTrait {
                 ),
             }
             if matches!(freshness, FreshnessCheckResult::Fresh) {
-                return Ok(BuildState::Fresh);
+                return Ok(BuiltTarget {
+                    executable: target.get_binary_path(self.profile()),
+                    state: BuildState::Fresh,
+                });
             }
         }
 
-        let manifest_dir = build::validate_manifest_directory(&target.manifest)?;
-        build::run_cargo_build(
-            self.target(),
-            Self::TARGET_TYPE,
-            self.profile(),
-            manifest_dir,
-            &target.workspace_root,
-            scope,
-        )
+        build::run_cargo_build(target, self.profile())
     }
 }
 
@@ -205,9 +201,9 @@ impl LaunchConfigTrait for LaunchConfig<App> {
         self.package.as_deref()
     }
 
-    fn build_command(&self, target: &BevyTarget, override_ports: Option<PortPair>) -> Command {
+    fn build_command(&self, executable: &Path, override_ports: Option<PortPair>) -> Command {
         build::build_app_command(
-            &target.get_binary_path(self.profile()),
+            executable,
             override_ports,
             self.env.as_ref(),
             self.arguments.as_deref(),
@@ -248,9 +244,9 @@ impl LaunchConfigTrait for LaunchConfig<Example> {
         self.package.as_deref()
     }
 
-    fn build_command(&self, target: &BevyTarget, override_ports: Option<PortPair>) -> Command {
+    fn build_command(&self, executable: &Path, override_ports: Option<PortPair>) -> Command {
         build::build_app_command(
-            &target.get_binary_path(self.profile()),
+            executable,
             override_ports,
             self.env.as_ref(),
             self.arguments.as_deref(),
@@ -267,6 +263,7 @@ pub(super) fn build_launch_result<T: LaunchConfigTrait>(
     instance_count: usize,
     config: &T,
     target: &BevyTarget,
+    executable: &Path,
 ) -> LaunchResult {
     let workspace = target
         .workspace_root
@@ -294,12 +291,7 @@ pub(super) fn build_launch_result<T: LaunchConfigTrait>(
         } else {
             None
         },
-        binary_path: Some(
-            target
-                .get_binary_path(config.profile())
-                .display()
-                .to_string(),
-        ),
+        binary_path: Some(executable.display().to_string()),
         launched_as: Some(T::TARGET_TYPE.to_string()),
         duplicate_paths: None,
         message_template: Some(message),

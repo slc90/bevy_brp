@@ -11,7 +11,6 @@ use tracing::debug;
 use tracing::warn;
 
 use super::build;
-use super::build::BuildScope;
 use super::build::BuildState;
 use super::config;
 use super::config::LaunchParams;
@@ -59,11 +58,12 @@ impl PendingLaunch {
 fn prepare_launch_environment<T: config::LaunchConfigTrait>(
     config: &T,
     target: &BevyTarget,
+    executable: &Path,
     ports: PortPair,
     override_env: bool,
 ) -> Result<(Command, PathBuf, PathBuf, File)> {
     let manifest_dir = build::validate_manifest_directory(&target.manifest)?;
-    let command = config.build_command(target, override_env.then_some(ports));
+    let command = config.build_command(executable, override_env.then_some(ports));
     let (log_file_path, log_file_for_redirect) = build::setup_launch_logging(
         config.target(),
         T::TARGET_TYPE,
@@ -85,6 +85,7 @@ fn prepare_launch_environment<T: config::LaunchConfigTrait>(
 fn launch_instances<T: config::LaunchConfigTrait>(
     config: &T,
     target: &BevyTarget,
+    executable: &Path,
     port_plan: &LaunchPorts,
     request: &Sender<()>,
 ) -> Result<Vec<StartingInstance>> {
@@ -95,7 +96,7 @@ fn launch_instances<T: config::LaunchConfigTrait>(
             return Err(Error::tool_call_failed("Launch cancelled").into());
         }
         let (command, manifest_dir, log_file, log_file_for_redirect) =
-            prepare_launch_environment(config, target, ports, port_plan.override_env)?;
+            prepare_launch_environment(config, target, executable, ports, port_plan.override_env)?;
         let child = process::spawn_app_process(
             &command,
             &manifest_dir,
@@ -224,31 +225,11 @@ fn launch_target_with_cached<T: config::LaunchConfigTrait>(
 ) -> Result<PendingLaunch> {
     let launch_start = Instant::now();
 
-    // cargo applies --bin and --example to every package it selects, so a name that
-    // two members of one workspace both define would build both and write them to a
-    // single output path. Record each candidate's workspace before the lookup below
-    // consumes the list, then keep the build package-scoped when the name repeats.
-    let candidate_workspaces: Vec<PathBuf> = cached_targets
-        .iter()
-        .map(|candidate| candidate.workspace_root.clone())
-        .collect();
-
     let target = find_and_validate_target_with_cache(config, search_paths, cached_targets)
         .map_err(handle_target_discovery_error)?;
 
-    let shares_name_in_workspace = candidate_workspaces
-        .iter()
-        .filter(|workspace| **workspace == target.workspace_root)
-        .count()
-        > 1;
-    let build_scope = if shares_name_in_workspace {
-        BuildScope::Package
-    } else {
-        BuildScope::Workspace
-    };
-
-    let build_state = config.ensure_built(&target, build_scope)?;
-    match build_state {
+    let built = config.ensure_built(&target)?;
+    match built.state {
         BuildState::Fresh => debug!("Target was already up to date, launching immediately"),
         BuildState::Rebuilt => debug!("Target was rebuilt before launch"),
         BuildState::NotFound => {
@@ -257,8 +238,8 @@ fn launch_target_with_cached<T: config::LaunchConfigTrait>(
     }
 
     let port_check = LAUNCH_PORT_CHECK.blocking_lock();
-    let instances = launch_instances(config, &target, port_plan, request)?;
-    let result = config::build_launch_result(instances.len(), config, &target);
+    let instances = launch_instances(config, &target, &built.executable, port_plan, request)?;
+    let result = config::build_launch_result(instances.len(), config, &target, &built.executable);
     Ok(PendingLaunch {
         instances,
         result,
@@ -281,4 +262,91 @@ fn find_and_validate_target_with_cache<T: config::LaunchConfigTrait>(
         Some(cached_targets),
     )
     .map_err(Report::new)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+    use std::net::TcpListener;
+    use std::process::Command;
+
+    use serde_json::json;
+    use tokio::sync::oneshot;
+
+    use super::launch_bevy_target;
+
+    #[tokio::test]
+    async fn launches_registered_package_after_another_package_builds_the_same_binary() {
+        let root = tempfile::tempdir().expect("temporary Cargo workspace");
+        let marker = root.path().join("executed");
+        let app = root.path().join("src");
+        let helper = root.path().join("helper");
+        fs::create_dir_all(&app).expect("application source directory");
+        fs::create_dir_all(helper.join("src")).expect("helper source directory");
+        fs::write(
+            root.path().join("Cargo.toml"),
+            concat!(
+                "[package]\nname = 'registered'\nversion = '0.1.0'\nedition = '2024'\n",
+                "[package.metadata.bevy_brp]\napps = ['brp-shared-target']\n",
+                "[workspace]\nresolver = '3'\nmembers = ['helper']\ndefault-members = ['helper']\n",
+                "[[bin]]\nname = 'brp-shared-target'\npath = 'src/main.rs'\n",
+            ),
+        )
+        .expect("workspace and application manifest");
+        fs::write(
+            helper.join("Cargo.toml"),
+            concat!(
+                "[package]\nname = 'helper'\nversion = '0.1.0'\nedition = '2024'\n",
+                "[[bin]]\nname = 'brp-shared-target'\npath = 'src/main.rs'\n",
+            ),
+        )
+        .expect("helper manifest");
+
+        for (source, package) in [(app, "registered"), (helper.join("src"), "helper")] {
+            fs::write(source.join("main.rs"), format!(
+                "fn main() {{ std::fs::write(std::env::args_os().nth(1).unwrap(), {package:?}).unwrap(); }}"
+            )).expect("binary source");
+        }
+        // Seed both Cargo fingerprints and leave the helper executable in the shared output.
+        for package in ["registered", "helper"] {
+            let output = Command::new("cargo")
+                .current_dir(root.path())
+                .args(["build", "--package", package, "--bin", "brp-shared-target"])
+                .output()
+                .expect("build fixture binary");
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+
+        let reserved =
+            [(); 2].map(|()| TcpListener::bind(("127.0.0.1", 0)).expect("reserve BRP port"));
+        let [port, render_port] = reserved
+            .each_ref()
+            .map(|socket| socket.local_addr().expect("read reserved port").port());
+        let params = serde_json::from_value(json!({
+            "target_name": "brp-shared-target",
+            "package_name": "registered",
+            "path": root.path(),
+            "port": port,
+            "render_port": render_port,
+            "args": [marker],
+        }))
+        .expect("launch parameters");
+        let (request, _connected) = oneshot::channel();
+        drop(reserved);
+        let launch =
+            tokio::task::spawn_blocking(move || launch_bevy_target(params, "debug", &request))
+                .await
+                .expect("launch task")
+                .expect("start fixture executable");
+        // The fixture exits immediately after writing the marker, without opening BRP ports.
+        assert!(launch.verify().await.is_err());
+        assert_eq!(
+            fs::read_to_string(&marker).expect("launched program's marker"),
+            "registered"
+        );
+    }
 }

@@ -63,6 +63,7 @@ mod tests {
             manifest: PathBuf::from(manifest_path),
             relative: PathBuf::new(),
             source: PathBuf::new(),
+            isolated_target_dir: None,
         }
     }
 
