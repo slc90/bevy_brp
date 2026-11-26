@@ -72,12 +72,11 @@ cargo check -p bevy_brp_mcp --locked --no-default-features
 
 任何产生代码或工程行为改动的任务，在实施和必要验证完成后都必须执行独立 Code Review。工程行为改动包括源码、测试、构建脚本、项目配置和规则文件。纯 Markdown 且不改变工程行为的修改不强制 Review。
 
-Review 流程：
+`$code-review` Skill 用于执行单轮静态审查。本仓库的 Review 轮次和结束条件以本节为准。
 
 1. 施工 Agent 完成修改和必要验证。
-2. 启动一个全新的 reviewer subagent。
-3. reviewer 必须调用 `$code-review` Skill，静态审查完整 working-tree change，只返回 findings，不修改文件。
-4. 若存在 findings，由施工 Agent 修复并完成必要验证，再启动另一个全新 reviewer 重审。
-5. 持续到 reviewer 返回 `No review findings.`。
+2. 首轮使用 `$code-review` 的 `full` 模式，静态审查完整 working-tree change。
+3. 任一轮发现问题时，施工 Agent 按 Skill 记录修复前的 Git tree 快照，修复 findings 并完成必要验证，再以 `incremental` 模式请新 reviewer 核实上一轮 findings 并审查修复 diff。启动消息须提供基线 ref、tree SHA 和上一轮 findings。
+4. 首轮全量审查或任一增量审查返回 `No review findings.` 即通过独立 Review。满足 `rules/git.md` 的授权和提交要求后即可提交。
 
-每轮必须使用新的 reviewer，不得复用旧 reviewer 上下文，也不得由施工 Agent 自审代替。缺少 `$code-review` Skill、subagent 能力或 target collection 条件时，必须明确报告阻塞，不能把 Review 标为完成。
+每轮都必须用 `fork_turns="none"` 启动全新的 reviewer subagent。通过启动消息提供仓库路径、任务范围和审查模式，要求 reviewer 调用 `$code-review` Skill 并仅返回审查结果。施工 Agent 不得代替独立 reviewer，reviewer 不得修改工作区。缺少 `$code-review` Skill、subagent 能力或 target collection 条件时，必须明确报告阻塞，不能把 Review 标为完成。
